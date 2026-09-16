@@ -11,8 +11,14 @@ Public Class Form2
     Private logBits As Byte = 0
     Private thread_getInfo As Threading.Thread
 
-    ' когда последний раз приходил статус: по нему видно, свежие данные на экране или нет
+    ' пока настройки раскладываются по полям, их события не считаем правкой
     Private updatingFields As Boolean = False
+
+    ' незаконченная строка журнала ждёт продолжения
+    Private logTail As String = ""
+    Private Const LogLimit As Integer = 500000
+
+    ' когда последний раз приходил статус: по нему видно, свежие данные на экране или нет
     Private lastStatus As DateTime = DateTime.MinValue
     Private Const StaleSeconds As Integer = 6
 
@@ -530,16 +536,55 @@ Public Class Form2
 
     Private Sub btnClearLog_Click(sender As Object, e As EventArgs) Handles btnClearLog.Click
         RichTextBox1.Clear()
+        logTail = ""
     End Sub
 
+    ' Журнал приходит кусками, строка может прийти не целиком: красим только
+    ' дописанные до конца строки, хвост ждёт продолжения.
     Private Sub onLogTextReceive(ByVal _str As String)
-        RichTextBox1.AppendText(_str)
+        logTail &= _str
+
+        Dim lines As String() = logTail.Split(New String() {vbCrLf, vbLf}, StringSplitOptions.None)
+
+        For i As Integer = 0 To lines.Length - 2
+            AppendLogLine(lines(i))
+        Next
+
+        logTail = lines(lines.Length - 1)
 
         If chAutoScroll.Checked Then
             RichTextBox1.SelectionStart = RichTextBox1.TextLength
             RichTextBox1.ScrollToCaret()
         End If
     End Sub
+
+    Private Sub AppendLogLine(ByVal line As String)
+        ' журнал за долгий прогон вырастает на сотни тысяч знаков и начинает тормозить
+        If RichTextBox1.TextLength > LogLimit Then
+            RichTextBox1.Clear()
+            RichTextBox1.SelectionColor = Theme.TextMuted
+            RichTextBox1.AppendText("--- журнал очищен: он вырос больше " & LogLimit & " знаков ---" & vbCrLf)
+        End If
+
+        RichTextBox1.SelectionStart = RichTextBox1.TextLength
+        RichTextBox1.SelectionLength = 0
+        RichTextBox1.SelectionColor = LogColor(line)
+        RichTextBox1.AppendText(line & vbCrLf)
+    End Sub
+
+    ' Цвет по заметным признакам в строке. Красным - только ошибки.
+    Private Function LogColor(ByVal line As String) As Color
+        Dim l As String = line.ToUpperInvariant()
+
+        If l.Contains("ERROR") OrElse l.Contains("FAIL") OrElse l.Contains("ОШИБ") Then Return Theme.Danger
+        If l.Contains("WARN") OrElse l.Contains("ПРЕДУПРЕ") Then Return Theme.Warning
+
+        ' переписка с модемом - подробность, а не событие
+        Dim t As String = line.TrimStart()
+        If t.StartsWith("AT") OrElse t.StartsWith("+") Then Return Theme.TextMuted
+
+        Return Theme.TextMain
+    End Function
 
     Private Sub Label16_Click(sender As Object, e As EventArgs) Handles Label16.Click
         opros.SetTime(DateTimeToUnixTimestamp(Now))

@@ -89,6 +89,10 @@ Partial Public Class clOpros
             If rejim = eRejim.Work AndAlso Not _stopGetStatus Then
                 demoTick += 1
                 RaiseEvent onStatus(DemoStatus())
+
+                If (demoTick Mod 4) = 0 Then
+                    Comport.DemoReceive(DemoLogLine())
+                End If
             End If
         End While
 
@@ -119,6 +123,23 @@ Partial Public Class clOpros
         s.moduleType = eModuleType.M_SLM336
 
         Return s
+    End Function
+
+    ' Строки журнала, похожие на настоящие: обычное событие, переписка с
+    ' модемом, предупреждение и ошибка - чтобы было видно разметку цветом.
+    Private ReadOnly demoLog As String() = {
+        "USER: status sent, conn=1",
+        "AT+CSQ",
+        "+CSQ: 24,99",
+        "GSM: registered in network",
+        "AT+QIOPEN=1,0,""TCP"",""87.244.4.92"",15010,0,1",
+        "USER: server answer 24",
+        "GSM: WARN low signal level",
+        "USER: ERROR not answer to status"
+    }
+
+    Private Function DemoLogLine() As String
+        Return demoLog((demoTick \ 4) Mod demoLog.Length) & vbCrLf
     End Function
 
     ' Настройки, какие обычно стоят на стендовой плате.

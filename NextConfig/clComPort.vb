@@ -9,6 +9,12 @@ Public Class ClComPort
     Public Event ReceiveBytes(ByVal buffer As Byte())
     Public Event ErrorPort()
 
+    ' Строка журнала в демонстрационном режиме: порт закрыт, а показать
+    ' работу журнала надо.
+    Friend Sub DemoReceive(ByVal line As String)
+        If Demo.IsOn Then RaiseEvent ReceiveComand(line)
+    End Sub
+
     Private ReadOnly log As New ClLog
     Private WithEvents _port As SerialPort
     Public EnableEventReceived As Boolean = False
