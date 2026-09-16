@@ -620,14 +620,16 @@ Public Class Form2
 
     ' Цвет по заметным признакам в строке. Красным - только ошибки.
     Private Function LogColor(ByVal line As String) As Color
-        Dim l As String = line.ToUpperInvariant()
+        Dim t As String = line.Trim()
+        Dim l As String = t.ToUpperInvariant()
 
         If l.Contains("ERROR") OrElse l.Contains("FAIL") OrElse l.Contains("ОШИБ") Then Return Theme.Danger
         If l.Contains("WARN") OrElse l.Contains("ПРЕДУПРЕ") Then Return Theme.Warning
 
-        ' переписка с модемом - подробность, а не событие
-        Dim t As String = line.TrimStart()
-        If t.StartsWith("AT") OrElse t.StartsWith("+") Then Return Theme.TextMuted
+        ' переписка с модемом - подробность, а не событие: команды, ответы,
+        ' незапрошенные сообщения модуля и разделители
+        If t.StartsWith("+") OrElse t.StartsWith(">") OrElse t.StartsWith("<") OrElse
+           t.StartsWith("AT") OrElse t.StartsWith("-----") OrElse l = "OK" Then Return Theme.TextMuted
 
         Return Theme.TextMain
     End Function
