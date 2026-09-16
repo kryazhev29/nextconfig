@@ -90,6 +90,12 @@
     <Compile Include="Form2.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="frmBoot.Designer.vb">
+      <DependentUpon>frmBoot.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmBoot.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="frmFW.Designer.vb">
       <DependentUpon>frmFW.vb</DependentUpon>
     </Compile>

@@ -15,6 +15,11 @@ Public Class frmFW
     Private getBlock As Boolean = False
     Private nBlock As Integer
 
+    ' метка платы в образе: вектор 8, 0x4857 и номер HW в младшем байте
+    Private Const HW_MARKER_OFFSET As Integer = &H20
+    Private Const HW_MARKER_TAG As UInt32 = &H48570000UI
+    Private Const MAX_BLOCK_TRIES As Integer = 5
+
     Private Delegate Sub delegate_onReaded(ByVal readed As Integer, ByVal percent As Byte)
 
     Public Sub New(ByVal _file As String, ByVal _opros As clOpros)
@@ -56,6 +61,112 @@ Public Class frmFW
         Me.Close()
     End Sub
 
+    ' Образ дополняется байтами 0xFF до кратного 4: контроллер считает контрольную
+    ' сумму по 4-байтным словам и отвергает размер, не кратный 4.
+    Private Shared Function PadImage(ByVal data As Byte()) As Byte()
+        Dim tail As Integer = data.Length Mod 4
+
+        If tail = 0 Then
+            Return data
+        End If
+
+        Dim padded(data.Length + (4 - tail) - 1) As Byte
+
+        For i As Integer = 0 To padded.Length - 1
+            padded(i) = If(i < data.Length, data(i), CByte(&HFF))
+        Next
+
+        Return padded
+    End Function
+
+    ' Блок команды 20 всегда ровно 1024 байта, хвост последнего добивается 0xFF.
+    Private Shared Function BlockOf(ByVal image As Byte(), ByVal index As Integer) As Byte()
+        Dim block(1023) As Byte
+        Dim offset As Integer = index * 1024
+
+        For i As Integer = 0 To 1023
+            block(i) = If(offset + i < image.Length, image(offset + i), CByte(&HFF))
+        Next
+
+        Return block
+    End Function
+
+    ' Контрольная сумма как у аппаратного CRC контроллера: по 4-байтным словам.
+    Private Shared Function ImageCrc(ByVal image As Byte()) As UInt32
+        Return clOpros.Crc32Stm(image)
+    End Function
+
+    ' Метка платы в зарезервированном векторе 8 образа: 0x4857 и номер HW в младшем байте.
+    ' Образы, собранные до появления метки, её не имеют — возвращаем -1.
+    Private Shared Function BoardMarker(ByVal image As Byte()) As Integer
+        If image.Length < HW_MARKER_OFFSET + 4 Then
+            Return -1
+        End If
+
+        Dim mark As UInt32 = BitConverter.ToUInt32(image, HW_MARKER_OFFSET)
+
+        If (mark And &HFFFFFF00UI) <> HW_MARKER_TAG Then
+            Return -1
+        End If
+
+        Return CInt(mark And &HFFUI)
+    End Function
+
+    Private Sub ShowMsg(ByVal caption As String, ByVal text As String)
+        Using f As New frmInfo(caption, text)
+            f.ShowDialog()
+        End Using
+    End Sub
+
+    Private Sub CloseOk()
+        Me.BeginInvoke(New Action(Sub()
+                                      Me.DialogResult = DialogResult.OK
+                                      Me.Close()
+                                  End Sub))
+    End Sub
+
+    ' Ответ контроллера на команду 19 (лист «Протокол», D532).
+    Private Shared Function StartAnswerText(ByVal rez As clOpros.eCmdAnswer) As String
+        Select Case rez
+            Case clOpros.eCmdAnswer.CMD_PARAMERROR
+                Return "Ошибка в параметрах команды!"
+            Case clOpros.eCmdAnswer.CMD_RUNERROR
+                Return "Контроллер занят: идёт обновление, пробный запуск новой прошивки или замена загрузчика."
+            Case clOpros.eCmdAnswer.CMD_UNDEFRESULT
+                Return "Контроллер не ответил на команду обновления!"
+            Case clOpros.eCmdAnswer.CMD_GETPASSWORD
+                Return "Требуется ввод пароля!"
+            Case clOpros.eCmdAnswer.CMD_ROLLBACKRUN
+                Return "Контроллер запустил откат на предыдущую прошивку."
+            Case clOpros.eCmdAnswer.CMD_CRCERROR
+                Return "Ошибка в контрольной сумме!"
+            Case clOpros.eCmdAnswer.CMD_UNDEFINE
+                Return "Команда не поддерживается!"
+            Case Else
+                Return "Контроллер отказал, код " & CInt(rez) & "."
+        End Select
+    End Function
+
+    ' Код хода обновления в команде 4 (лист «Протокол», D473).
+    Private Shared Function ProgressText(ByVal percent As Byte) As String
+        Select Case percent
+            Case 249
+                Return "Обновление не уложилось в отведённый час."
+            Case 250
+                Return "Прошивка собрана для другой платы!"
+            Case 251
+                Return "Блоки перестали приходить, обновление прекращено."
+            Case 252
+                Return "Не верная контрольная сумма!"
+            Case 253
+                Return "В контроллере нет резервной копии прошивки."
+            Case 254
+                Return "Прошивка с таким номером уже установлена."
+            Case Else
+                Return "Сбой обновления, код " & percent & "."
+        End Select
+    End Function
+
     Private Sub tWriteFile()
         Dim fwInfo As New clOpros.s_fwinfo
         Dim slist As String() = fName.Substring(fName.LastIndexOf("\") + 1).Split(".")
@@ -63,127 +174,92 @@ Public Class frmFW
         '[версия HW].[Версия FW].[Билд таймштамп в секундах от 01.01.1970].bin
 
         If slist.Length <> 4 Then
+            ShowMsg("Ошибка!", "Имя файла должно быть вида HW.FW.БИЛД.bin")
             running = False
             Exit Sub
         End If
 
-        fwInfo.hard = UInt16.Parse(slist(0))
-        fwInfo.version = UInt16.Parse(slist(1))
-        fwInfo.build = UInt32.Parse(slist(2))
-        fwInfo.size = fSize
-        fwInfo.crc = 0
-
-        fwInfo.nBlocks = fSize / 1024
-        If (fwInfo.nBlocks * 1024) < fSize Then
-            fwInfo.nBlocks += 1
-        End If
-
-        fReaded = 0
         running = True
 
         Try
-            'создаем объект BinaryReader
-            Using reader As New BinaryReader(File.Open(fName, FileMode.Open))
+            fwInfo.hard = UInt16.Parse(slist(0))
+            fwInfo.version = UInt16.Parse(slist(1))
+            fwInfo.build = UInt32.Parse(slist(2))
 
-                ' рассчитываем контрольную сумму
-                Dim crc As UInt32 = UInt32.MaxValue
-                For i As Integer = 0 To fSize - 1 Step 4
-                    crc = Crc32(crc, reader.ReadUInt32())
-                Next
+            Dim image As Byte() = PadImage(File.ReadAllBytes(fName))
+            Dim board As Integer = BoardMarker(image)
 
-                fwInfo.crc = crc
+            ' Контроллер проверит метку сам и ответит кодом 250, но лучше не начинать.
+            If board >= 0 AndAlso board <> fwInfo.hard Then
+                ShowMsg("Ошибка!", "Образ собран для платы " & board & ", а в имени файла указана " & fwInfo.hard & "!")
+                running = False
+                Exit Sub
+            End If
 
-                Dim buf As Byte()
-                Dim rez As clOpros.eCmdAnswer = opros.StartUpdate(fwInfo)
-                Dim percent As Byte
+            fSize = image.Length
+            fwInfo.size = CUInt(image.Length)
+            fwInfo.crc = ImageCrc(image)
+            fwInfo.nBlocks = CUShort((image.Length + 1023) \ 1024)
 
-                'AddHandler Comport.ReceiveBytes, AddressOf onBytesReceive
+            fReaded = 0
 
-                ' если без ошибок запустили процесс
-                If rez = clOpros.eCmdAnswer.CMD_SUCCESS Then
-                    nBlock = 0
-                    reader.BaseStream.Seek(0, SeekOrigin.Begin)
-                    While Not break
-                        buf = reader.ReadBytes(1024)
-                        fReaded += buf.Length
-                        'fw_onRead(fReaded)
-                        If opros.WriteFWBlock(nBlock, buf, percent) = clOpros.eCmdAnswer.CMD_SUCCESS Then
-                            nBlock += 1
-                        End If
+            Dim rez As clOpros.eCmdAnswer = opros.StartUpdate(fwInfo)
 
-                        Select Case percent
-                            Case 248
-                                Using f As New frmInfo("Ошибка!", "Обновление завершено!")
-                                    f.ShowDialog()
-                                End Using
-                                Me.DialogResult = DialogResult.OK
-                                Me.Close()
-                            Case 252
-                                Using f As New frmInfo("Ошибка!", "Не верная контрольная сумма!")
-                                    f.ShowDialog()
-                                End Using
-                            Case Else
-                                fw_onRead(fReaded, percent)
-                        End Select
+            ' 0 отвечает контроллер по USB, 5 — по каналу сервера; и то и другое значит
+            ' «готов принять прошивку».
+            If rez <> clOpros.eCmdAnswer.CMD_SUCCESS AndAlso rez <> clOpros.eCmdAnswer.CMD_READYTOUPDATE Then
+                ShowMsg("Ошибка!", StartAnswerText(rez))
+                running = False
+                Exit Sub
+            End If
 
-                        If buf.Length <> 1024 Then
-                            Exit While
-                        End If
+            Dim percent As Byte
+            Dim tries As Integer = 0
+            Dim done As Boolean = False
 
-                        'If getBlock Then
-                        '    reader.BaseStream.Seek(nBlock * 1024, SeekOrigin.Begin)
-                        '    buf = reader.ReadBytes(1024)
-                        '    fReaded += buf.Length
-                        '    fw_onRead(fReaded)
-                        '    opros.WriteFWBlock(nBlock, buf)
+            nBlock = 0
 
-                        '    If buf.Length <> 1024 Then
-                        '        Exit While
-                        '    End If
-                        '    getBlock = False
-                        'End If
+            While Not break AndAlso nBlock < fwInfo.nBlocks
 
-                        Threading.Thread.Sleep(10)
-                    End While
+                ' Блок читается по своему смещению: после неудачи повторяется тот же блок.
+                If opros.WriteFWBlock(CUShort(nBlock), BlockOf(image, nBlock), percent) = clOpros.eCmdAnswer.CMD_SUCCESS Then
+                    nBlock += 1
+                    fReaded = Math.Min(nBlock * 1024, fSize)
+                    tries = 0
                 Else
-                    Dim str As String = ""
-
-                    Select Case rez
-                        Case clOpros.eCmdAnswer.CMD_PARAMERROR
-                            str = "Ошибка в параметре!"
-                        Case clOpros.eCmdAnswer.CMD_RUNERROR
-                            str = "Ошибка выполнения!"
-                        Case clOpros.eCmdAnswer.CMD_UNDEFRESULT
-                            str = "Не верный результат!"
-                        Case clOpros.eCmdAnswer.CMD_GETPASSWORD
-                            str = "Требуется ввод пароля!"
-                        Case clOpros.eCmdAnswer.CMD_RUNNING
-                            str = "Обновление уже выполняется!"
-                        Case clOpros.eCmdAnswer.CMD_CRCERROR
-                            str = "Ошибка в контрольной сумме!"
-                        Case clOpros.eCmdAnswer.CMD_UNDEFINE
-                            str = "Команда не поддерживается!"
-                        Case clOpros.eCmdAnswer.CMD_GOTOBOOLOADER
-                            str = "Обновление завершено!"
-                    End Select
-
-                    Using f As New frmInfo("Ошибка!", str)
-                        f.ShowDialog()
-                    End Using
-
-                    If rez = clOpros.eCmdAnswer.CMD_GOTOBOOLOADER Then
-                        Me.DialogResult = DialogResult.OK
-                        Me.Close()
-                    End If
+                    tries += 1
                 End If
-            End Using
+
+                Select Case percent
+                    Case 248
+                        ShowMsg("Обновление", "Обновление завершено!")
+                        done = True
+                        Exit While
+                    Case 249, 250, 251, 252, 253, 254
+                        ShowMsg("Ошибка!", ProgressText(percent))
+                        Exit While
+                    Case 255
+                        ' блок отклонён, обновление продолжается — повторяем тот же блок
+                    Case Else
+                        fw_onRead(fReaded, percent)
+                End Select
+
+                If tries >= MAX_BLOCK_TRIES Then
+                    ShowMsg("Ошибка!", "Блок " & nBlock & " не принят " & MAX_BLOCK_TRIES & " раз подряд. Обновление прервано.")
+                    Exit While
+                End If
+
+                Threading.Thread.Sleep(10)
+            End While
+
+            If done Then
+                CloseOk()
+            End If
+
         Catch ex As Exception
-            Using f As New frmInfo("Ошибка!", ex.Message)
-                f.ShowDialog()
-            End Using
+            ShowMsg("Ошибка!", ex.Message)
         End Try
 
-        'RemoveHandler Comport.ReceiveBytes, AddressOf onBytesReceive
         running = False
     End Sub
 
@@ -202,21 +278,9 @@ Public Class frmFW
     Private Sub refOnReaded(ByVal readed As Integer, ByVal percent As Byte)
         Label1.Text = readed & "/" & fSize
         'ProgressBar1.Value = (readed * 100) / fSize
-        ProgressBar1.Value = percent
+        If percent <= 100 Then
+            ProgressBar1.Value = percent
+        End If
     End Sub
-
-    Private Function CRC32(ByVal crc As UInt32, ByVal data As UInt32) As UInt32
-        crc = crc Xor data
-
-        For i As Integer = 0 To 31
-            If crc And &H80000000 Then
-                crc = (crc << 1) Xor &H4C11DB7
-            Else
-                crc <<= 1
-            End If
-        Next
-
-        Return crc
-    End Function
 
 End Class

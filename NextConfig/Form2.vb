@@ -4,7 +4,7 @@ Imports System.IO
 Public Class Form2
 
     Private WithEvents opros As clOpros
-    Private WithEvents tmr1 As New Windows.Forms.Timer
+    Private WithEvents tmr1 As New System.Windows.Forms.Timer
     Private status As clOpros.s_status
     Private config As clOpros.s_config
     Private pinCode As Integer
@@ -127,10 +127,23 @@ Public Class Form2
     End Sub
 
     Private Sub btnUpdateBoot_Click(sender As Object, e As EventArgs) Handles btnUpdateBoot.Click
-        OpenFileDialog1.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
+        OpenFileDialog1.Filter = "Файлы загрузчика (*.bin)|*.bin|Все файлы (*.*)|*.*"
         OpenFileDialog1.FileName = "Boot_xx.bin"
         If OpenFileDialog1.ShowDialog = DialogResult.OK Then
-            '777
+            ' опрос статуса на время замены не нужен: порт занимает команда 110
+            tmr1.Enabled = False
+            opros.StopGetStatus(True)
+
+            Using f As New frmBoot(OpenFileDialog1.FileName, opros, status.hw_version)
+                If f.ShowDialog() = DialogResult.OK Then
+                    ' контроллер перезагружается с новым загрузчиком, связь потеряна
+                    Me.Close()
+                    Exit Sub
+                End If
+            End Using
+
+            opros.StopGetStatus(False)
+            tmr1.Enabled = True
         End If
     End Sub
 
