@@ -222,11 +222,11 @@ Partial Class Form2
         '
         Me.Button2.BackColor = System.Drawing.Color.DodgerBlue
         Me.Button2.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.Button2.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.Button2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Button2.ForeColor = System.Drawing.Color.White
-        Me.Button2.Location = New System.Drawing.Point(202, 633)
+        Me.Button2.Location = New System.Drawing.Point(202, 631)
         Me.Button2.Name = "Button2"
-        Me.Button2.Size = New System.Drawing.Size(98, 28)
+        Me.Button2.Size = New System.Drawing.Size(98, 32)
         Me.Button2.TabIndex = 52
         Me.Button2.Text = "Copy"
         Me.Button2.UseVisualStyleBackColor = False
@@ -294,11 +294,11 @@ Partial Class Form2
         '
         Me.btnClearLog.BackColor = System.Drawing.Color.Red
         Me.btnClearLog.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnClearLog.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnClearLog.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnClearLog.ForeColor = System.Drawing.Color.White
-        Me.btnClearLog.Location = New System.Drawing.Point(166, 670)
+        Me.btnClearLog.Location = New System.Drawing.Point(155, 670)
         Me.btnClearLog.Name = "btnClearLog"
-        Me.btnClearLog.Size = New System.Drawing.Size(134, 48)
+        Me.btnClearLog.Size = New System.Drawing.Size(148, 48)
         Me.btnClearLog.TabIndex = 46
         Me.btnClearLog.Text = "Очистить"
         Me.btnClearLog.UseVisualStyleBackColor = False
@@ -527,24 +527,24 @@ Partial Class Form2
         '
         Me.btnFactory.BackColor = System.Drawing.Color.Red
         Me.btnFactory.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnFactory.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnFactory.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnFactory.ForeColor = System.Drawing.Color.White
-        Me.btnFactory.Location = New System.Drawing.Point(408, 185)
+        Me.btnFactory.Location = New System.Drawing.Point(477, 190)
         Me.btnFactory.Name = "btnFactory"
-        Me.btnFactory.Size = New System.Drawing.Size(209, 48)
+        Me.btnFactory.Size = New System.Drawing.Size(148, 48)
         Me.btnFactory.TabIndex = 28
-        Me.btnFactory.Text = "Сброс на заводские"
+        Me.btnFactory.Text = "Сброс на" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "заводские"
         Me.btnFactory.UseVisualStyleBackColor = False
         '
         'btnTranspMode
         '
         Me.btnTranspMode.BackColor = System.Drawing.Color.DodgerBlue
         Me.btnTranspMode.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnTranspMode.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnTranspMode.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnTranspMode.ForeColor = System.Drawing.Color.White
-        Me.btnTranspMode.Location = New System.Drawing.Point(237, 185)
+        Me.btnTranspMode.Location = New System.Drawing.Point(321, 190)
         Me.btnTranspMode.Name = "btnTranspMode"
-        Me.btnTranspMode.Size = New System.Drawing.Size(134, 48)
+        Me.btnTranspMode.Size = New System.Drawing.Size(148, 48)
         Me.btnTranspMode.TabIndex = 27
         Me.btnTranspMode.Text = "USB<->GSM"
         Me.btnTranspMode.UseVisualStyleBackColor = False
@@ -672,7 +672,7 @@ Partial Class Form2
         Me.btnUpdateFW.ForeColor = System.Drawing.Color.DodgerBlue
         Me.btnUpdateFW.Location = New System.Drawing.Point(206, 63)
         Me.btnUpdateFW.Name = "btnUpdateFW"
-        Me.btnUpdateFW.Size = New System.Drawing.Size(80, 16)
+        Me.btnUpdateFW.Size = New System.Drawing.Size(100, 16)
         Me.btnUpdateFW.TabIndex = 16
         Me.btnUpdateFW.Text = "Обновить"
         '
@@ -684,9 +684,9 @@ Partial Class Form2
         Me.btnUpdateBoot.ForeColor = System.Drawing.Color.DodgerBlue
         Me.btnUpdateBoot.Location = New System.Drawing.Point(206, 90)
         Me.btnUpdateBoot.Name = "btnUpdateBoot"
-        Me.btnUpdateBoot.Size = New System.Drawing.Size(80, 16)
+        Me.btnUpdateBoot.Size = New System.Drawing.Size(100, 16)
         Me.btnUpdateBoot.TabIndex = 15
-        Me.btnUpdateBoot.Text = "Обновить"
+        Me.btnUpdateBoot.Text = "Заменить"
         '
         'btnTestOUT2
         '
@@ -922,13 +922,13 @@ Partial Class Form2
         '
         'Button1
         '
-        Me.Button1.BackColor = System.Drawing.Color.LimeGreen
+        Me.Button1.BackColor = System.Drawing.Color.DodgerBlue
         Me.Button1.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.Button1.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.Button1.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Button1.ForeColor = System.Drawing.Color.White
-        Me.Button1.Location = New System.Drawing.Point(220, 66)
+        Me.Button1.Location = New System.Drawing.Point(165, 66)
         Me.Button1.Name = "Button1"
-        Me.Button1.Size = New System.Drawing.Size(98, 48)
+        Me.Button1.Size = New System.Drawing.Size(148, 48)
         Me.Button1.TabIndex = 32
         Me.Button1.Text = "Считать"
         Me.Button1.UseVisualStyleBackColor = False
@@ -937,24 +937,24 @@ Partial Class Form2
         '
         Me.btnSave.BackColor = System.Drawing.Color.LimeGreen
         Me.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnSave.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnSave.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnSave.ForeColor = System.Drawing.Color.White
-        Me.btnSave.Location = New System.Drawing.Point(326, 66)
+        Me.btnSave.Location = New System.Drawing.Point(321, 66)
         Me.btnSave.Name = "btnSave"
-        Me.btnSave.Size = New System.Drawing.Size(134, 48)
+        Me.btnSave.Size = New System.Drawing.Size(148, 48)
         Me.btnSave.TabIndex = 31
         Me.btnSave.Text = "Сохранить"
         Me.btnSave.UseVisualStyleBackColor = False
         '
         'btnDefault
         '
-        Me.btnDefault.BackColor = System.Drawing.Color.DodgerBlue
+        Me.btnDefault.BackColor = System.Drawing.Color.Red
         Me.btnDefault.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnDefault.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnDefault.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnDefault.ForeColor = System.Drawing.Color.White
-        Me.btnDefault.Location = New System.Drawing.Point(466, 66)
+        Me.btnDefault.Location = New System.Drawing.Point(477, 66)
         Me.btnDefault.Name = "btnDefault"
-        Me.btnDefault.Size = New System.Drawing.Size(151, 48)
+        Me.btnDefault.Size = New System.Drawing.Size(148, 48)
         Me.btnDefault.TabIndex = 30
         Me.btnDefault.Text = "По умолчанию"
         Me.btnDefault.UseVisualStyleBackColor = False
@@ -1108,11 +1108,11 @@ Partial Class Form2
         '
         Me.btnClear.BackColor = System.Drawing.Color.Red
         Me.btnClear.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnClear.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnClear.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnClear.ForeColor = System.Drawing.Color.White
-        Me.btnClear.Location = New System.Drawing.Point(339, 39)
+        Me.btnClear.Location = New System.Drawing.Point(321, 45)
         Me.btnClear.Name = "btnClear"
-        Me.btnClear.Size = New System.Drawing.Size(134, 48)
+        Me.btnClear.Size = New System.Drawing.Size(148, 48)
         Me.btnClear.TabIndex = 34
         Me.btnClear.Text = "Очистить"
         Me.btnClear.UseVisualStyleBackColor = False
@@ -1121,11 +1121,11 @@ Partial Class Form2
         '
         Me.btnImport.BackColor = System.Drawing.Color.DodgerBlue
         Me.btnImport.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnImport.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnImport.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnImport.ForeColor = System.Drawing.Color.White
-        Me.btnImport.Location = New System.Drawing.Point(171, 39)
+        Me.btnImport.Location = New System.Drawing.Point(165, 45)
         Me.btnImport.Name = "btnImport"
-        Me.btnImport.Size = New System.Drawing.Size(134, 48)
+        Me.btnImport.Size = New System.Drawing.Size(148, 48)
         Me.btnImport.TabIndex = 33
         Me.btnImport.Text = "Импорт"
         Me.btnImport.UseVisualStyleBackColor = False
@@ -1134,11 +1134,11 @@ Partial Class Form2
         '
         Me.btnExport.BackColor = System.Drawing.Color.LimeGreen
         Me.btnExport.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnExport.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnExport.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnExport.ForeColor = System.Drawing.Color.White
-        Me.btnExport.Location = New System.Drawing.Point(9, 39)
+        Me.btnExport.Location = New System.Drawing.Point(9, 45)
         Me.btnExport.Name = "btnExport"
-        Me.btnExport.Size = New System.Drawing.Size(134, 48)
+        Me.btnExport.Size = New System.Drawing.Size(148, 48)
         Me.btnExport.TabIndex = 32
         Me.btnExport.Text = "Экспорт"
         Me.btnExport.UseVisualStyleBackColor = False
@@ -1236,24 +1236,24 @@ Partial Class Form2
         '
         Me.btnUnConnect.BackColor = System.Drawing.Color.Red
         Me.btnUnConnect.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnUnConnect.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnUnConnect.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnUnConnect.ForeColor = System.Drawing.Color.White
-        Me.btnUnConnect.Location = New System.Drawing.Point(379, 122)
+        Me.btnUnConnect.Location = New System.Drawing.Point(477, 122)
         Me.btnUnConnect.Name = "btnUnConnect"
-        Me.btnUnConnect.Size = New System.Drawing.Size(238, 48)
+        Me.btnUnConnect.Size = New System.Drawing.Size(148, 48)
         Me.btnUnConnect.TabIndex = 35
-        Me.btnUnConnect.Text = "Отвязать контроллер"
+        Me.btnUnConnect.Text = "Отвязать" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "контроллер"
         Me.btnUnConnect.UseVisualStyleBackColor = False
         '
         'btnUpdateObj
         '
         Me.btnUpdateObj.BackColor = System.Drawing.Color.DodgerBlue
         Me.btnUpdateObj.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnUpdateObj.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnUpdateObj.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnUpdateObj.ForeColor = System.Drawing.Color.White
         Me.btnUpdateObj.Location = New System.Drawing.Point(9, 122)
         Me.btnUpdateObj.Name = "btnUpdateObj"
-        Me.btnUpdateObj.Size = New System.Drawing.Size(134, 48)
+        Me.btnUpdateObj.Size = New System.Drawing.Size(148, 48)
         Me.btnUpdateObj.TabIndex = 34
         Me.btnUpdateObj.Text = "Обновить"
         Me.btnUpdateObj.UseVisualStyleBackColor = False
