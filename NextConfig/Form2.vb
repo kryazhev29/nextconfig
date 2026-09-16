@@ -418,14 +418,14 @@ Public Class Form2
             txtServer2.Text = .server2
             chServer1.Checked = .useServer1
             chServer2.Checked = .useserver2
-            cmbOperator.SelectedIndex = If(.opType = "", 0, 1)
             txtOperator.Text = .opType
-            txtOperator.Enabled = (.opType <> "")
             cmbVoLTE.SelectedIndex = If(.VoLTE = 0, 0, 1)
             cmbNetType.SelectedIndex = Math.Max(0, Math.Min(CInt(.netType), cmbNetType.Items.Count - 1))
         End With
 
         updatingFields = False
+
+        UpdateDirty()
 
     End Sub
 
@@ -438,14 +438,18 @@ Public Class Form2
         lblServer1Err.Text = ServerError(txtServer1.Text, True)
         lblServer2Err.Text = ServerError(txtServer2.Text, False)
 
-        If lblServer1Err.Text <> "" OrElse lblServer2Err.Text <> "" Then Return False
+        ' пустое пояснение не должно занимать строку
+        lblServer1Err.Visible = (lblServer1Err.Text <> "")
+        lblServer2Err.Visible = (lblServer2Err.Text <> "")
+
+        If lblServer1Err.Visible OrElse lblServer2Err.Visible Then Return False
 
         With config
             .server1 = txtServer1.Text.Trim()
             .server2 = txtServer2.Text.Trim()
             .useServer1 = If(chServer1.Checked, 1, 0)
             .useserver2 = If(chServer2.Checked, 1, 0)
-            .opType = If(cmbOperator.SelectedIndex = 0, "", txtOperator.Text.Trim())
+            .opType = txtOperator.Text.Trim()
             .VoLTE = CByte(Math.Max(0, cmbVoLTE.SelectedIndex))
             .netType = CType(Math.Max(0, cmbNetType.SelectedIndex), clOpros.eNetType)
         End With
@@ -476,18 +480,37 @@ Public Class Form2
 
     Private Sub Settings_Changed(sender As Object, e As EventArgs) _
         Handles txtServer1.TextChanged, txtServer2.TextChanged, txtOperator.TextChanged,
-                cmbVoLTE.SelectedIndexChanged, cmbNetType.SelectedIndexChanged
-        If updatingFields Then Exit Sub
-        SetSaveState(False)
+                cmbVoLTE.SelectedIndexChanged, cmbNetType.SelectedIndexChanged,
+                chServer1.CheckedChanged, chServer2.CheckedChanged
+        UpdateDirty()
     End Sub
 
-    Private Sub cmbOperator_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbOperator.SelectedIndexChanged
-        txtOperator.Enabled = (cmbOperator.SelectedIndex = 1)
-        If Not txtOperator.Enabled Then txtOperator.Text = ""
-
+    ' Сравниваем поля с тем, что прочитано с платы. По флагу «идёт заполнение»
+    ' полагаться нельзя: список отдаёт своё событие позже, когда вкладку
+    ' открывают в первый раз, и окно врало про несохранённые изменения.
+    Private Sub UpdateDirty()
         If updatingFields Then Exit Sub
-        SetSaveState(False)
+
+        If FieldsDiffer() Then
+            SetSaveState(False)
+        Else
+            lblSaveState.Text = ""
+        End If
     End Sub
+
+    Private Function FieldsDiffer() As Boolean
+        With config
+            If txtServer1.Text.Trim() <> .server1 Then Return True
+            If txtServer2.Text.Trim() <> .server2 Then Return True
+            If chServer1.Checked <> (.useServer1 <> 0) Then Return True
+            If chServer2.Checked <> (.useserver2 <> 0) Then Return True
+            If txtOperator.Text.Trim() <> .opType Then Return True
+            If cmbVoLTE.SelectedIndex <> If(.VoLTE = 0, 0, 1) Then Return True
+            If cmbNetType.SelectedIndex <> CInt(.netType) Then Return True
+        End With
+
+        Return False
+    End Function
 
     ' Отменить изменения - это вернуть то, что стоит в контроллере.
     Private Sub btnRevert_Click(sender As Object, e As EventArgs) Handles btnRevert.Click
@@ -663,17 +686,9 @@ Public Class Form2
         End Using
     End Sub
 
-    Private Sub chServer1_CheckedChanged(sender As Object, e As EventArgs) Handles chServer1.CheckedChanged
-        config.useServer1 = chServer1.Checked
-        If updatingFields Then Exit Sub
-        SetSaveState(False)
-    End Sub
 
-    Private Sub chServer2_CheckedChanged(sender As Object, e As EventArgs) Handles chServer2.CheckedChanged
-        config.useserver2 = chServer2.Checked
-        If updatingFields Then Exit Sub
-        SetSaveState(False)
-    End Sub
+
+
 
     Private Sub CheckBox1_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox1.CheckedChanged
         If CheckBox1.Checked Then

@@ -97,7 +97,6 @@ Partial Class Form2
         Me.chServer1 = New System.Windows.Forms.CheckBox()
         Me.Label21 = New System.Windows.Forms.Button()
         Me.chServer2 = New System.Windows.Forms.CheckBox()
-        Me.cmbOperator = New System.Windows.Forms.ComboBox()
         Me.cmbVoLTE = New System.Windows.Forms.ComboBox()
         Me.cmbNetType = New System.Windows.Forms.ComboBox()
         Me.btnRevert = New System.Windows.Forms.Button()
@@ -153,7 +152,7 @@ Partial Class Form2
 
         Me.boxServer1 = Theme.FieldBox(Me.txtServer1, 260)
         Me.boxServer2 = Theme.FieldBox(Me.txtServer2, 260)
-        Me.boxOperator = Theme.FieldBox(Me.txtOperator, 260)
+        Me.boxOperator = Theme.FieldBox(Me.txtOperator, 320)
 
         CType(Me.picLogo, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
@@ -412,12 +411,14 @@ Partial Class Form2
         Me.lblServer1Err.AutoSize = True
         Me.lblServer1Err.Name = "lblServer1Err"
         Me.lblServer1Err.Text = ""
+        Me.lblServer1Err.Visible = False
         Me.lblServer1Err.Margin = New System.Windows.Forms.Padding(0)
         Theme.Note(Me.lblServer1Err, True)
 
         Me.lblServer2Err.AutoSize = True
         Me.lblServer2Err.Name = "lblServer2Err"
         Me.lblServer2Err.Text = ""
+        Me.lblServer2Err.Visible = False
         Me.lblServer2Err.Margin = New System.Windows.Forms.Padding(0)
         Theme.Note(Me.lblServer2Err, True)
 
@@ -437,10 +438,6 @@ Partial Class Form2
         Me.Label21.Text = "Проверить"
         Theme.Secondary(Me.Label21)
         Theme.Small(Me.Label21)
-
-        Me.cmbOperator.Name = "cmbOperator"
-        Me.cmbOperator.Items.AddRange(New Object() {"Автоматически", "Указать вручную"})
-        Theme.Combo(Me.cmbOperator, 260)
 
         Me.cmbVoLTE.Name = "cmbVoLTE"
         Me.cmbVoLTE.Items.AddRange(New Object() {"Выключено", "Включено"})
@@ -533,10 +530,10 @@ Partial Class Form2
                       Row("Адрес сервера 2", Me.boxServer2),
                       Note(Me.lblServer2Err),
                       Row("", Me.chServer2)),
-            CardBlock("Связь",
-                      Row("Оператор", Me.cmbOperator),
+            CardBlock("Мобильная связь",
                       Row("Точка доступа", Me.boxOperator),
-                      Note(Hint("Заполняется, когда оператор указан вручную.")),
+                      Note(Hint("Пусто — контроллер берёт параметры у оператора. Иначе три значения через запятую: " &
+                                "точка доступа, логин, пароль. Например: internet,gdata,gdata")),
                       Row("Тип сети", Me.cmbNetType),
                       Row("VoLTE", Me.cmbVoLTE)),
             CardBlock("Доступ",
@@ -960,11 +957,11 @@ Partial Class Form2
         r.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0!))
         r.AutoSize = True
         r.AutoSizeMode = AutoSizeMode.GrowAndShrink
-        r.Margin = New Padding(0, 0, 0, Theme.GapRow)
+        r.Margin = New Padding(0)
         r.Anchor = AnchorStyles.Left Or AnchorStyles.Right
 
         text.Anchor = AnchorStyles.Left
-        text.Margin = New Padding(0)
+        text.Margin = New Padding(0, 0, 0, Theme.GapRow)
 
         Dim spacer As New Label()
         spacer.Text = ""
@@ -1072,7 +1069,6 @@ Partial Class Form2
     Friend WithEvents txtServer2 As TextBox
     Friend WithEvents lblServer2Err As Label
     Friend WithEvents chServer2 As CheckBox
-    Friend WithEvents cmbOperator As ComboBox
     Friend WithEvents boxOperator As Panel
     Friend WithEvents txtOperator As TextBox
     Friend WithEvents cmbNetType As ComboBox
