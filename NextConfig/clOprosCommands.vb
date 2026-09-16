@@ -4,6 +4,10 @@ Imports System.Threading
 ' Часть класса clOpros: команды прибора по USB
 Partial Public Class clOpros
 
+    ' источник команды 8: 1 - мобильное приложение, 2 - API, 3 - тест из админки,
+    ' 4 - голосовой помощник
+    Private Const SRC_TEST As Byte = 3
+
     Public Function SetOut(ByVal _o1 As Byte, ByVal _o2 As Byte) As Boolean
         Dim rez As Boolean = False
 
@@ -16,7 +20,12 @@ Partial Public Class clOpros
 
             Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, New Byte() {255, _o1, _o2}), 500) Then
+            ' Первый байт - источник команды. Контроллер ставит выходы в заданное
+            ' состояние только при источнике 3 «тест из админки» (user_fun.c:2807):
+            ' при любом другом он включает оба выхода по правилам и запрошенные
+            ' состояния не смотрит. В исходниках заказчика тут стояло 255, и
+            ' поэтому кнопка «ТЕСТ» выходом не управляла.
+            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, New Byte() {SRC_TEST, _o1, _o2}), 500) Then
                 If rec(cmdIdx) = eCmd.REC_ANSWER Then
                     If rec(payloadIdx + 1) = 0 Then
                         rez = True
