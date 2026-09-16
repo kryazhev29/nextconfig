@@ -299,6 +299,23 @@ Public Module Theme
         Return p
     End Function
 
+    ' Выпадающий список: выбор из нескольких значений вместо отдельного окна.
+    Public Sub Combo(ByVal c As ComboBox, ByVal width As Integer)
+        c.DropDownStyle = ComboBoxStyle.DropDownList
+        c.FlatStyle = FlatStyle.Flat
+        c.Font = FontBody
+        c.ForeColor = TextMain
+        c.BackColor = Surface
+        c.Width = width
+    End Sub
+
+    ' Пояснение или ошибка под полем.
+    Public Sub Note(ByVal l As Label, ByVal isError As Boolean)
+        l.Font = FontCaption
+        l.ForeColor = If(isError, Danger, TextMuted)
+        l.BackColor = Color.Transparent
+    End Sub
+
     ' Значение только для чтения: тот же вид, но серым фоном.
     Public Sub ReadOnlyField(ByVal t As TextBox)
         t.[ReadOnly] = True

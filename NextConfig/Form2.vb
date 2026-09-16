@@ -12,6 +12,7 @@ Public Class Form2
     Private thread_getInfo As Threading.Thread
 
     ' когда последний раз приходил статус: по нему видно, свежие данные на экране или нет
+    Private updatingFields As Boolean = False
     Private lastStatus As DateTime = DateTime.MinValue
     Private Const StaleSeconds As Integer = 6
 
@@ -144,6 +145,7 @@ Public Class Form2
         lblNet.Text = opros.NetTypeToString(status.netType)
 
         lblUsedMem.Text = status.usedMem & " из 50 000"
+        meterMem.Value = status.usedMem
 
         SetHeadState(Theme.eDot.Good, "На связи")
         lblLastUpdate.Text = "Последнее обновление: " & lastStatus.ToString("HH:mm:ss")
@@ -246,62 +248,14 @@ Public Class Form2
         End Using
     End Sub
 
-    Private Sub lblOperator_Click(sender As Object, e As EventArgs) Handles lblOperator.Click
-        Dim arr As New ArrayList
-
-        arr.Add(New frmSelecter.mItem With {.ID = 1, .Name = "Автоматически"})
-        arr.Add(New frmSelecter.mItem With {.ID = 2, .Name = "Указать в ручную"})
-        arr.Add(New frmSelecter.mItem With {.ID = 0, .Name = "Отмена", .ButtonBackColor = Color.Red})
-
-        Using f As New frmSelecter("Тип оператора", arr, 1, 14)
-            f.ShowDialog()
-
-            Select Case f.ID
-                Case 0
-                    Exit Sub
-
-                Case 1
-                    config.opType = ""
-
-                Case 2
-                    Using f2 As New frmText("Наименование", "Введите значение", config.opType)
-                        If f2.ShowDialog = DialogResult.OK Then
-                            config.opType = f2.vText
-                        End If
-                    End Using
-
-            End Select
-
-            UpdateConfigFields()
-
-        End Using
-    End Sub
-
-    Private Sub lblVoLTE_Click(sender As Object, e As EventArgs) Handles lblVoLTE.Click
-        Dim arr As New ArrayList
-
-        arr.Add(New frmSelecter.mItem With {.ID = 1, .Name = "Использовать"})
-        arr.Add(New frmSelecter.mItem With {.ID = 0, .Name = "Не использовать"})
-        arr.Add(New frmSelecter.mItem With {.ID = -1, .Name = "Отмена", .ButtonBackColor = Color.Red})
-
-        Using f As New frmSelecter("VoLTE", arr, 1, 14)
-            f.ShowDialog()
-
-            Select Case f.ID
-                Case -1
-                    Exit Sub
-
-                Case Else
-                    config.VoLTE = f.ID
-
-            End Select
-
-            UpdateConfigFields()
-
-        End Using
-    End Sub
-
     Private Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
+
+        If Not CollectConfig() Then
+            lblSaveState.Text = "Проверьте отмеченные значения"
+            lblSaveState.ForeColor = Theme.Danger
+            Exit Sub
+        End If
+
         Using f As New frmInfo("Информация", "Сохранить настройки?",, True)
             f.Button1.Text = "Да"
             f.Button2.Text = "Нет"
@@ -413,16 +367,89 @@ Public Class Form2
     Private Sub UpdateConfigFields()
         SetSaveState(False)
 
+        ' пока раскладываем значения по полям, их события не считаем правкой
+        updatingFields = True
+
         With config
             lblPIN.Text = System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(.pin))
-            lblOperator.Text = If(.opType = "", "Автоматически", .opType)
-            lblVoLTE.Text = If(.VoLTE = 0, "Выключено", "Включено")
-            lblServer1.Text = .server1
-            lblServer2.Text = .server2
+            txtServer1.Text = .server1
+            txtServer2.Text = .server2
             chServer1.Checked = .useServer1
             chServer2.Checked = .useserver2
+            cmbOperator.SelectedIndex = If(.opType = "", 0, 1)
+            txtOperator.Text = .opType
+            txtOperator.Enabled = (.opType <> "")
+            cmbVoLTE.SelectedIndex = If(.VoLTE = 0, 0, 1)
+            cmbNetType.SelectedIndex = Math.Max(0, Math.Min(CInt(.netType), cmbNetType.Items.Count - 1))
         End With
 
+        updatingFields = False
+
+    End Sub
+
+    ' Собрать настройки из полей. Ошибку пишем возле того значения, из-за
+    ' которого она возникла, и ничего на плату не отправляем.
+    Private Function CollectConfig() As Boolean
+        lblServer1Err.Text = ""
+        lblServer2Err.Text = ""
+
+        lblServer1Err.Text = ServerError(txtServer1.Text, True)
+        lblServer2Err.Text = ServerError(txtServer2.Text, False)
+
+        If lblServer1Err.Text <> "" OrElse lblServer2Err.Text <> "" Then Return False
+
+        With config
+            .server1 = txtServer1.Text.Trim()
+            .server2 = txtServer2.Text.Trim()
+            .useServer1 = If(chServer1.Checked, 1, 0)
+            .useserver2 = If(chServer2.Checked, 1, 0)
+            .opType = If(cmbOperator.SelectedIndex = 0, "", txtOperator.Text.Trim())
+            .VoLTE = CByte(Math.Max(0, cmbVoLTE.SelectedIndex))
+            .netType = CType(Math.Max(0, cmbNetType.SelectedIndex), clOpros.eNetType)
+        End With
+
+        Return True
+    End Function
+
+    ' Адрес сервера пишется как узел:порт, например 87.244.4.92:15010.
+    Private Function ServerError(ByVal text As String, ByVal required As Boolean) As String
+        Dim v As String = text.Trim()
+
+        If v = "" Then
+            Return If(required, "Укажите адрес в виде 87.244.4.92:15010", "")
+        End If
+
+        Dim parts As String() = v.Split(":"c)
+
+        If parts.Length <> 2 Then Return "Адрес пишется как узел:порт, например 87.244.4.92:15010"
+        If parts(0).Trim() = "" Then Return "Не указан адрес узла"
+
+        Dim port As Integer
+
+        If Not Integer.TryParse(parts(1).Trim(), port) Then Return "Порт - это число"
+        If port < 1 OrElse port > 65535 Then Return "Порт от 1 до 65535"
+
+        Return ""
+    End Function
+
+    Private Sub Settings_Changed(sender As Object, e As EventArgs) _
+        Handles txtServer1.TextChanged, txtServer2.TextChanged, txtOperator.TextChanged,
+                cmbVoLTE.SelectedIndexChanged, cmbNetType.SelectedIndexChanged
+        If updatingFields Then Exit Sub
+        SetSaveState(False)
+    End Sub
+
+    Private Sub cmbOperator_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmbOperator.SelectedIndexChanged
+        txtOperator.Enabled = (cmbOperator.SelectedIndex = 1)
+        If Not txtOperator.Enabled Then txtOperator.Text = ""
+
+        If updatingFields Then Exit Sub
+        SetSaveState(False)
+    End Sub
+
+    ' Отменить изменения - это вернуть то, что стоит в контроллере.
+    Private Sub btnRevert_Click(sender As Object, e As EventArgs) Handles btnRevert.Click
+        ReadConfig(False)
     End Sub
 
     ' Выгрузки и загрузки базы идентификаторов в программе нет: в протоколе с
@@ -555,52 +582,15 @@ Public Class Form2
         End Using
     End Sub
 
-    Private Sub lblServer1_Click(sender As Object, e As EventArgs) Handles lblServer1.Click
-        Using f As New frmText("Наименование", "Адрес сервера 1", lblServer1.Text)
-            If f.ShowDialog = DialogResult.OK Then
-                config.server1 = f.vText
-                UpdateConfigFields()
-            End If
-        End Using
-    End Sub
-
-    Private Sub lblServer2_Click(sender As Object, e As EventArgs) Handles lblServer2.Click
-        Using f As New frmText("Наименование", "Адрес сервера 2", lblServer2.Text)
-            If f.ShowDialog = DialogResult.OK Then
-                config.server2 = f.vText
-                UpdateConfigFields()
-            End If
-        End Using
-    End Sub
-
     Private Sub chServer1_CheckedChanged(sender As Object, e As EventArgs) Handles chServer1.CheckedChanged
         config.useServer1 = chServer1.Checked
+        If updatingFields Then Exit Sub
         SetSaveState(False)
-    End Sub
-
-    Private Sub Label17_Click(sender As Object, e As EventArgs) Handles Label17.Click
-        Dim arr As New ArrayList
-
-        arr.Add(New frmSelecter.mItem With {.ID = 0, .Name = "Авто"})
-        arr.Add(New frmSelecter.mItem With {.ID = 1, .Name = "GPRS/EDGE"})
-        arr.Add(New frmSelecter.mItem With {.ID = 2, .Name = "3G/4G"})
-        arr.Add(New frmSelecter.mItem With {.ID = 3, .Name = "3G"})
-        arr.Add(New frmSelecter.mItem With {.ID = 4, .Name = "4G"})
-        arr.Add(New frmSelecter.mItem With {.ID = -1, .Name = "Отмена", .ButtonBackColor = Color.Red})
-
-        Using f As New frmSelecter("Тип сети", arr, 2, 14)
-            f.ShowDialog()
-
-            If f.ID = -1 Then
-                Exit Sub
-            End If
-
-            config.netType = CType(f.ID, clOpros.eNetType)
-        End Using
     End Sub
 
     Private Sub chServer2_CheckedChanged(sender As Object, e As EventArgs) Handles chServer2.CheckedChanged
         config.useserver2 = chServer2.Checked
+        If updatingFields Then Exit Sub
         SetSaveState(False)
     End Sub
 
@@ -849,7 +839,7 @@ Public Class Form2
 
     Private Sub Label21_Click(sender As Object, e As EventArgs) Handles Label21.Click
         Dim socket As New Net.Sockets.TcpClient
-        Dim sList As String() = lblServer1.Text.Split(":")
+        Dim sList As String() = txtServer1.Text.Trim().Split(":"c)
 
         If sList.Count <> 2 Then
             Using f As New frmInfo("Подключение", "Не правильная запись адреса сервера!")

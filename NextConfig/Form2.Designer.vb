@@ -63,7 +63,6 @@ Partial Class Form2
         Me.dotServer = New System.Windows.Forms.Label()
         Me.lblServerConnect = New System.Windows.Forms.Label()
         Me.lblNet = New System.Windows.Forms.Label()
-        Me.Label17 = New System.Windows.Forms.Button()
         Me.pbSig = New Meter()
         Me.lblSig = New System.Windows.Forms.Label()
         Me.sigRow = New System.Windows.Forms.FlowLayoutPanel()
@@ -90,13 +89,18 @@ Partial Class Form2
         Me.btnTestOUT2 = New System.Windows.Forms.Button()
 
         ' настройки
-        Me.lblServer1 = New System.Windows.Forms.Label()
+        Me.txtServer1 = New System.Windows.Forms.TextBox()
+        Me.txtServer2 = New System.Windows.Forms.TextBox()
+        Me.txtOperator = New System.Windows.Forms.TextBox()
+        Me.lblServer1Err = New System.Windows.Forms.Label()
+        Me.lblServer2Err = New System.Windows.Forms.Label()
         Me.chServer1 = New System.Windows.Forms.CheckBox()
         Me.Label21 = New System.Windows.Forms.Button()
-        Me.lblServer2 = New System.Windows.Forms.Label()
         Me.chServer2 = New System.Windows.Forms.CheckBox()
-        Me.lblOperator = New System.Windows.Forms.Label()
-        Me.lblVoLTE = New System.Windows.Forms.Label()
+        Me.cmbOperator = New System.Windows.Forms.ComboBox()
+        Me.cmbVoLTE = New System.Windows.Forms.ComboBox()
+        Me.cmbNetType = New System.Windows.Forms.ComboBox()
+        Me.btnRevert = New System.Windows.Forms.Button()
         Me.lblPIN = New System.Windows.Forms.Label()
         Me.btnChangePIN = New System.Windows.Forms.Button()
         Me.Button1 = New System.Windows.Forms.Button()
@@ -110,6 +114,7 @@ Partial Class Form2
 
         ' идентификаторы
         Me.lblUsedMem = New System.Windows.Forms.Label()
+        Me.meterMem = New Meter()
         Me.btnImport = New System.Windows.Forms.Button()
         Me.btnExport = New System.Windows.Forms.Button()
         Me.btnClear = New System.Windows.Forms.Button()
@@ -145,6 +150,10 @@ Partial Class Form2
         Me.logRoot = New System.Windows.Forms.TableLayoutPanel()
 
         Me.OpenFileDialog1 = New System.Windows.Forms.OpenFileDialog()
+
+        Me.boxServer1 = Theme.FieldBox(Me.txtServer1, 260)
+        Me.boxServer2 = Theme.FieldBox(Me.txtServer2, 260)
+        Me.boxOperator = Theme.FieldBox(Me.txtOperator, 260)
 
         CType(Me.picLogo, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
@@ -290,11 +299,6 @@ Partial Class Form2
         Me.lblNet.Text = "---"
         Theme.Value(Me.lblNet)
 
-        Me.Label17.Name = "Label17"
-        Me.Label17.Text = "Изменить"
-        Theme.Secondary(Me.Label17)
-        Theme.Small(Me.Label17)
-
         Me.pbSig.Name = "pbSig"
         Me.pbSig.Maximum = 31
         Me.pbSig.Value = 0
@@ -386,7 +390,7 @@ Partial Class Form2
                       Row("Мобильная сеть", DotPair(Me.dotGSM, Me.lblGSM)),
                       Row("Интернет", DotPair(Me.dotInt, Me.lblInt)),
                       Row("Соединение с сервером", DotPair(Me.dotServer, Me.lblServerConnect)),
-                      Row("Тип сети", Me.lblNet, Me.Label17),
+                      Row("Тип сети", Me.lblNet),
                       Row("Уровень сигнала", Me.sigRow)),
             CardBlock("Устройство",
                       Row("Модуль связи", Me.lblModuleType, Me.Label19),
@@ -401,17 +405,21 @@ Partial Class Form2
                       Row("Выход 2", DotPair(Me.dotOUT2, Me.lbOUT2), Me.btnTestOUT2))))
 
         ' ---- вкладка «Настройки» ----
-        Me.lblServer1.AutoSize = True
-        Me.lblServer1.Name = "lblServer1"
-        Me.lblServer1.Text = "---"
-        Me.lblServer1.Cursor = System.Windows.Forms.Cursors.Hand
-        Theme.Value(Me.lblServer1)
+        Me.txtServer1.Name = "txtServer1"
+        Me.txtServer2.Name = "txtServer2"
+        Me.txtOperator.Name = "txtOperator"
 
-        Me.lblServer2.AutoSize = True
-        Me.lblServer2.Name = "lblServer2"
-        Me.lblServer2.Text = "---"
-        Me.lblServer2.Cursor = System.Windows.Forms.Cursors.Hand
-        Theme.Value(Me.lblServer2)
+        Me.lblServer1Err.AutoSize = True
+        Me.lblServer1Err.Name = "lblServer1Err"
+        Me.lblServer1Err.Text = ""
+        Me.lblServer1Err.Margin = New System.Windows.Forms.Padding(0)
+        Theme.Note(Me.lblServer1Err, True)
+
+        Me.lblServer2Err.AutoSize = True
+        Me.lblServer2Err.Name = "lblServer2Err"
+        Me.lblServer2Err.Text = ""
+        Me.lblServer2Err.Margin = New System.Windows.Forms.Padding(0)
+        Theme.Note(Me.lblServer2Err, True)
 
         Me.chServer1.AutoSize = True
         Me.chServer1.Name = "chServer1"
@@ -430,17 +438,17 @@ Partial Class Form2
         Theme.Secondary(Me.Label21)
         Theme.Small(Me.Label21)
 
-        Me.lblOperator.AutoSize = True
-        Me.lblOperator.Name = "lblOperator"
-        Me.lblOperator.Text = "---"
-        Me.lblOperator.Cursor = System.Windows.Forms.Cursors.Hand
-        Theme.Value(Me.lblOperator)
+        Me.cmbOperator.Name = "cmbOperator"
+        Me.cmbOperator.Items.AddRange(New Object() {"Автоматически", "Указать вручную"})
+        Theme.Combo(Me.cmbOperator, 260)
 
-        Me.lblVoLTE.AutoSize = True
-        Me.lblVoLTE.Name = "lblVoLTE"
-        Me.lblVoLTE.Text = "---"
-        Me.lblVoLTE.Cursor = System.Windows.Forms.Cursors.Hand
-        Theme.Value(Me.lblVoLTE)
+        Me.cmbVoLTE.Name = "cmbVoLTE"
+        Me.cmbVoLTE.Items.AddRange(New Object() {"Выключено", "Включено"})
+        Theme.Combo(Me.cmbVoLTE, 260)
+
+        Me.cmbNetType.Name = "cmbNetType"
+        Me.cmbNetType.Items.AddRange(New Object() {"Авто", "GPRS/EDGE", "3G/4G", "3G", "4G"})
+        Theme.Combo(Me.cmbNetType, 260)
 
         Me.lblPIN.AutoSize = True
         Me.lblPIN.Name = "lblPIN"
@@ -457,6 +465,12 @@ Partial Class Form2
         Me.btnSave.Width = 200
         Me.btnSave.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
         Theme.Primary(Me.btnSave)
+
+        Me.btnRevert.Name = "btnRevert"
+        Me.btnRevert.Text = "Отменить изменения"
+        Me.btnRevert.Width = 200
+        Me.btnRevert.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
+        Theme.Secondary(Me.btnRevert)
 
         Me.Button1.Name = "Button1"
         Me.Button1.Text = "Считать с платы"
@@ -497,6 +511,7 @@ Partial Class Form2
         Me.saveRow.WrapContents = False
         Me.saveRow.Margin = New System.Windows.Forms.Padding(0, Theme.GapBlock, 0, 0)
         Me.saveRow.Controls.Add(Me.btnSave)
+        Me.saveRow.Controls.Add(Me.btnRevert)
         Me.saveRow.Controls.Add(Me.Button1)
 
         Me.serviceRow.AutoSize = True
@@ -512,13 +527,18 @@ Partial Class Form2
         Me.tabSettings.AutoScroll = True
         Me.tabSettings.Controls.Add(Page(
             CardBlock("Серверы",
-                      Row("Сервер 1", Me.lblServer1, Me.Label21),
+                      Row("Адрес сервера 1", Me.boxServer1, Me.Label21),
+                      Note(Me.lblServer1Err),
                       Row("", Me.chServer1),
-                      Row("Сервер 2", Me.lblServer2),
+                      Row("Адрес сервера 2", Me.boxServer2),
+                      Note(Me.lblServer2Err),
                       Row("", Me.chServer2)),
             CardBlock("Связь",
-                      Row("Оператор", Me.lblOperator),
-                      Row("VoLTE", Me.lblVoLTE)),
+                      Row("Оператор", Me.cmbOperator),
+                      Row("Точка доступа", Me.boxOperator),
+                      Note(Hint("Заполняется, когда оператор указан вручную.")),
+                      Row("Тип сети", Me.cmbNetType),
+                      Row("VoLTE", Me.cmbVoLTE)),
             CardBlock("Доступ",
                       Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)),
             SaveBlock(Me.saveRow),
@@ -528,7 +548,14 @@ Partial Class Form2
         Me.lblUsedMem.AutoSize = True
         Me.lblUsedMem.Name = "lblUsedMem"
         Me.lblUsedMem.Text = "---"
+        Me.lblUsedMem.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Theme.BigValue(Me.lblUsedMem)
+
+        Me.meterMem.Name = "meterMem"
+        Me.meterMem.Maximum = 50000
+        Me.meterMem.Value = 0
+        Me.meterMem.Size = New System.Drawing.Size(240, 8)
+        Me.meterMem.Margin = New System.Windows.Forms.Padding(0)
 
         Me.btnImport.Name = "btnImport"
         Me.btnImport.Text = "Загрузить из файла"
@@ -568,9 +595,14 @@ Partial Class Form2
         Me.tabIds.AutoScroll = True
         Me.tabIds.Controls.Add(Page(
             CardBlock("Память идентификаторов",
-                      Row("Занято из 50 000", Me.lblUsedMem)),
-            CardBlock("База идентификаторов", Me.idsRow),
-            CardBlock("Очистка", Me.idsClearRow)))
+                      Row("Занято", Me.lblUsedMem),
+                      Note(Me.meterMem)),
+            CardBlock("База идентификаторов",
+                      Me.idsRow,
+                      Hint("Чтения и записи базы в протоколе с контроллером пока нет, поэтому обе кнопки только сообщают об этом.")),
+            CardBlock("Очистка",
+                      Me.idsClearRow,
+                      Hint("Удаляет из памяти контроллера все идентификаторы. Вернуть их можно только повторной загрузкой с сервера."))))
 
         ' ---- вкладка «Объект» ----
         Me.lblObjNum.AutoSize = True
@@ -621,8 +653,11 @@ Partial Class Form2
                       Row("Уникальный номер", Me.lblObjNum),
                       Row("Наименование", Me.lblObjName),
                       Row("Контроллер на объекте", Me.lblObjController),
-                      Row("Администратор", Me.lblAdmin)),
-            CardBlock("Действия", Me.objRow)))
+                      Row("Администратор", Me.lblAdmin),
+                      Hint("Сведения приходят с сервера и здесь только показываются.")),
+            CardBlock("Действия",
+                      Me.objRow,
+                      Hint("«Обновить с сервера» запрашивает привязку заново. «Отвязать от объекта» снимает её - это делается на сервере и назад само не вернётся."))))
 
         ' ---- вкладка «Прошивка» ----
         Me.btnUpdateFW.Name = "btnUpdateFW"
@@ -917,6 +952,43 @@ Partial Class Form2
         Return r
     End Function
 
+    ' Пояснение или ошибка под полем: стоит под колонкой значений, а не под подписью.
+    Private Function Note(ByVal text As Control) As TableLayoutPanel
+        Dim r As New TableLayoutPanel()
+        r.ColumnCount = 2
+        r.RowCount = 1
+        r.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 220.0!))
+        r.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0!))
+        r.AutoSize = True
+        r.AutoSizeMode = AutoSizeMode.GrowAndShrink
+        r.Margin = New Padding(0, 0, 0, Theme.GapRow)
+        r.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+
+        text.Anchor = AnchorStyles.Left
+        text.Margin = New Padding(0)
+
+        Dim spacer As New Label()
+        spacer.Text = ""
+        spacer.AutoSize = True
+        spacer.Margin = New Padding(0)
+
+        r.Controls.Add(spacer, 0, 0)
+        r.Controls.Add(text, 1, 0)
+
+        Return r
+    End Function
+
+    ' Неизменяемое пояснение под полем или под строкой кнопок.
+    Private Function Hint(ByVal text As String) As Label
+        Dim l As New Label()
+        l.AutoSize = True
+        l.MaximumSize = New Size(640, 0)
+        l.Text = text
+        l.Margin = New Padding(0, Theme.GapRelated, 0, 0)
+        Theme.Note(l, False)
+        Return l
+    End Function
+
     ' Точка состояния и подпись рядом с ней.
     Private Function DotPair(ByVal dot As Label, ByVal text As Label) As FlowLayoutPanel
         Dim f As New FlowLayoutPanel()
@@ -969,7 +1041,6 @@ Partial Class Form2
     Friend WithEvents dotServer As Label
     Friend WithEvents lblServerConnect As Label
     Friend WithEvents lblNet As Label
-    Friend WithEvents Label17 As Button
     Friend WithEvents pbSig As Meter
     Friend WithEvents lblSig As Label
     Friend WithEvents sigRow As FlowLayoutPanel
@@ -993,13 +1064,21 @@ Partial Class Form2
     Friend WithEvents lbOUT2 As Label
     Friend WithEvents btnTestOUT2 As Button
 
-    Friend WithEvents lblServer1 As Label
+    Friend WithEvents boxServer1 As Panel
+    Friend WithEvents txtServer1 As TextBox
+    Friend WithEvents lblServer1Err As Label
     Friend WithEvents chServer1 As CheckBox
     Friend WithEvents Label21 As Button
-    Friend WithEvents lblServer2 As Label
+    Friend WithEvents boxServer2 As Panel
+    Friend WithEvents txtServer2 As TextBox
+    Friend WithEvents lblServer2Err As Label
     Friend WithEvents chServer2 As CheckBox
-    Friend WithEvents lblOperator As Label
-    Friend WithEvents lblVoLTE As Label
+    Friend WithEvents cmbOperator As ComboBox
+    Friend WithEvents boxOperator As Panel
+    Friend WithEvents txtOperator As TextBox
+    Friend WithEvents cmbNetType As ComboBox
+    Friend WithEvents cmbVoLTE As ComboBox
+    Friend WithEvents btnRevert As Button
     Friend WithEvents lblPIN As Label
     Friend WithEvents btnChangePIN As Button
     Friend WithEvents Button1 As Button
@@ -1012,6 +1091,7 @@ Partial Class Form2
     Friend WithEvents serviceRow As FlowLayoutPanel
 
     Friend WithEvents lblUsedMem As Label
+    Friend WithEvents meterMem As Meter
     Friend WithEvents btnImport As Button
     Friend WithEvents btnExport As Button
     Friend WithEvents btnClear As Button

@@ -557,7 +557,9 @@ Public Class ClComPort
 
             EnableEventReceived = True
         Else
-            RaiseEvent ErrorPort()
+            ' в демонстрационном режиме порт не открывается намеренно:
+            ' это не потеря связи с контроллером
+            If Not Demo.IsOn Then RaiseEvent ErrorPort()
         End If
 
         Return False
