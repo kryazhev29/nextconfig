@@ -1,4 +1,4 @@
-Imports System.IO
+﻿Imports System.IO
 Imports System.IO.Ports
 
 ' Два действия сервисного ПО с загрузчиком (краткое ТЗ, разделы 8 и 9):
