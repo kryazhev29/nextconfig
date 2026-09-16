@@ -59,14 +59,14 @@ Partial Class frmFW
         Me.Label5.AutoSize = True
         Me.Label5.Name = "Label5"
         Me.Label5.Text = "-"
-        Me.Label5.MaximumSize = New System.Drawing.Size(520, 0)
+        Me.Label5.MaximumSize = New System.Drawing.Size(Theme.Px(520), 0)
         Me.Label5.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Theme.Value(Me.Label5)
 
         Me.lblInfo.AutoSize = True
         Me.lblInfo.Name = "lblInfo"
         Me.lblInfo.Text = "-"
-        Me.lblInfo.MaximumSize = New System.Drawing.Size(520, 0)
+        Me.lblInfo.MaximumSize = New System.Drawing.Size(Theme.Px(520), 0)
         Me.lblInfo.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblInfo)
 
@@ -93,14 +93,14 @@ Partial Class frmFW
         Me.lblState.AutoSize = True
         Me.lblState.Name = "lblState"
         Me.lblState.Text = "Готово к началу"
-        Me.lblState.MaximumSize = New System.Drawing.Size(520, 0)
+        Me.lblState.MaximumSize = New System.Drawing.Size(Theme.Px(520), 0)
         Me.lblState.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapBlock)
         Theme.Value(Me.lblState)
 
         Me.ProgressBar1.Name = "ProgressBar1"
         Me.ProgressBar1.Maximum = 100
         Me.ProgressBar1.Value = 0
-        Me.ProgressBar1.Size = New System.Drawing.Size(520, 8)
+        Me.ProgressBar1.Size = New System.Drawing.Size(Theme.Px(520), Theme.Px(8))
         Me.ProgressBar1.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Me.ProgressBar1.Anchor = System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right
 
@@ -128,19 +128,19 @@ Partial Class frmFW
         '
         Me.Button1.Name = "Button1"
         Me.Button1.Text = "Загрузить"
-        Me.Button1.Width = 200
+        Me.Button1.Width = Theme.Px(200)
         Me.Button1.Margin = New System.Windows.Forms.Padding(Theme.GapRelated, 0, 0, 0)
         Theme.Primary(Me.Button1)
 
         Me.btnCheck.Name = "btnCheck"
         Me.btnCheck.Text = "Пробная передача"
-        Me.btnCheck.Width = 200
+        Me.btnCheck.Width = Theme.Px(200)
         Me.btnCheck.Margin = New System.Windows.Forms.Padding(Theme.GapRelated, 0, 0, 0)
         Theme.Secondary(Me.btnCheck)
 
         Me.Button2.Name = "Button2"
         Me.Button2.Text = "Закрыть"
-        Me.Button2.Width = 148
+        Me.Button2.Width = Theme.Px(148)
         Me.Button2.Margin = New System.Windows.Forms.Padding(0)
         Theme.Secondary(Me.Button2)
 
@@ -169,10 +169,9 @@ Partial Class frmFW
         '
         'frmFW
         '
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
-        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(600, 400)
-        Me.MinimumSize = New System.Drawing.Size(560, 380)
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+        Me.ClientSize = New System.Drawing.Size(Theme.Px(600), Theme.Px(400))
+        Me.MinimumSize = New System.Drawing.Size(Theme.Px(560), Theme.Px(380))
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
         Me.MaximizeBox = False

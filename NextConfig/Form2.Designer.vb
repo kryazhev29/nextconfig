@@ -161,7 +161,7 @@ Partial Class Form2
         ' ---- шапка ----
         Me.picLogo.Image = Theme.LogoHorizontal(CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image))
         Me.picLogo.Name = "picLogo"
-        Me.picLogo.Size = New System.Drawing.Size(88, 28)
+        Me.picLogo.Size = New System.Drawing.Size(Theme.Px(88), Theme.Px(28))
         Me.picLogo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
         Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.Left
         Me.picLogo.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapSection, 0)
@@ -302,7 +302,7 @@ Partial Class Form2
         Me.pbSig.Name = "pbSig"
         Me.pbSig.Maximum = 31
         Me.pbSig.Value = 0
-        Me.pbSig.Size = New System.Drawing.Size(140, 8)
+        Me.pbSig.Size = New System.Drawing.Size(Theme.Px(140), Theme.Px(8))
         Me.pbSig.Margin = New System.Windows.Forms.Padding(0, 8, Theme.GapRelated, 0)
 
         Me.lblSig.AutoSize = True
@@ -462,46 +462,46 @@ Partial Class Form2
 
         Me.btnSave.Name = "btnSave"
         Me.btnSave.Text = "Сохранить изменения"
-        Me.btnSave.Width = 200
+        Me.btnSave.Width = Theme.Px(200)
         Me.btnSave.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
         Theme.Primary(Me.btnSave)
 
         Me.btnRevert.Name = "btnRevert"
         Me.btnRevert.Text = "Отменить изменения"
-        Me.btnRevert.Width = 200
+        Me.btnRevert.Width = Theme.Px(200)
         Me.btnRevert.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
         Theme.Secondary(Me.btnRevert)
 
         Me.Button1.Name = "Button1"
         Me.Button1.Text = "Считать с платы"
-        Me.Button1.Width = 176
+        Me.Button1.Width = Theme.Px(176)
         Me.Button1.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
         Theme.Secondary(Me.Button1)
 
         Me.btnDefault.Name = "btnDefault"
         Me.btnDefault.Text = "Записать настройки по умолчанию"
-        Me.btnDefault.Width = 280
+        Me.btnDefault.Width = Theme.Px(280)
         Me.btnDefault.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
         Theme.DangerOutline(Me.btnDefault)
         Theme.Small(Me.btnDefault)
 
         Me.btnFactory.Name = "btnFactory"
         Me.btnFactory.Text = "Сброс на заводские настройки"
-        Me.btnFactory.Width = 256
+        Me.btnFactory.Width = Theme.Px(256)
         Me.btnFactory.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
         Theme.DangerOutline(Me.btnFactory)
         Theme.Small(Me.btnFactory)
 
         Me.Label20.Name = "Label20"
         Me.Label20.Text = "Перезагрузить контроллер"
-        Me.Label20.Width = 224
+        Me.Label20.Width = Theme.Px(224)
         Me.Label20.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
         Theme.Secondary(Me.Label20)
         Theme.Small(Me.Label20)
 
         Me.btnTranspMode.Name = "btnTranspMode"
         Me.btnTranspMode.Text = "Прозрачный режим с модемом"
-        Me.btnTranspMode.Width = 256
+        Me.btnTranspMode.Width = Theme.Px(256)
         Me.btnTranspMode.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
         Theme.Secondary(Me.btnTranspMode)
         Theme.Small(Me.btnTranspMode)
@@ -554,26 +554,26 @@ Partial Class Form2
         Me.meterMem.Name = "meterMem"
         Me.meterMem.Maximum = 50000
         Me.meterMem.Value = 0
-        Me.meterMem.Size = New System.Drawing.Size(240, 8)
+        Me.meterMem.Size = New System.Drawing.Size(Theme.Px(240), Theme.Px(8))
         Me.meterMem.Margin = New System.Windows.Forms.Padding(0)
 
         Me.btnImport.Name = "btnImport"
         Me.btnImport.Text = "Загрузить из файла"
-        Me.btnImport.Width = 188
+        Me.btnImport.Width = Theme.Px(188)
         Me.btnImport.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
         Theme.Secondary(Me.btnImport)
         Theme.Small(Me.btnImport)
 
         Me.btnExport.Name = "btnExport"
         Me.btnExport.Text = "Выгрузить в файл"
-        Me.btnExport.Width = 188
+        Me.btnExport.Width = Theme.Px(188)
         Me.btnExport.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
         Theme.Secondary(Me.btnExport)
         Theme.Small(Me.btnExport)
 
         Me.btnClear.Name = "btnClear"
         Me.btnClear.Text = "Очистить память"
-        Me.btnClear.Width = 188
+        Me.btnClear.Width = Theme.Px(188)
         Theme.DangerOutline(Me.btnClear)
         Theme.Small(Me.btnClear)
 
@@ -627,14 +627,14 @@ Partial Class Form2
 
         Me.btnUpdateObj.Name = "btnUpdateObj"
         Me.btnUpdateObj.Text = "Обновить с сервера"
-        Me.btnUpdateObj.Width = 200
+        Me.btnUpdateObj.Width = Theme.Px(200)
         Me.btnUpdateObj.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
         Theme.Secondary(Me.btnUpdateObj)
         Theme.Small(Me.btnUpdateObj)
 
         Me.btnUnConnect.Name = "btnUnConnect"
         Me.btnUnConnect.Text = "Отвязать от объекта"
-        Me.btnUnConnect.Width = 200
+        Me.btnUnConnect.Width = Theme.Px(200)
         Theme.DangerOutline(Me.btnUnConnect)
         Theme.Small(Me.btnUnConnect)
 
@@ -662,26 +662,26 @@ Partial Class Form2
         ' ---- вкладка «Прошивка» ----
         Me.btnUpdateFW.Name = "btnUpdateFW"
         Me.btnUpdateFW.Text = "Выбрать файл и обновить"
-        Me.btnUpdateFW.Width = 240
+        Me.btnUpdateFW.Width = Theme.Px(240)
         Me.btnUpdateFW.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Theme.Primary(Me.btnUpdateFW)
 
         Me.lblFwHint.AutoSize = True
         Me.lblFwHint.Name = "lblFwHint"
-        Me.lblFwHint.MaximumSize = New System.Drawing.Size(560, 0)
+        Me.lblFwHint.MaximumSize = New System.Drawing.Size(Theme.Px(560), 0)
         Me.lblFwHint.Text = "Файл вида 139.71.1789482488.bin. Контроллер сам проверит контрольную сумму, установит прошивку и перезагрузится."
         Me.lblFwHint.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblFwHint)
 
         Me.btnUpdateBoot.Name = "btnUpdateBoot"
         Me.btnUpdateBoot.Text = "Выбрать файл и заменить загрузчик"
-        Me.btnUpdateBoot.Width = 300
+        Me.btnUpdateBoot.Width = Theme.Px(300)
         Me.btnUpdateBoot.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Theme.DangerOutline(Me.btnUpdateBoot)
 
         Me.lblBootHint.AutoSize = True
         Me.lblBootHint.Name = "lblBootHint"
-        Me.lblBootHint.MaximumSize = New System.Drawing.Size(560, 0)
+        Me.lblBootHint.MaximumSize = New System.Drawing.Size(Theme.Px(560), 0)
         Me.lblBootHint.Text = "Необратимо: прежний загрузчик без программатора не вернуть. Сначала пробная передача, она ничего на плате не меняет."
         Me.lblBootHint.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblBootHint)
@@ -743,14 +743,14 @@ Partial Class Form2
 
         Me.Button2.Name = "Button2"
         Me.Button2.Text = "Копировать"
-        Me.Button2.Width = 148
+        Me.Button2.Width = Theme.Px(148)
         Me.Button2.Margin = New System.Windows.Forms.Padding(0, Theme.GapRelated, Theme.GapRelated, 0)
         Theme.Secondary(Me.Button2)
         Theme.Small(Me.Button2)
 
         Me.btnClearLog.Name = "btnClearLog"
         Me.btnClearLog.Text = "Очистить"
-        Me.btnClearLog.Width = 148
+        Me.btnClearLog.Width = Theme.Px(148)
         Me.btnClearLog.Margin = New System.Windows.Forms.Padding(0, Theme.GapRelated, 0, 0)
         Theme.Secondary(Me.btnClearLog)
         Theme.Small(Me.btnClearLog)
@@ -839,10 +839,9 @@ Partial Class Form2
         Me.root.Controls.Add(Me.tabs, 0, 1)
         Me.root.Controls.Add(Me.pnlStatusBar, 0, 2)
 
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
-        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(940, 640)
-        Me.MinimumSize = New System.Drawing.Size(820, 560)
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+        Me.ClientSize = New System.Drawing.Size(Theme.Px(940), Theme.Px(640))
+        Me.MinimumSize = New System.Drawing.Size(Theme.Px(820), Theme.Px(560))
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable
         Me.Name = "Form2"
@@ -922,7 +921,7 @@ Partial Class Form2
         Dim r As New TableLayoutPanel()
         r.ColumnCount = 3
         r.RowCount = 1
-        r.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 220.0!))
+        r.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, CSng(Theme.Px(220))))
         r.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0!))
         r.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
         r.AutoSize = True
@@ -957,7 +956,7 @@ Partial Class Form2
         Dim r As New TableLayoutPanel()
         r.ColumnCount = 2
         r.RowCount = 1
-        r.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 220.0!))
+        r.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, CSng(Theme.Px(220))))
         r.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0!))
         r.AutoSize = True
         r.AutoSizeMode = AutoSizeMode.GrowAndShrink
@@ -982,7 +981,7 @@ Partial Class Form2
     Private Function Hint(ByVal text As String) As Label
         Dim l As New Label()
         l.AutoSize = True
-        l.MaximumSize = New Size(640, 0)
+        l.MaximumSize = New Size(Theme.Px(640), 0)
         l.Text = text
         l.Margin = New Padding(0, Theme.GapRelated, 0, 0)
         Theme.Note(l, False)

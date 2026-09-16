@@ -33,6 +33,8 @@ Public Class Form2
     End Sub
 
     Private Sub Form2_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        FitToScreen()
+
         AddHandler opros.onStatus, AddressOf opros_onStatus
         AddHandler tmr1.Tick, AddressOf TmrTick
         tmr1.Interval = 1000
@@ -51,6 +53,17 @@ Public Class Form2
         CheckBox1.Checked = False
         CheckBox2.Checked = False
         CheckBox3.Checked = False
+    End Sub
+
+    ' На маленьком экране или при крупном масштабе Windows окно нужного размера
+    ' может не поместиться: ужимаем его до рабочей области, содержимое прокручивается.
+    Private Sub FitToScreen()
+        Dim area As Rectangle = Screen.FromControl(Me).WorkingArea
+        Dim w As Integer = Math.Min(Me.Width, area.Width - Theme.GapSection)
+        Dim h As Integer = Math.Min(Me.Height, area.Height - Theme.GapSection)
+
+        Me.MinimumSize = New Size(Math.Min(Me.MinimumSize.Width, w), Math.Min(Me.MinimumSize.Height, h))
+        Me.Size = New Size(w, h)
     End Sub
 
     ' Раз в секунду смотрим, давно ли приходил статус. Если связь пропала,

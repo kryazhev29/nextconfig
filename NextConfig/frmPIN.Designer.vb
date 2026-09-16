@@ -77,19 +77,19 @@ Partial Class frmPIN
         Me.lblError.AutoSize = True
         Me.lblError.Name = "lblError"
         Me.lblError.Text = ""
-        Me.lblError.MaximumSize = New System.Drawing.Size(360, 0)
+        Me.lblError.MaximumSize = New System.Drawing.Size(Theme.Px(360), 0)
         Me.lblError.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapBlock)
         Theme.Note(Me.lblError, True)
 
         Me.Button1.Name = "Button1"
         Me.Button1.Text = "Сменить ПИН"
-        Me.Button1.Width = 176
+        Me.Button1.Width = Theme.Px(176)
         Me.Button1.Margin = New System.Windows.Forms.Padding(Theme.GapRelated, 0, 0, 0)
         Theme.Primary(Me.Button1)
 
         Me.Button2.Name = "Button2"
         Me.Button2.Text = "Отмена"
-        Me.Button2.Width = 148
+        Me.Button2.Width = Theme.Px(148)
         Me.Button2.Margin = New System.Windows.Forms.Padding(0)
         Theme.Secondary(Me.Button2)
 
@@ -118,9 +118,8 @@ Partial Class frmPIN
         Me.root.Controls.Add(Me.lblError)
         Me.root.Controls.Add(Me.buttons)
 
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
-        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(420, 400)
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+        Me.ClientSize = New System.Drawing.Size(Theme.Px(420), Theme.Px(400))
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
         Me.MaximizeBox = False

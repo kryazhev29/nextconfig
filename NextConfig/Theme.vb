@@ -37,18 +37,38 @@ Public Module Theme
     Public ReadOnly FontDot As New Font(Family, 12.0F, FontStyle.Regular)          ' точка индикатора
     Public ReadOnly FontMono As New Font(FamilyMono, 9.5F, FontStyle.Regular)      ' журнал
 
-    ' ---- отступы (при базовом масштабе Windows) ----
-    Public Const GapLabel As Integer = 6      ' подпись - поле
-    Public Const GapRelated As Integer = 8    ' связанные элементы
-    Public Const GapRow As Integer = 14       ' строки формы
-    Public Const GapBlock As Integer = 18     ' внутри смыслового блока
-    Public Const GapSection As Integer = 22   ' между блоками
+    ' ---- масштаб Windows ----
+    ' Размеры в оформлении и в формах записаны для обычного масштаба (100 %),
+    ' а на экране считаются через Px. Автомасштаб форм выключен: два механизма
+    ' сразу давали двойной пересчёт и окно не по размеру.
+    Private ReadOnly uiScale As Single = ReadScale()
 
-    Public Const ButtonHeight As Integer = 40
-    Public Const ButtonHeightSmall As Integer = 32
-    Public Const ButtonWidth As Integer = 168
-    Public Const ButtonWidthSmall As Integer = 120
-    Public Const FieldHeight As Integer = 32
+    Private Function ReadScale() As Single
+        Try
+            Using g As Graphics = Graphics.FromHwnd(IntPtr.Zero)
+                Return g.DpiX / 96.0F
+            End Using
+        Catch ex As Exception
+            Return 1.0F
+        End Try
+    End Function
+
+    Public Function Px(ByVal value As Integer) As Integer
+        Return CInt(Math.Round(value * uiScale))
+    End Function
+
+    ' ---- отступы (записаны для масштаба 100 %) ----
+    Public ReadOnly GapLabel As Integer = Px(6)      ' подпись - поле
+    Public ReadOnly GapRelated As Integer = Px(8)    ' связанные элементы
+    Public ReadOnly GapRow As Integer = Px(14)       ' строки формы
+    Public ReadOnly GapBlock As Integer = Px(18)     ' внутри смыслового блока
+    Public ReadOnly GapSection As Integer = Px(22)   ' между блоками
+
+    Public ReadOnly ButtonHeight As Integer = Px(40)
+    Public ReadOnly ButtonHeightSmall As Integer = Px(32)
+    Public ReadOnly ButtonWidth As Integer = Px(168)
+    Public ReadOnly ButtonWidthSmall As Integer = Px(120)
+    Public ReadOnly FieldHeight As Integer = Px(32)
 
     ' ---- состояния индикатора ----
     Public Enum eDot
@@ -72,7 +92,6 @@ Public Module Theme
     Public Sub StyleForm(ByVal f As Form)
         f.BackColor = WindowBack
         f.Font = FontBody
-        f.AutoScaleMode = AutoScaleMode.Font
     End Sub
 
     ' Блок с белой поверхностью и тонкой границей.
@@ -271,7 +290,7 @@ Public Module Theme
         Dim p As New Panel()
         p.BackColor = Border
         p.Padding = New Padding(1)
-        p.Size = New Size(width, FieldHeight)
+        p.Size = New Size(Px(width), FieldHeight)
 
         t.BorderStyle = BorderStyle.None
         t.Font = FontBody
@@ -306,7 +325,7 @@ Public Module Theme
         c.Font = FontBody
         c.ForeColor = TextMain
         c.BackColor = Surface
-        c.Width = width
+        c.Width = Px(width)
     End Sub
 
     ' Пояснение или ошибка под полем.

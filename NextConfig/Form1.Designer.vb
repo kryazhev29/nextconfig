@@ -54,7 +54,7 @@ Partial Class Form1
         '
         Me.picLogo.Image = Theme.LogoHorizontal(CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image))
         Me.picLogo.Name = "picLogo"
-        Me.picLogo.Size = New System.Drawing.Size(100, 32)
+        Me.picLogo.Size = New System.Drawing.Size(Theme.Px(100), Theme.Px(32))
         Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.Left
         Me.picLogo.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRow, 0)
         Me.picLogo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
@@ -136,7 +136,7 @@ Partial Class Form1
         Me.btnConnect.Name = "btnConnect"
         Me.btnConnect.Text = "Подключиться"
         Me.btnConnect.Enabled = False
-        Me.btnConnect.Size = New System.Drawing.Size(FieldWidth, Theme.ButtonHeight)
+        Me.btnConnect.Size = New System.Drawing.Size(Theme.Px(FieldWidth), Theme.ButtonHeight)
         Me.btnConnect.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapBlock)
         Theme.Primary(Me.btnConnect)
         '
@@ -167,7 +167,7 @@ Partial Class Form1
         'lblReason
         '
         Me.lblReason.AutoSize = True
-        Me.lblReason.MaximumSize = New System.Drawing.Size(FieldWidth, 0)
+        Me.lblReason.MaximumSize = New System.Drawing.Size(Theme.Px(FieldWidth), 0)
         Me.lblReason.Name = "lblReason"
         Me.lblReason.Text = ""
         Me.lblReason.Margin = New System.Windows.Forms.Padding(0, Theme.GapLabel, 0, 0)
@@ -207,9 +207,8 @@ Partial Class Form1
         '
         'Form1
         '
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
-        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(440, 492)
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+        Me.ClientSize = New System.Drawing.Size(Theme.Px(440), Theme.Px(492))
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
         Me.MaximizeBox = False

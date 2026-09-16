@@ -52,7 +52,7 @@
             Dim btn As New Button()
             btn.Text = it.Name
             btn.Tag = it.ID
-            btn.Width = 200
+            btn.Width = Theme.Px(200)
             btn.Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
             Theme.Secondary(btn)
 

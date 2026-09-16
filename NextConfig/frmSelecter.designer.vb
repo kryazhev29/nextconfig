@@ -41,7 +41,7 @@ Partial Class frmSelecter
 
         Me.btnCancel.Name = "btnCancel"
         Me.btnCancel.Text = "Отмена"
-        Me.btnCancel.Width = 148
+        Me.btnCancel.Width = Theme.Px(148)
         Me.btnCancel.Margin = New System.Windows.Forms.Padding(0)
         Theme.Secondary(Me.btnCancel)
 
@@ -63,11 +63,10 @@ Partial Class frmSelecter
         Me.root.Controls.Add(Me.items_grid)
         Me.root.Controls.Add(Me.buttons)
 
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
-        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
         Me.AutoSize = True
         Me.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.ClientSize = New System.Drawing.Size(460, 260)
+        Me.ClientSize = New System.Drawing.Size(Theme.Px(460), Theme.Px(260))
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
         Me.MaximizeBox = False
