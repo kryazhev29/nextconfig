@@ -8,23 +8,6 @@ Module Module1
     Public ReadOnly provider_pset As New NumberFormatInfo() With {.NumberDecimalSeparator = "."}
     Public ReadOnly provider_comma As New NumberFormatInfo() With {.NumberDecimalSeparator = ","}
 
-    'Public Class RoundButton
-    '    Inherits Button
-
-    '    Public Sub New()
-    '        MyBase.New
-    '    End Sub
-
-    '    Protected Overrides Sub OnPaint(ByVal e As System.Windows.Forms.PaintEventArgs)
-    '        Dim grPath As GraphicsPath = New GraphicsPath()
-
-    '        grPath.AddEllipse(0, 0, ClientSize.Width, ClientSize.Height)
-    '        Me.Region = New System.Drawing.Region(grPath)
-    '        MyBase.OnPaint(e)
-    '    End Sub
-
-    'End Class
-
     Public Function UnixTimestampToDateTime(ByVal _UnixTimeStamp As Long) As DateTime
         Return (New DateTime(1970, 1, 1, 0, 0, 0)).AddSeconds(_UnixTimeStamp)
     End Function
@@ -40,6 +23,7 @@ Public Class Form1
 
     Private WithEvents opros As clOpros
     Private isFinded As Boolean = False
+    Private curPort As String = ""
 
     Public Sub New()
         InitializeComponent()
@@ -47,11 +31,15 @@ Public Class Form1
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
+        If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
+
         opros = New clOpros(Me)
 
         AddHandler opros.isFinded, AddressOf opros_isFinded
         AddHandler opros.onFind, AddressOf opros_onFind
         AddHandler opros.onBootFound, AddressOf opros_onBootFound
+
+        UpdateConnectState()
 
     End Sub
 
@@ -66,29 +54,56 @@ Public Class Form1
         GC.Collect()
     End Sub
 
-    Private Sub btnClose_Click(sender As Object, e As EventArgs) Handles btnClose.Click
-        Me.Close()
+    ' Состояние поиска устройства: точка и понятный текст, без технической строки в скобках.
+    Private Sub SetStatus(ByVal state As Theme.eDot, ByVal text As String)
+        Theme.Dot(lblDot, state)
+        Theme.DotText(lblStatus, state, text)
+    End Sub
+
+    ' Кнопка «Подключиться» доступна только когда есть всё нужное.
+    ' Рядом пишем, чего именно не хватает: цвет сам по себе этого не объясняет.
+    Private Sub UpdateConnectState()
+        Dim reason As String = ""
+
+        If Not isFinded Then
+            reason = "Устройство не найдено. Проверьте кабель и питание платы."
+        ElseIf txtIMEI.Text.Trim() = "" Then
+            reason = "Не заполнен серийный номер."
+        ElseIf txtPIN.Text.Length <> 4 Then
+            reason = "ПИН-код состоит из четырёх цифр."
+        End If
+
+        btnConnect.Enabled = (reason = "")
+        lblReason.Text = reason
     End Sub
 
     Private Sub btnConnect_Click(sender As Object, e As EventArgs) Handles btnConnect.Click
         Dim bt() As Byte = System.Text.Encoding.UTF8.GetBytes(txtPIN.Text)
         Dim pin As Integer = BitConverter.ToUInt32(bt, 0)
 
+        SetStatus(Theme.eDot.Waiting, "Подключение…")
+        btnConnect.Enabled = False
+        statusRow.Refresh()
+
         If opros.Autorize(pin) Then
             Me.Hide()
             opros.SetRegim(clOpros.eRejim.Work)
-            Using f2 As New Form2(opros, lblPortInfo.Text, txtIMEI.Text, pin)
+            Using f2 As New Form2(opros, curPort, txtIMEI.Text, pin)
                 If f2.ShowDialog() = DialogResult.Abort Then
                     Me.Close()
                     Exit Sub
                 End If
             End Using
-            lblPortInfo.Text = ""
-            btnConnect.Enabled = False
+            isFinded = False
+            txtIMEI.Text = ""
+            SetStatus(Theme.eDot.Waiting, "Поиск устройств…")
+            UpdateConnectState()
             opros.SetRegim(clOpros.eRejim.Search)
             Me.Show()
         Else
-            Using f As New frmInfo("Информация", "Проверьте правильность ПИН кода!")
+            SetStatus(Theme.eDot.Bad, "ПИН-код не принят")
+            btnConnect.Enabled = True
+            Using f As New frmInfo("Подключение", "Проверьте правильность ПИН кода!")
                 f.ShowDialog()
             End Using
         End If
@@ -102,17 +117,20 @@ Public Class Form1
     End Sub
 
     Private Sub refIsFinded(ByVal port As String, ByVal imei As String, ByVal isDefPIN As Byte)
-        lblPortInfo.Text = String.Format("({0} - Соединен)", port)
+        curPort = port
+        isFinded = True
+        SetStatus(Theme.eDot.Good, "Устройство найдено · " & port)
         txtIMEI.Text = imei
         If isDefPIN > 0 Then
             txtPIN.Text = "4321"
-            btnConnect.Enabled = True
         End If
-        isFinded = True
+        UpdateConnectState()
     End Sub
 
-    Private Sub lblDefault_Click(sender As Object, e As EventArgs) Handles lblDefault.Click
+    Private Sub lnkDefault_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs) Handles lnkDefault.LinkClicked
         txtPIN.Text = "4321"
+        txtPIN.Focus()
+        txtPIN.SelectionStart = txtPIN.Text.Length
     End Sub
 
     Private Delegate Sub delegate_onFind(ByVal port As String)
@@ -124,11 +142,16 @@ Public Class Form1
 
     Private Sub refOnFind(ByVal port As String)
         txtIMEI.Text = ""
+        isFinded = False
+        curPort = port
+
         If port = "" Then
-            lblPortInfo.Text = "(Нет доступных портов)"
+            SetStatus(Theme.eDot.Bad, "Нет доступных портов")
         Else
-            lblPortInfo.Text = String.Format("({0} - Поиск устройств)", port)
+            SetStatus(Theme.eDot.Waiting, "Поиск устройств… · " & port)
         End If
+
+        UpdateConnectState()
     End Sub
 
     Private Delegate Sub delegate_onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
@@ -141,14 +164,17 @@ Public Class Form1
 
     Private Sub refOnBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
         txtIMEI.Text = ""
-        lblPortInfo.Text = String.Format("({0} - загрузчик 0x{1}, плата {2})", port, bootVer.ToString("X2"), hw)
+        isFinded = False
+        curPort = port
+        SetStatus(Theme.eDot.Waiting, "Загрузчик 0x" & bootVer.ToString("X2") & " · плата " & hw & " · " & port)
+        UpdateConnectState()
 
         Using f As New frmInfo("Загрузчик", "На порту " & port & " отвечает загрузчик 0x" & bootVer.ToString("X2") &
                                ", плата " & hw & "." & vbCrLf &
                                "Прошивки на плате нет или её держат кнопкой." & vbCrLf &
                                "Записать прошивку?", , True)
-            f.Button1.Text = "Да"
-            f.Button2.Text = "Нет"
+            f.Button1.Text = "Записать прошивку"
+            f.Button2.Text = "Отмена"
 
             If f.ShowDialog() <> DialogResult.OK Then
                 opros.SetRegim(clOpros.eRejim.Search)
@@ -170,25 +196,19 @@ Public Class Form1
         opros.SetRegim(clOpros.eRejim.Search)
     End Sub
 
-    Private Sub txtPIN_TextChanged(sender As Object, e As EventArgs) Handles txtPIN.TextChanged
-        If txtPIN.Text.Length = 4 Then
-            btnConnect.Enabled = True
-        Else
-            btnConnect.Enabled = False
-        End If
+    Private Sub txtIMEI_TextChanged(sender As Object, e As EventArgs) Handles txtIMEI.TextChanged
+        UpdateConnectState()
     End Sub
 
-    Private Sub txtPIN_KeyDown(sender As Object, e As KeyEventArgs) Handles txtPIN.KeyDown
-        If e.KeyCode = Keys.NumPad1 Or e.KeyCode = Keys.NumPad2 Or
-               e.KeyCode = Keys.NumPad3 Or e.KeyCode = Keys.NumPad4 Or
-               e.KeyCode = Keys.NumPad5 Or e.KeyCode = Keys.NumPad6 Or
-               e.KeyCode = Keys.NumPad7 Or e.KeyCode = Keys.NumPad8 Or
-               e.KeyCode = Keys.NumPad9 Or e.KeyCode = Keys.NumPad0 Or
-               e.KeyCode = Keys.Back Or e.KeyCode = Keys.Delete Then
-            e.SuppressKeyPress = False
-        Else
-            e.SuppressKeyPress = True
-        End If
+    Private Sub txtPIN_TextChanged(sender As Object, e As EventArgs) Handles txtPIN.TextChanged
+        UpdateConnectState()
+    End Sub
+
+    ' В поля номера и ПИН-кода пускаем только цифры - но и с основного ряда клавиш,
+    ' а не только с цифровой части, как было раньше.
+    Private Sub DigitsOnly_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txtPIN.KeyPress, txtIMEI.KeyPress
+        If Char.IsControl(e.KeyChar) Then Exit Sub
+        If Not Char.IsDigit(e.KeyChar) Then e.Handled = True
     End Sub
 
 End Class

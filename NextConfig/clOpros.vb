@@ -206,6 +206,12 @@ Partial Public Class clOpros
 
         parrent = _parent
 
+        ' в демонстрационном режиме порты не открываем вовсе
+        If Demo.IsOn Then
+            StartDemo()
+            Exit Sub
+        End If
+
         StartFind()
         StartThread()
 

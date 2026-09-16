@@ -17,197 +17,240 @@ Partial Class Form1
     'Является обязательной для конструктора форм Windows Forms
     Private components As System.ComponentModel.IContainer
 
-    'Примечание: следующая процедура является обязательной для конструктора форм Windows Forms
-    'Для ее изменения используйте конструктор форм Windows Form.  
-    'Не изменяйте ее в редакторе исходного кода.
+    ' Экран подключения. Собран на контейнерах, не на координатах:
+    ' карточка по центру, поля и главная кнопка одной ширины.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(Form1))
-        Me.Panel1 = New System.Windows.Forms.Panel()
-        Me.PictureBox1 = New System.Windows.Forms.PictureBox()
-        Me.Panel2 = New System.Windows.Forms.Panel()
-        Me.lblPortInfo = New System.Windows.Forms.Label()
-        Me.btnClose = New System.Windows.Forms.Button()
-        Me.Label1 = New System.Windows.Forms.Label()
+
+        Me.root = New System.Windows.Forms.TableLayoutPanel()
+        Me.card = New System.Windows.Forms.TableLayoutPanel()
+        Me.head = New System.Windows.Forms.TableLayoutPanel()
+        Me.picLogo = New System.Windows.Forms.PictureBox()
+        Me.lblProduct = New System.Windows.Forms.Label()
+        Me.lblSubtitle = New System.Windows.Forms.Label()
+        Me.lblSerialCap = New System.Windows.Forms.Label()
         Me.txtIMEI = New System.Windows.Forms.TextBox()
-        Me.Label5 = New System.Windows.Forms.Label()
-        Me.Label2 = New System.Windows.Forms.Label()
+        Me.lblPinCap = New System.Windows.Forms.Label()
         Me.txtPIN = New System.Windows.Forms.TextBox()
-        Me.lblDefault = New System.Windows.Forms.Label()
+        Me.lnkDefault = New System.Windows.Forms.LinkLabel()
         Me.btnConnect = New System.Windows.Forms.Button()
-        Me.Panel1.SuspendLayout()
-        CType(Me.PictureBox1, System.ComponentModel.ISupportInitialize).BeginInit()
-        Me.Panel2.SuspendLayout()
+        Me.statusRow = New System.Windows.Forms.FlowLayoutPanel()
+        Me.lblDot = New System.Windows.Forms.Label()
+        Me.lblStatus = New System.Windows.Forms.Label()
+        Me.lblReason = New System.Windows.Forms.Label()
+
+        Me.boxIMEI = Theme.FieldBox(Me.txtIMEI, FieldWidth)
+        Me.boxPIN = Theme.FieldBox(Me.txtPIN, FieldWidth)
+
+        CType(Me.picLogo, System.ComponentModel.ISupportInitialize).BeginInit()
+        Me.root.SuspendLayout()
+        Me.card.SuspendLayout()
+        Me.head.SuspendLayout()
+        Me.statusRow.SuspendLayout()
         Me.SuspendLayout()
         '
-        'Panel1
+        'picLogo
         '
-        Me.Panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.Panel1.Controls.Add(Me.PictureBox1)
-        Me.Panel1.Dock = System.Windows.Forms.DockStyle.Left
-        Me.Panel1.Location = New System.Drawing.Point(0, 0)
-        Me.Panel1.Name = "Panel1"
-        Me.Panel1.Size = New System.Drawing.Size(97, 323)
-        Me.Panel1.TabIndex = 39
+        Me.picLogo.Image = Theme.LogoHorizontal(CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image))
+        Me.picLogo.Name = "picLogo"
+        Me.picLogo.Size = New System.Drawing.Size(100, 32)
+        Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.Left
+        Me.picLogo.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRow, 0)
+        Me.picLogo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
+        Me.picLogo.TabStop = False
         '
-        'PictureBox1
+        'lblProduct
         '
-        Me.PictureBox1.Dock = System.Windows.Forms.DockStyle.Top
-        Me.PictureBox1.Image = CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image)
-        Me.PictureBox1.Location = New System.Drawing.Point(0, 0)
-        Me.PictureBox1.Name = "PictureBox1"
-        Me.PictureBox1.Size = New System.Drawing.Size(95, 326)
-        Me.PictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
-        Me.PictureBox1.TabIndex = 0
-        Me.PictureBox1.TabStop = False
+        Me.lblProduct.AutoSize = True
+        Me.lblProduct.Name = "lblProduct"
+        Me.lblProduct.Text = "Домовой NEXT"
+        Me.lblProduct.Anchor = System.Windows.Forms.AnchorStyles.Left
+        Me.lblProduct.Margin = New System.Windows.Forms.Padding(0)
+        Theme.Product(Me.lblProduct)
         '
-        'Panel2
+        'head
         '
-        Me.Panel2.BackColor = System.Drawing.Color.DodgerBlue
-        Me.Panel2.Controls.Add(Me.lblPortInfo)
-        Me.Panel2.Controls.Add(Me.btnClose)
-        Me.Panel2.Controls.Add(Me.Label1)
-        Me.Panel2.Dock = System.Windows.Forms.DockStyle.Top
-        Me.Panel2.Location = New System.Drawing.Point(97, 0)
-        Me.Panel2.Name = "Panel2"
-        Me.Panel2.Size = New System.Drawing.Size(600, 46)
-        Me.Panel2.TabIndex = 40
+        Me.head.AutoSize = True
+        Me.head.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.head.ColumnCount = 2
+        Me.head.RowCount = 1
+        Me.head.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize))
+        Me.head.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize))
+        Me.head.Controls.Add(Me.picLogo, 0, 0)
+        Me.head.Controls.Add(Me.lblProduct, 1, 0)
+        Me.head.Margin = New System.Windows.Forms.Padding(0)
+        Me.head.Name = "head"
         '
-        'lblPortInfo
+        'lblSubtitle
         '
-        Me.lblPortInfo.Dock = System.Windows.Forms.DockStyle.Right
-        Me.lblPortInfo.Font = New System.Drawing.Font("Microsoft Sans Serif", 15.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.lblPortInfo.ForeColor = System.Drawing.Color.White
-        Me.lblPortInfo.Location = New System.Drawing.Point(254, 0)
-        Me.lblPortInfo.Name = "lblPortInfo"
-        Me.lblPortInfo.Size = New System.Drawing.Size(292, 46)
-        Me.lblPortInfo.TabIndex = 2
-        Me.lblPortInfo.Text = "(COM3 - поиск устройств)"
-        Me.lblPortInfo.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        Me.lblSubtitle.AutoSize = True
+        Me.lblSubtitle.Name = "lblSubtitle"
+        Me.lblSubtitle.Text = "Подключение к контроллеру"
+        Me.lblSubtitle.Margin = New System.Windows.Forms.Padding(0, 2, 0, Theme.GapSection)
+        Theme.Caption(Me.lblSubtitle)
         '
-        'btnClose
+        'lblSerialCap
         '
-        Me.btnClose.BackColor = System.Drawing.SystemColors.Control
-        Me.btnClose.Dock = System.Windows.Forms.DockStyle.Right
-        Me.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnClose.Font = New System.Drawing.Font("Microsoft Sans Serif", 20.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.btnClose.Location = New System.Drawing.Point(546, 0)
-        Me.btnClose.Name = "btnClose"
-        Me.btnClose.Size = New System.Drawing.Size(54, 46)
-        Me.btnClose.TabIndex = 1
-        Me.btnClose.Text = "X"
-        Me.btnClose.UseVisualStyleBackColor = False
+        Me.lblSerialCap.AutoSize = True
+        Me.lblSerialCap.Name = "lblSerialCap"
+        Me.lblSerialCap.Text = "Серийный номер"
+        Me.lblSerialCap.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapLabel)
+        Theme.Caption(Me.lblSerialCap)
         '
-        'Label1
+        'boxIMEI
         '
-        Me.Label1.Dock = System.Windows.Forms.DockStyle.Left
-        Me.Label1.Font = New System.Drawing.Font("Microsoft Sans Serif", 20.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.Label1.ForeColor = System.Drawing.Color.White
-        Me.Label1.Location = New System.Drawing.Point(0, 0)
-        Me.Label1.Name = "Label1"
-        Me.Label1.Size = New System.Drawing.Size(222, 46)
-        Me.Label1.TabIndex = 0
-        Me.Label1.Text = "Домовой NEXT"
-        Me.Label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
-        '
-        'txtIMEI
-        '
-        Me.txtIMEI.BackColor = System.Drawing.SystemColors.Control
-        Me.txtIMEI.Font = New System.Drawing.Font("Microsoft Sans Serif", 18.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.txtIMEI.Location = New System.Drawing.Point(273, 110)
+        Me.boxIMEI.Name = "boxIMEI"
+        Me.boxIMEI.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRow)
         Me.txtIMEI.Name = "txtIMEI"
-        Me.txtIMEI.Size = New System.Drawing.Size(203, 35)
-        Me.txtIMEI.TabIndex = 41
-        Me.txtIMEI.Text = "123456789012345"
+        Me.txtIMEI.MaxLength = 15
         '
-        'Label5
+        'lblPinCap
         '
-        Me.Label5.AutoSize = True
-        Me.Label5.Location = New System.Drawing.Point(272, 94)
-        Me.Label5.Name = "Label5"
-        Me.Label5.Size = New System.Drawing.Size(93, 13)
-        Me.Label5.TabIndex = 42
-        Me.Label5.Text = "Серийный номер"
+        Me.lblPinCap.AutoSize = True
+        Me.lblPinCap.Name = "lblPinCap"
+        Me.lblPinCap.Text = "ПИН-код"
+        Me.lblPinCap.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapLabel)
+        Theme.Caption(Me.lblPinCap)
         '
-        'Label2
+        'boxPIN
         '
-        Me.Label2.AutoSize = True
-        Me.Label2.Location = New System.Drawing.Point(272, 156)
-        Me.Label2.Name = "Label2"
-        Me.Label2.Size = New System.Drawing.Size(52, 13)
-        Me.Label2.TabIndex = 44
-        Me.Label2.Text = "ПИН код"
-        '
-        'txtPIN
-        '
-        Me.txtPIN.BackColor = System.Drawing.SystemColors.Control
-        Me.txtPIN.Font = New System.Drawing.Font("Microsoft Sans Serif", 18.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.txtPIN.Location = New System.Drawing.Point(273, 172)
-        Me.txtPIN.MaxLength = 4
+        Me.boxPIN.Name = "boxPIN"
+        Me.boxPIN.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Me.txtPIN.Name = "txtPIN"
-        Me.txtPIN.Size = New System.Drawing.Size(203, 35)
-        Me.txtPIN.TabIndex = 43
+        Me.txtPIN.MaxLength = 4
         '
-        'lblDefault
+        'lnkDefault
         '
-        Me.lblDefault.AutoSize = True
-        Me.lblDefault.BackColor = System.Drawing.Color.White
-        Me.lblDefault.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.lblDefault.ForeColor = System.Drawing.Color.Blue
-        Me.lblDefault.Location = New System.Drawing.Point(272, 215)
-        Me.lblDefault.Name = "lblDefault"
-        Me.lblDefault.Size = New System.Drawing.Size(135, 13)
-        Me.lblDefault.TabIndex = 46
-        Me.lblDefault.Text = "Заполнить по умолчанию"
+        Me.lnkDefault.AutoSize = True
+        Me.lnkDefault.Name = "lnkDefault"
+        Me.lnkDefault.Text = "Заполнить по умолчанию"
+        Me.lnkDefault.Font = Theme.FontCaption
+        Me.lnkDefault.LinkColor = Theme.Accent
+        Me.lnkDefault.ActiveLinkColor = Theme.AccentDown
+        Me.lnkDefault.LinkBehavior = System.Windows.Forms.LinkBehavior.HoverUnderline
+        Me.lnkDefault.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapSection)
         '
         'btnConnect
         '
-        Me.btnConnect.BackColor = System.Drawing.SystemColors.Control
-        Me.btnConnect.Enabled = False
-        Me.btnConnect.Font = New System.Drawing.Font("Microsoft Sans Serif", 18.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.btnConnect.Location = New System.Drawing.Point(273, 235)
         Me.btnConnect.Name = "btnConnect"
-        Me.btnConnect.Size = New System.Drawing.Size(203, 37)
-        Me.btnConnect.TabIndex = 47
         Me.btnConnect.Text = "Подключиться"
-        Me.btnConnect.UseVisualStyleBackColor = False
+        Me.btnConnect.Enabled = False
+        Me.btnConnect.Size = New System.Drawing.Size(FieldWidth, Theme.ButtonHeight)
+        Me.btnConnect.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapBlock)
+        Theme.Primary(Me.btnConnect)
+        '
+        'lblDot
+        '
+        Me.lblDot.Name = "lblDot"
+        Me.lblDot.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapLabel, 0)
+        Theme.Dot(Me.lblDot, Theme.eDot.Waiting)
+        '
+        'lblStatus
+        '
+        Me.lblStatus.AutoSize = True
+        Me.lblStatus.Name = "lblStatus"
+        Me.lblStatus.Margin = New System.Windows.Forms.Padding(0, 3, 0, 0)
+        Theme.DotText(Me.lblStatus, Theme.eDot.Waiting, "Поиск устройств…")
+        '
+        'statusRow
+        '
+        Me.statusRow.AutoSize = True
+        Me.statusRow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.statusRow.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.statusRow.WrapContents = False
+        Me.statusRow.Controls.Add(Me.lblDot)
+        Me.statusRow.Controls.Add(Me.lblStatus)
+        Me.statusRow.Margin = New System.Windows.Forms.Padding(0)
+        Me.statusRow.Name = "statusRow"
+        '
+        'lblReason
+        '
+        Me.lblReason.AutoSize = True
+        Me.lblReason.MaximumSize = New System.Drawing.Size(FieldWidth, 0)
+        Me.lblReason.Name = "lblReason"
+        Me.lblReason.Text = ""
+        Me.lblReason.Margin = New System.Windows.Forms.Padding(0, Theme.GapLabel, 0, 0)
+        Theme.Caption(Me.lblReason)
+        '
+        'card
+        '
+        Me.card.AutoSize = True
+        Me.card.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.card.BackColor = Theme.Surface
+        Me.card.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.card.ColumnCount = 1
+        Me.card.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize))
+        Me.card.Padding = New System.Windows.Forms.Padding(Theme.GapSection)
+        Me.card.Anchor = System.Windows.Forms.AnchorStyles.None
+        Me.card.Name = "card"
+        Me.card.Controls.Add(Me.head)
+        Me.card.Controls.Add(Me.lblSubtitle)
+        Me.card.Controls.Add(Me.lblSerialCap)
+        Me.card.Controls.Add(Me.boxIMEI)
+        Me.card.Controls.Add(Me.lblPinCap)
+        Me.card.Controls.Add(Me.boxPIN)
+        Me.card.Controls.Add(Me.lnkDefault)
+        Me.card.Controls.Add(Me.btnConnect)
+        Me.card.Controls.Add(Me.statusRow)
+        Me.card.Controls.Add(Me.lblReason)
+        '
+        'root
+        '
+        Me.root.ColumnCount = 1
+        Me.root.RowCount = 1
+        Me.root.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.root.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.root.Controls.Add(Me.card, 0, 0)
+        Me.root.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.root.Name = "root"
         '
         'Form1
         '
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
+        Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.BackColor = System.Drawing.Color.White
-        Me.ClientSize = New System.Drawing.Size(697, 323)
-        Me.ControlBox = False
-        Me.Controls.Add(Me.btnConnect)
-        Me.Controls.Add(Me.lblDefault)
-        Me.Controls.Add(Me.Label2)
-        Me.Controls.Add(Me.txtPIN)
-        Me.Controls.Add(Me.Label5)
-        Me.Controls.Add(Me.txtIMEI)
-        Me.Controls.Add(Me.Panel2)
-        Me.Controls.Add(Me.Panel1)
+        Me.ClientSize = New System.Drawing.Size(440, 492)
+        Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
+        Me.MaximizeBox = False
         Me.Name = "Form1"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
-        Me.Panel1.ResumeLayout(False)
-        CType(Me.PictureBox1, System.ComponentModel.ISupportInitialize).EndInit()
-        Me.Panel2.ResumeLayout(False)
+        Me.Text = "Домовой NEXT"
+        Me.AcceptButton = Me.btnConnect
+        Theme.StyleForm(Me)
+
+        CType(Me.picLogo, System.ComponentModel.ISupportInitialize).EndInit()
+        Me.head.ResumeLayout(False)
+        Me.head.PerformLayout()
+        Me.statusRow.ResumeLayout(False)
+        Me.statusRow.PerformLayout()
+        Me.card.ResumeLayout(False)
+        Me.card.PerformLayout()
+        Me.root.ResumeLayout(False)
+        Me.root.PerformLayout()
         Me.ResumeLayout(False)
-        Me.PerformLayout()
 
     End Sub
 
-    Friend WithEvents Panel1 As Panel
-    Friend WithEvents Panel2 As Panel
-    Friend WithEvents lblPortInfo As Label
-    Friend WithEvents btnClose As Button
-    Friend WithEvents Label1 As Label
+    ' ширина полей и главной кнопки - одна на весь экран подключения
+    Private Const FieldWidth As Integer = 320
+
+    Friend WithEvents root As TableLayoutPanel
+    Friend WithEvents card As TableLayoutPanel
+    Friend WithEvents head As TableLayoutPanel
+    Friend WithEvents picLogo As PictureBox
+    Friend WithEvents lblProduct As Label
+    Friend WithEvents lblSubtitle As Label
+    Friend WithEvents lblSerialCap As Label
+    Friend WithEvents boxIMEI As Panel
     Friend WithEvents txtIMEI As TextBox
-    Friend WithEvents Label5 As Label
-    Friend WithEvents Label2 As Label
+    Friend WithEvents lblPinCap As Label
+    Friend WithEvents boxPIN As Panel
     Friend WithEvents txtPIN As TextBox
-    Friend WithEvents lblDefault As Label
-    Friend WithEvents PictureBox1 As PictureBox
+    Friend WithEvents lnkDefault As LinkLabel
     Friend WithEvents btnConnect As Button
+    Friend WithEvents statusRow As FlowLayoutPanel
+    Friend WithEvents lblDot As Label
+    Friend WithEvents lblStatus As Label
+    Friend WithEvents lblReason As Label
 End Class

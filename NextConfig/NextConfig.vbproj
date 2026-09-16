@@ -74,10 +74,12 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Theme.vb" />
     <Compile Include="clComPort.vb" />
     <Compile Include="ClLog_NT.vb" />
     <Compile Include="clOpros.vb" />
     <Compile Include="clOprosCommands.vb" />
+    <Compile Include="clOprosDemo.vb" />
     <Compile Include="clOprosUpdate.vb" />
     <Compile Include="Form1.vb">
       <SubType>Form</SubType>

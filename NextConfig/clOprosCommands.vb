@@ -224,6 +224,11 @@ Partial Public Class clOpros
     Public Function GetConfig(ByRef _conf As s_config) As Boolean
         Dim rez As Boolean = False
 
+        If Demo.IsOn Then
+            _conf = DemoConfig()
+            Return True
+        End If
+
         SyncLock Me
 
             _isPause = True
@@ -393,6 +398,8 @@ Partial Public Class clOpros
 
     Public Function Autorize(ByVal pin As UInteger) As Boolean
         Dim rez As Boolean = False
+
+        If Demo.IsOn Then Return True
 
         SyncLock Me
 
