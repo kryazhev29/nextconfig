@@ -97,9 +97,13 @@ Public Class frmBoot
             Exit Sub
         End If
 
+        ' на кнопках должно быть видно, что делает каждая
+        btnCheck.Text = "Пробная" & vbCrLf & "передача"
+        btnApply.Text = "Заменить" & vbCrLf & "загрузчик"
+
         btnApply.Enabled = True
         btnCheck.Enabled = True
-        lblState.Text = "Готов. Сначала проверка, потом замена."
+        lblState.Text = "Сначала пробная передача, она ничего не меняет. Потом замена."
     End Sub
 
     ' Передать файл и отменить: контроллер принимает и проверяет образ,
