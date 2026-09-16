@@ -1,57 +1,95 @@
-﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()> _
-Partial Public Class frmSelecter
+<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()> _
+Partial Class frmSelecter
     Inherits System.Windows.Forms.Form
 
-    'Форма переопределяет метод Dispose для очистки списка компонентов.
     <System.Diagnostics.DebuggerNonUserCode()> _
     Protected Overrides Sub Dispose(ByVal disposing As Boolean)
-        If disposing AndAlso components IsNot Nothing Then
-            components.Dispose()
-        End If
-        MyBase.Dispose(disposing)
+        Try
+            If disposing AndAlso components IsNot Nothing Then
+                components.Dispose()
+            End If
+        Finally
+            MyBase.Dispose(disposing)
+        End Try
     End Sub
 
-    'Требуется для конструктора Windows Forms
     Private components As System.ComponentModel.IContainer
 
-    'Примечание: следующая процедура является обязательной для конструктора Windows Forms
-    'Для ее изменения используйте конструктор Windows Forms.  
-    'Не изменяйте ее в редакторе исходного кода.
+    ' Выбор из нескольких значений. Тот же образец, что у остальных диалогов:
+    ' заголовок, варианты, «Отмена» внизу справа.
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
+        Me.root = New System.Windows.Forms.TableLayoutPanel()
         Me.Title = New System.Windows.Forms.Label()
+        Me.items_grid = New System.Windows.Forms.TableLayoutPanel()
+        Me.buttons = New System.Windows.Forms.FlowLayoutPanel()
+        Me.btnCancel = New System.Windows.Forms.Button()
+        Me.root.SuspendLayout()
+        Me.buttons.SuspendLayout()
         Me.SuspendLayout()
-        '
-        'Title
-        '
-        Me.Title.BackColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(64, Byte), Integer), CType(CType(64, Byte), Integer))
-        Me.Title.Dock = System.Windows.Forms.DockStyle.Top
-        Me.Title.Font = New System.Drawing.Font("Tahoma", 16.0!, System.Drawing.FontStyle.Bold)
-        Me.Title.ForeColor = System.Drawing.Color.White
-        Me.Title.Location = New System.Drawing.Point(0, 0)
+
+        Me.Title.AutoSize = True
         Me.Title.Name = "Title"
-        Me.Title.Size = New System.Drawing.Size(434, 30)
-        Me.Title.TabIndex = 35
-        Me.Title.Text = "Окно выбора"
-        Me.Title.TextAlign = System.Drawing.ContentAlignment.TopCenter
-        '
-        'frmSelecter
-        '
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(96.0!, 96.0!)
-        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi
-        Me.AutoScroll = True
-        Me.BackColor = System.Drawing.SystemColors.Control
-        Me.ClientSize = New System.Drawing.Size(434, 244)
-        Me.ControlBox = False
-        Me.Controls.Add(Me.Title)
+        Me.Title.Text = "Выбор"
+        Me.Title.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapBlock)
+        Theme.Title(Me.Title)
+
+        Me.items_grid.AutoSize = True
+        Me.items_grid.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.items_grid.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapSection)
+        Me.items_grid.Name = "items_grid"
+
+        Me.btnCancel.Name = "btnCancel"
+        Me.btnCancel.Text = "Отмена"
+        Me.btnCancel.Width = 148
+        Me.btnCancel.Margin = New System.Windows.Forms.Padding(0)
+        Theme.Secondary(Me.btnCancel)
+
+        Me.buttons.AutoSize = True
+        Me.buttons.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.buttons.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft
+        Me.buttons.WrapContents = False
+        Me.buttons.Margin = New System.Windows.Forms.Padding(0)
+        Me.buttons.Anchor = System.Windows.Forms.AnchorStyles.Right
+        Me.buttons.Controls.Add(Me.btnCancel)
+
+        Me.root.ColumnCount = 1
+        Me.root.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.root.AutoSize = True
+        Me.root.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.root.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.root.Padding = New System.Windows.Forms.Padding(Theme.GapSection)
+        Me.root.Controls.Add(Me.Title)
+        Me.root.Controls.Add(Me.items_grid)
+        Me.root.Controls.Add(Me.buttons)
+
+        Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
+        Me.AutoSize = True
+        Me.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.ClientSize = New System.Drawing.Size(460, 260)
+        Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
         Me.MaximizeBox = False
         Me.MinimizeBox = False
         Me.Name = "frmSelecter"
+        Me.ShowInTaskbar = False
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent
+        Me.Text = "Домовой NEXT"
+        Me.CancelButton = Me.btnCancel
+        Theme.StyleForm(Me)
+
+        Me.buttons.ResumeLayout(False)
+        Me.root.ResumeLayout(False)
+        Me.root.PerformLayout()
         Me.ResumeLayout(False)
+        Me.PerformLayout()
 
     End Sub
 
+    Friend WithEvents root As TableLayoutPanel
     Friend WithEvents Title As Label
+    Friend WithEvents items_grid As TableLayoutPanel
+    Friend WithEvents buttons As FlowLayoutPanel
+    Friend WithEvents btnCancel As Button
 End Class

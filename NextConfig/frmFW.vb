@@ -33,6 +33,7 @@ Public Class frmFW
     Private break As Boolean = False
     Private running As Boolean = False
     Private applyRun As Boolean = False
+    Private doneOk As Boolean = False
     Private nBlock As Integer
     Private thread_work As Threading.Thread
 
@@ -85,30 +86,30 @@ Public Class frmFW
                 Button1.Text = "Обновить"
 
                 If Not clBoot.CheckAppFile(fName, app, errText) Then
-                    lblInfo.Text = errText
+                    FileRejected(errText)
                     Exit Sub
                 End If
 
                 image = app.image
                 fSize = image.Length
-                lblInfo.Text = "Прошивка " & app.version & " для платы " & app.hard & ", " & fSize &
-                               " байт, контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8")
-                Label1.Text = "0/" & fSize
+                lblInfo.Text = FileInfoText()
+                lblState.Text = "Файл проверен, можно начинать"
+                Label1.Text = "0 из " & fSize & " байт"
 
             Case eMode.FW_VIA_BOOT
                 lblTitle.Text = "Запись прошивки через загрузчик"
                 Button1.Text = "Прошить"
 
                 If Not clBoot.CheckAppFile(fName, app, errText) Then
-                    lblInfo.Text = errText
+                    FileRejected(errText)
                     Exit Sub
                 End If
 
                 image = app.image
                 fSize = image.Length
-                lblInfo.Text = "Прошивка " & app.version & " для платы " & app.hard & ", " & fSize &
-                               " байт, контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8")
-                lblState.Text = "Плата стоит в загрузчике. Не отключайте питание и USB."
+                lblInfo.Text = FileInfoText()
+                lblState.Text = "Плата стоит в загрузчике. Не отключайте питание и USB"
+                Label1.Text = "0 из " & fSize & " байт"
 
             Case eMode.BOOT_REPLACE
                 lblTitle.Text = "Замена загрузчика"
@@ -118,33 +119,32 @@ Public Class frmFW
                 Try
                     image = File.ReadAllBytes(fName)
                 Catch ex As Exception
-                    lblInfo.Text = ex.Message
+                    FileRejected(ex.Message)
                     Exit Sub
                 End Try
 
                 If Not clOpros.CheckBootImage(image, fileHw, errText) Then
-                    lblInfo.Text = errText
+                    FileRejected(errText)
                     Exit Sub
                 End If
 
                 fSize = image.Length
-                lblInfo.Text = "Загрузчик 0x32 для платы " & fileHw & ", " & fSize &
-                               " байт, контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8")
+                lblInfo.Text = "Загрузчик 0x32 для платы " & fileHw & ", " & fSize & " байт," & vbCrLf &
+                               "контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8") & "." & vbCrLf &
+                               "Проверено: размер, векторы, версия и плата внутри образа."
 
                 ' Плата под старым загрузчиком свою версию не знает и сообщает 0 —
                 ' тогда сверять не с чем, файл выбирается по плате.
                 If boardHw <> 0 AndAlso boardHw <> fileHw Then
-                    lblInfo.Text = "Файл для платы " & fileHw & ", а контроллер сообщает плату " & boardHw & "!"
+                    FileRejected("Файл для платы " & fileHw & ", а контроллер сообщает плату " & boardHw & ".")
                     Exit Sub
                 End If
 
-                lblState.Text = "Сначала пробная передача, она ничего не меняет. Потом замена."
-                Label1.Text = "0/" & fSize
+                lblState.Text = "Сначала пробная передача, она ничего не меняет. Потом замена"
+                Label1.Text = "0 из " & fSize & " байт"
 
                 ' здесь необратима сама операция, а не выход из окна
-                Button1.BackColor = Color.Red
-                Button2.BackColor = Color.Gainsboro
-                Button2.ForeColor = Color.Black
+                Theme.DangerOutline(Button1)
         End Select
 
         Button1.Enabled = True
@@ -191,8 +191,19 @@ Public Class frmFW
             Threading.Thread.Sleep(100)
         End While
 
-        Me.DialogResult = DialogResult.Cancel
+        Me.DialogResult = If(doneOk, DialogResult.OK, DialogResult.Cancel)
         Me.Close()
+    End Sub
+
+    ' Крестик окна работает как «Закрыть»: работу сначала прерываем.
+    Private Sub frmFW_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
+        If Not running Then Exit Sub
+
+        break = True
+
+        While running
+            Threading.Thread.Sleep(100)
+        End While
     End Sub
 
     Private Sub StartWork(ByVal apply As Boolean)
@@ -205,9 +216,13 @@ Public Class frmFW
 
         Select Case mode
             Case eMode.BOOT_REPLACE
-                lblState.Text = If(apply, "Идёт замена загрузчика...", "Идёт проверка передачей...")
+                lblState.Text = If(apply,
+                                   "Передача загрузчика в контроллер. Не отключайте питание и USB",
+                                   "Пробная передача: контроллер принимает и проверяет файл")
+            Case eMode.FW_VIA_BOOT
+                lblState.Text = "Запись прошивки через загрузчик"
             Case Else
-                lblState.Text = "Идёт запись прошивки..."
+                lblState.Text = "Передача прошивки в контроллер"
         End Select
 
         thread_work = New Threading.Thread(AddressOf tWork)
@@ -368,10 +383,15 @@ Public Class frmFW
     End Sub
 
     Private Sub refOnReaded(ByVal readed As Integer, ByVal percent As Byte)
-        Label1.Text = readed & "/" & fSize
+        Label1.Text = readed & " из " & fSize & " байт"
 
         If percent <= 100 Then
             ProgressBar1.Value = percent
+        End If
+
+        ' 100 % - это «всё отдано», дальше контроллер работает сам
+        If percent >= 100 AndAlso mode = eMode.FW_UPDATE Then
+            lblState.Text = "Контроллер проверяет контрольную сумму и устанавливает прошивку"
         End If
     End Sub
 
@@ -383,8 +403,8 @@ Public Class frmFW
         running = False
 
         If Not ok Then
-            lblState.Text = "Не выполнено."
-            ShowMsg("Ошибка!", text)
+            lblState.Text = "Не выполнено: " & text
+            lblState.ForeColor = Theme.Danger
             Button1.Enabled = True
             btnCheck.Enabled = (mode = eMode.BOOT_REPLACE)
             Exit Sub
@@ -392,34 +412,73 @@ Public Class frmFW
 
         Select Case mode
             Case eMode.FW_UPDATE
-                lblState.Text = "Прошивка записана, контроллер её устанавливает."
-                ShowMsg("Обновление", "Обновление завершено!" & vbCrLf &
-                        "Контроллер устанавливает прошивку и перезагружается.")
+                Finish("Прошивка передана целиком. Контроллер устанавливает её и перезагружается." & vbCrLf &
+                       "Подключитесь заново примерно через 20 секунд.")
 
             Case eMode.FW_VIA_BOOT
-                lblState.Text = "Прошивка записана, загрузчик её устанавливает."
-                ShowMsg("Готово", "Прошивка записана." & vbCrLf &
-                        "Загрузчик устанавливает её и запускает." & vbCrLf &
-                        "Подключитесь заново примерно через 20 секунд.")
+                Finish("Прошивка записана. Загрузчик устанавливает её и запускает." & vbCrLf &
+                       "Подключитесь заново примерно через 20 секунд.")
 
             Case eMode.BOOT_REPLACE
                 If Not applyRun Then
-                    lblState.Text = "Файл принят и проверен контроллером, замена отменена."
-                    ShowMsg("Проверка", "Контроллер принял и проверил файл загрузчика." & vbCrLf &
-                            "На плате ничего не изменилось.")
+                    lblState.Text = "Пробная передача прошла: контроллер принял и проверил файл." & vbCrLf &
+                                    "На плате ничего не изменилось."
+                    lblState.ForeColor = Theme.OkText
                     Button1.Enabled = True
                     btnCheck.Enabled = True
                     Exit Sub
                 End If
 
-                lblState.Text = "Загрузчик заменён, контроллер перезагружается."
-                ShowMsg("Готово", "Контроллер перезаписывает загрузчик и перезагружается." & vbCrLf &
-                        "Через 15 секунд подключитесь заново и проверьте" & vbCrLf &
-                        "версию загрузчика: она должна стать 50.")
+                Finish("Контроллер перезаписывает загрузчик и перезагружается." & vbCrLf &
+                       "Через 15 секунд подключитесь заново и проверьте версию загрузчика: она должна стать 0x32.")
         End Select
+    End Sub
 
-        Me.DialogResult = DialogResult.OK
-        Me.Close()
+    ' Работа кончилась удачно: итог в окне, дальше только «Готово».
+    Private Sub Finish(ByVal text As String)
+        doneOk = True
+
+        lblState.Text = text
+        lblState.ForeColor = Theme.OkText
+        ProgressBar1.Value = ProgressBar1.Maximum
+
+        Button1.Visible = False
+        btnCheck.Visible = False
+        Button2.Text = "Готово"
+        Theme.Primary(Button2)
+        Button2.Enabled = True
+        Me.AcceptButton = Button2
+    End Sub
+
+    ' Что за файл и что в нём проверено. Пишем только те проверки, которые есть.
+    Private Function FileInfoText() As String
+        Dim marked As Boolean = False
+
+        If image.Length >= HW_MARKER_OFFSET + 4 Then
+            Dim mark As UInt32 = BitConverter.ToUInt32(image, HW_MARKER_OFFSET)
+            marked = (mark And &HFFFFFF00UI) = HW_MARKER_TAG
+        End If
+
+        Dim t As String = "Прошивка " & app.version & " для платы " & app.hard & ", " & fSize & " байт," & vbCrLf &
+                          "контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8") & "." & vbCrLf
+
+        If marked Then
+            Return t & "Проверено: имя файла, размер, векторы, метка платы внутри образа."
+        End If
+
+        Return t & "Проверено: имя файла, размер, векторы. Метки платы в образе нет," & vbCrLf &
+                   "совпадение с платой не подтверждено."
+    End Function
+
+    ' Файл не подходит: работать нечем, остаётся закрыть окно.
+    Private Sub FileRejected(ByVal why As String)
+        lblInfo.Text = why
+        Theme.Note(lblInfo, True)
+        lblState.Text = "Файл не подходит"
+        lblState.ForeColor = Theme.Danger
+        Button1.Visible = False
+        btnCheck.Visible = False
+        Me.AcceptButton = Button2
     End Sub
 
     ' Окно показывает поток окна, а не поток записи: иначе форма живёт в двух потоках.

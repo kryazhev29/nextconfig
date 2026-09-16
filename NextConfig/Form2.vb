@@ -201,8 +201,8 @@ Public Class Form2
 
     Private Sub btnTranspMode_Click(sender As Object, e As EventArgs) Handles btnTranspMode.Click
         Using f As New frmInfo("Информация", "Перевести контроллер в прозрачный режим с GSM модулем?" & vbCrLf & "Конфигуратор будет закрыт!",, True)
-            f.Button1.Text = "Да"
-            f.Button2.Text = "Нет"
+            f.Button1.Text = "Перевести"
+            f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 If opros.SetTransparentMode() Then
                     Using f2 As New frmInfo("Информация", "Контроллер переведен в прозрачный режим с GSM модулем!" & vbCrLf &
@@ -223,8 +223,8 @@ Public Class Form2
 
     Private Sub btnFactory_Click(sender As Object, e As EventArgs) Handles btnFactory.Click
         Using f As New frmInfo("Информация", "Вы уверены что хотите сбросить контроллер на заводские настройки?",, True)
-            f.Button1.Text = "Да"
-            f.Button2.Text = "Нет"
+            f.Button1.Text = "Сбросить"
+            f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 Dim str As String
                 If opros.SetDefault() Then
@@ -257,8 +257,8 @@ Public Class Form2
         End If
 
         Using f As New frmInfo("Информация", "Сохранить настройки?",, True)
-            f.Button1.Text = "Да"
-            f.Button2.Text = "Нет"
+            f.Button1.Text = "Сохранить"
+            f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 Dim str As String
                 If opros.SetConfig(config) Then
@@ -276,8 +276,8 @@ Public Class Form2
 
     Private Sub btnDefault_Click(sender As Object, e As EventArgs) Handles btnDefault.Click
         Using f As New frmInfo("Информация", "Вы уверены что хотите установить настройки по умолчанию?",, True)
-            f.Button1.Text = "Да"
-            f.Button2.Text = "Нет"
+            f.Button1.Text = "Записать"
+            f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 Dim str As String
 
@@ -468,8 +468,8 @@ Public Class Form2
 
     Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
         Using f As New frmInfo("Информация", "Вы уверены что хотите удалить из памяти все идентификаторы?",, True)
-            f.Button1.Text = "Да"
-            f.Button2.Text = "Нет"
+            f.Button1.Text = "Очистить"
+            f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 Dim str As String
                 If opros.ClearMem() Then
@@ -495,8 +495,8 @@ Public Class Form2
 
     Private Sub btnUnConnect_Click(sender As Object, e As EventArgs) Handles btnUnConnect.Click
         Using f As New frmInfo("Информация", "Вы уверены что хотите отвязать контроллер от объекта?",, True)
-            f.Button1.Text = "Да"
-            f.Button2.Text = "Нет"
+            f.Button1.Text = "Отвязать"
+            f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 thread_getInfo = New Threading.Thread(AddressOf tUnconnectController)
                 thread_getInfo.Priority = Threading.ThreadPriority.Normal
@@ -538,7 +538,7 @@ Public Class Form2
         arr.Add(New frmSelecter.mItem With {.ID = 1, .Name = "UG95/UG915"})
         arr.Add(New frmSelecter.mItem With {.ID = 2, .Name = "SLM336"})
         arr.Add(New frmSelecter.mItem With {.ID = 3, .Name = "M66"})
-        arr.Add(New frmSelecter.mItem With {.ID = 0, .Name = "Отмена", .ButtonBackColor = Color.Red})
+        arr.Add(New frmSelecter.mItem With {.ID = 0, .Name = "Отмена"})
 
         Using f As New frmSelecter("Тип модуля", arr, 2, 14)
             f.ShowDialog()

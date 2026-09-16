@@ -12,8 +12,10 @@
         info.TextAlign = align
 
         If isDialog Then
-            'Button1.Width = 346
             Button2.Visible = True
+        Else
+            ' одна кнопка: Escape тоже должен закрывать окно
+            Me.CancelButton = Button1
         End If
 
     End Sub

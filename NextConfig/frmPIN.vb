@@ -17,56 +17,59 @@ Public Class frmPIN
     End Sub
 
     Private Sub Form3_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-
+        txtOldPIN.Focus()
     End Sub
 
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
-        Dim bt() As Byte = System.Text.Encoding.UTF8.GetBytes(txtOldPIN.Text)
-        Dim oldPin As Integer = BitConverter.ToUInt32(bt, 0)
 
-        If oldPin <> pin Then
-            Using f As New frmInfo("Смена ПИН кода", "Проверьте правильность ввода текущего ПИН кода!")
-                f.ShowDialog()
-            End Using
+        ' Длину проверяем до перевода в число: на коротком коде BitConverter
+        ' читал за концом массива и ронял программу.
+        If txtOldPIN.Text.Length <> 4 Then
+            ShowError("Текущий ПИН-код состоит из четырёх цифр.", txtOldPIN)
+            Exit Sub
+        End If
+
+        If PinOf(txtOldPIN.Text) <> pin Then
+            ShowError("Текущий ПИН-код не совпадает.", txtOldPIN)
+            Exit Sub
+        End If
+
+        If txtNewPIN.Text.Length <> 4 Then
+            ShowError("Новый ПИН-код состоит из четырёх цифр.", txtNewPIN)
             Exit Sub
         End If
 
         If txtNewPIN.Text <> txtNewPIN2.Text Then
-            Using f As New frmInfo("Смена ПИН кода", "Проверьте правильность ввода нового ПИН кода!")
-                f.ShowDialog()
-            End Using
+            ShowError("Второй раз ПИН-код введён иначе.", txtNewPIN2)
             Exit Sub
         End If
 
-        If txtNewPIN.Text = String.Empty Then
-            Using f As New frmInfo("Смена ПИН кода", "Вы не ввели новый ПИН код!")
-                f.ShowDialog()
-            End Using
-            Exit Sub
-        End If
-
-        bt = System.Text.Encoding.UTF8.GetBytes(txtNewPIN.Text)
-        nPin = BitConverter.ToUInt32(bt, 0)
+        nPin = PinOf(txtNewPIN.Text)
         DialogResult = DialogResult.OK
         Me.Close()
     End Sub
+
+    ' ПИН-код хранится как четыре знака одним числом.
+    Private Shared Function PinOf(ByVal text As String) As Integer
+        Return BitConverter.ToUInt32(System.Text.Encoding.UTF8.GetBytes(text), 0)
+    End Function
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
         DialogResult = DialogResult.Cancel
         Me.Close()
     End Sub
 
-    Private Sub txtPIN_KeyDown(sender As Object, e As KeyEventArgs) Handles txtOldPIN.KeyDown, txtNewPIN.KeyDown, txtNewPIN2.KeyDown
-        If e.KeyCode = Keys.NumPad1 Or e.KeyCode = Keys.NumPad2 Or
-               e.KeyCode = Keys.NumPad3 Or e.KeyCode = Keys.NumPad4 Or
-               e.KeyCode = Keys.NumPad5 Or e.KeyCode = Keys.NumPad6 Or
-               e.KeyCode = Keys.NumPad7 Or e.KeyCode = Keys.NumPad8 Or
-               e.KeyCode = Keys.NumPad9 Or e.KeyCode = Keys.NumPad0 Or
-               e.KeyCode = Keys.Back Or e.KeyCode = Keys.Delete Then
-            e.SuppressKeyPress = False
-        Else
-            e.SuppressKeyPress = True
-        End If
+    ' Ошибка стоит в самом окне, рядом с полем, а не отдельным сообщением поверх.
+    Private Sub ShowError(ByVal text As String, ByVal focusOn As TextBox)
+        lblError.Text = text
+        focusOn.Focus()
+        focusOn.SelectAll()
+    End Sub
+
+    ' Только цифры - но и с основного ряда клавиш, а не с цифровой части одной.
+    Private Sub txtPIN_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txtOldPIN.KeyPress, txtNewPIN.KeyPress, txtNewPIN2.KeyPress
+        If Char.IsControl(e.KeyChar) Then Exit Sub
+        If Not Char.IsDigit(e.KeyChar) Then e.Handled = True
     End Sub
 
 End Class
