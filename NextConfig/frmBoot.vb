@@ -1,33 +1,55 @@
-﻿Imports System.IO
+Imports System.IO
+Imports System.IO.Ports
 
-' Замена загрузчика контроллера (краткое ТЗ, разделы 8 и 9). Файл загрузчика
-' выбирается пользователем по фотографии платы: контроллер под старым загрузчиком
-' свою версию платы не знает.
+' Два действия сервисного ПО с загрузчиком (краткое ТЗ, разделы 8 и 9):
+'  - замена самого загрузчика через работающую прошивку, команда 110;
+'  - запись прошивки в плату, которая стоит в загрузчике и приложения не имеет.
 Public Class frmBoot
 
+    Public Enum eMode
+        REPLACE_BOOT = 0 ' замена загрузчика командой 110
+        FLASH_APP = 1    ' запись прошивки через загрузчик
+    End Enum
+
     Private ReadOnly fName As String
+    Private ReadOnly mode As eMode
     Private ReadOnly opros As clOpros
+    Private ReadOnly bootPort As ClComPort
     Private ReadOnly boardHw As Byte
 
     Private image As Byte()
+    Private app As clBoot.s_appfile
     Private fileHw As Byte
     Private running As Boolean = False
     Private applyRun As Boolean = False
-    Private thread_replace As Threading.Thread
+    Private thread_work As Threading.Thread
 
     Private Delegate Sub delegate_onProgress(ByVal percent As Integer)
     Private Delegate Sub delegate_onDone(ByVal ok As Boolean, ByVal text As String)
 
-    ' boardHw — номер платы из статуса контроллера, 0 если он его не знает
+    ' Замена загрузчика. boardHw — номер платы из статуса контроллера, 0 если он его не знает.
     Public Sub New(ByVal _file As String, ByVal _opros As clOpros, ByVal _boardHw As Byte)
 
         ' Этот вызов является обязательным для конструктора.
         InitializeComponent()
 
         fName = _file
+        mode = eMode.REPLACE_BOOT
         opros = _opros
         boardHw = _boardHw
         lblFile.Text = fName
+    End Sub
+
+    ' Запись прошивки в плату, стоящую в загрузчике.
+    Public Sub New(ByVal _file As String, ByVal _port As ClComPort)
+
+        InitializeComponent()
+
+        fName = _file
+        mode = eMode.FLASH_APP
+        bootPort = _port
+        lblFile.Text = fName
+        lblTitle.Text = "Запись прошивки через загрузчик"
     End Sub
 
     Private Sub frmBoot_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -35,6 +57,23 @@ Public Class frmBoot
 
         btnApply.Enabled = False
         btnCheck.Enabled = False
+
+        If mode = eMode.FLASH_APP Then
+            btnCheck.Visible = False
+            btnApply.Text = "Прошить"
+
+            If Not clBoot.CheckAppFile(fName, app, errText) Then
+                lblInfo.Text = errText
+                Exit Sub
+            End If
+
+            lblInfo.Text = "Прошивка " & app.version & " для платы " & app.hard & ", " &
+                           app.image.Length & " байт, контрольная сумма 0x" &
+                           clOpros.Crc32Stm(app.image).ToString("X8")
+            lblState.Text = "Плата стоит в загрузчике. Не отключайте питание и USB."
+            btnApply.Enabled = True
+            Exit Sub
+        End If
 
         Try
             image = File.ReadAllBytes(fName)
@@ -69,11 +108,25 @@ Public Class frmBoot
         StartWork(False)
     End Sub
 
-    ' Замена. Двойное подтверждение по п. 9.6 краткого ТЗ.
     Private Sub btnApply_Click(sender As Object, e As EventArgs) Handles btnApply.Click
 
+        If mode = eMode.FLASH_APP Then
+            Using f As New frmInfo("Внимание", "Записать в контроллер прошивку" & vbCrLf &
+                                   Path.GetFileName(fName) & "?", , True)
+                f.Button1.Text = "Да"
+                f.Button2.Text = "Нет"
+                If f.ShowDialog() <> DialogResult.OK Then
+                    Exit Sub
+                End If
+            End Using
+
+            StartWork(True)
+            Exit Sub
+        End If
+
+        ' Замена загрузчика. Двойное подтверждение по п. 9.6 краткого ТЗ.
         Using f As New frmInfo("Внимание", "Заменить загрузчик контроллера на файл" & vbCrLf &
-                               IO.Path.GetFileName(fName) & "?" & vbCrLf &
+                               Path.GetFileName(fName) & "?" & vbCrLf &
                                "Плата " & fileHw & ".", , True)
             f.Button1.Text = "Да"
             f.Button2.Text = "Нет"
@@ -111,20 +164,29 @@ Public Class frmBoot
         btnApply.Enabled = False
         btnClose.Enabled = False
         ProgressBar1.Value = 0
-        lblState.Text = If(apply, "Идёт замена загрузчика...", "Идёт проверка передачей...")
 
-        thread_replace = New Threading.Thread(AddressOf tReplace)
-        thread_replace.Priority = Threading.ThreadPriority.Normal
-        thread_replace.Name = "replaceBoot"
-        thread_replace.Start()
+        If mode = eMode.FLASH_APP Then
+            lblState.Text = "Идёт запись прошивки..."
+        Else
+            lblState.Text = If(apply, "Идёт замена загрузчика...", "Идёт проверка передачей...")
+        End If
+
+        thread_work = New Threading.Thread(AddressOf tWork)
+        thread_work.Priority = Threading.ThreadPriority.Normal
+        thread_work.Name = "bootWork"
+        thread_work.Start()
     End Sub
 
-    Private Sub tReplace()
+    Private Sub tWork()
         Dim errText As String = ""
         Dim ok As Boolean
 
         Try
-            ok = opros.ReplaceBootloader(image, applyRun, AddressOf onProgress, errText)
+            If mode = eMode.FLASH_APP Then
+                ok = clBoot.Upload(bootPort, fName, app, AddressOf onProgress, errText)
+            Else
+                ok = opros.ReplaceBootloader(image, applyRun, AddressOf onProgress, errText)
+            End If
         Catch ex As Exception
             ok = False
             errText = ex.Message
@@ -156,8 +218,21 @@ Public Class frmBoot
             Using f As New frmInfo("Ошибка!", text)
                 f.ShowDialog()
             End Using
-            btnCheck.Enabled = True
+            btnCheck.Enabled = (mode = eMode.REPLACE_BOOT)
             btnApply.Enabled = True
+            Exit Sub
+        End If
+
+        If mode = eMode.FLASH_APP Then
+            lblState.Text = "Прошивка записана, контроллер её устанавливает."
+            Using f As New frmInfo("Готово", "Прошивка записана." & vbCrLf &
+                                   "Загрузчик устанавливает её и запускает." & vbCrLf &
+                                   "Подключитесь заново примерно через 20 секунд.")
+                f.ShowDialog()
+            End Using
+
+            Me.DialogResult = DialogResult.OK
+            Me.Close()
             Exit Sub
         End If
 

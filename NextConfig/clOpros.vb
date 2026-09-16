@@ -9,6 +9,8 @@ Public Class clOpros
     Public Event isFinded(ByVal port As String, ByVal imei As String, ByVal isDefPIN As Byte)
     Public Event onFind(ByVal port As String)
     Public Event onStatus(ByVal status As s_status)
+    ' на порту отозвался загрузчик: приложения на плате нет или его держат кнопкой
+    Public Event onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
 
     Private parrent As Form
     Private WithEvents Comport As ClComPort
@@ -152,6 +154,7 @@ Public Class clOpros
         GetInfo
         WaitConnect
         Work
+        Boot ' на порту загрузчик: опрос стоит, портом распоряжается окно записи
     End Enum
 
     Public Enum eCmd
@@ -298,8 +301,21 @@ Public Class clOpros
                             NextPort()
                         End If
                     Else
-                        NextPort()
+                        ' прошивка не ответила — спросим загрузчик его протоколом
+                        Dim bootVer As Byte = 0
+                        Dim bootHw As Byte = 0
+
+                        If clBoot.Info(Comport, bootVer, bootHw) Then
+                            rejim = eRejim.Boot
+                            RaiseEvent onBootFound(ports(portIndex), bootVer, bootHw)
+                        Else
+                            NextPort()
+                        End If
                     End If
+
+                ' портом распоряжается окно записи прошивки
+                Case eRejim.Boot
+                    Thread.Sleep(200)
 
                 Case eRejim.WaitConnect, eRejim.Work
 
@@ -342,6 +358,10 @@ Public Class clOpros
                     _isSending = False
 
                     Thread.Sleep(1000)
+
+                Case Else
+                    ' режим None: ждём, а не крутим цикл вхолостую
+                    Thread.Sleep(100)
 
             End Select
 

@@ -51,6 +51,7 @@ Public Class Form1
 
         AddHandler opros.isFinded, AddressOf opros_isFinded
         AddHandler opros.onFind, AddressOf opros_onFind
+        AddHandler opros.onBootFound, AddressOf opros_onBootFound
 
     End Sub
 
@@ -128,6 +129,45 @@ Public Class Form1
         Else
             lblPortInfo.Text = String.Format("({0} - Поиск устройств)", port)
         End If
+    End Sub
+
+    Private Delegate Sub delegate_onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
+
+    ' На порту ответил загрузчик: приложения на плате нет или его держат кнопкой.
+    Private Sub opros_onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
+        Dim UIUpdater As New delegate_onBootFound(AddressOf refOnBootFound)
+        Me.BeginInvoke(UIUpdater, port, bootVer, hw)
+    End Sub
+
+    Private Sub refOnBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
+        txtIMEI.Text = ""
+        lblPortInfo.Text = String.Format("({0} - загрузчик 0x{1}, плата {2})", port, bootVer.ToString("X2"), hw)
+
+        Using f As New frmInfo("Загрузчик", "На порту " & port & " отвечает загрузчик 0x" & bootVer.ToString("X2") &
+                               ", плата " & hw & "." & vbCrLf &
+                               "Прошивки на плате нет или её держат кнопкой." & vbCrLf &
+                               "Записать прошивку?", , True)
+            f.Button1.Text = "Да"
+            f.Button2.Text = "Нет"
+
+            If f.ShowDialog() <> DialogResult.OK Then
+                opros.SetRegim(clOpros.eRejim.Search)
+                Exit Sub
+            End If
+        End Using
+
+        Using ofd As New OpenFileDialog()
+            ofd.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
+            ofd.FileName = hw & ".FW.БИЛД.bin"
+
+            If ofd.ShowDialog() = DialogResult.OK Then
+                Using f As New frmBoot(ofd.FileName, opros.GetComPort)
+                    f.ShowDialog()
+                End Using
+            End If
+        End Using
+
+        opros.SetRegim(clOpros.eRejim.Search)
     End Sub
 
     Private Sub txtPIN_TextChanged(sender As Object, e As EventArgs) Handles txtPIN.TextChanged
