@@ -118,6 +118,17 @@ Partial Public Class clOpros
         Return rez
     End Function
 
+    ' Строки в пакете настроек добиты нулями до полной длины поля. Если их не
+    ' срезать, значение с платы не совпадает с тем же значением из окна.
+    Private Shared Function ZStr(ByVal rec As Byte(), ByVal offset As Integer, ByVal length As Integer) As String
+        Dim s As String = System.Text.Encoding.UTF8.GetString(rec, offset, length)
+        Dim i As Integer = s.IndexOf(ChrW(0))
+
+        If i >= 0 Then s = s.Substring(0, i)
+
+        Return s
+    End Function
+
     Public Function SetConfig(ByVal _conf As s_config) As Boolean
 
         Dim bt_conf(511) As Byte
@@ -253,14 +264,14 @@ Partial Public Class clOpros
 
                     _conf.time = BitConverter.ToUInt32(rec, 9)
                     _conf.pin = BitConverter.ToUInt32(rec, 13)
-                    _conf.server1 = System.Text.Encoding.UTF8.GetString(rec, 17, 32)
-                    _conf.server2 = System.Text.Encoding.UTF8.GetString(rec, 49, 32)
-                    _conf.ntpServer = System.Text.Encoding.UTF8.GetString(rec, 81, 32)
-                    _conf.opType = System.Text.Encoding.UTF8.GetString(rec, 113, 32)
+                    _conf.server1 = ZStr(rec, 17, 32)
+                    _conf.server2 = ZStr(rec, 49, 32)
+                    _conf.ntpServer = ZStr(rec, 81, 32)
+                    _conf.opType = ZStr(rec, 113, 32)
                     _conf.netType = rec(145)
-                    _conf.countryCode = System.Text.Encoding.UTF8.GetString(rec, 146, 8)
-                    _conf.simNumber = System.Text.Encoding.UTF8.GetString(rec, 154, 16)
-                    _conf.ussdBalance = System.Text.Encoding.UTF8.GetString(rec, 170, 8)
+                    _conf.countryCode = ZStr(rec, 146, 8)
+                    _conf.simNumber = ZStr(rec, 154, 16)
+                    _conf.ussdBalance = ZStr(rec, 170, 8)
                     _conf.resetTime = rec(178)
                     _conf.fullLog = rec(179)
                     _conf.VoLTE = rec(180)

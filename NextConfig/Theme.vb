@@ -379,6 +379,15 @@ Public Module Theme
         c.ForeColor = TextMain
         c.BackColor = Surface
         c.Width = Px(width)
+
+        ' Колесо мыши над списком меняет значение настройки, а человек всего лишь
+        ' прокручивал страницу. Для настроек контроллера это недопустимо.
+        AddHandler c.MouseWheel, AddressOf SwallowWheel
+    End Sub
+
+    Private Sub SwallowWheel(ByVal sender As Object, ByVal e As MouseEventArgs)
+        Dim h As HandledMouseEventArgs = TryCast(e, HandledMouseEventArgs)
+        If h IsNot Nothing Then h.Handled = True
     End Sub
 
     ' Пояснение или ошибка под полем.

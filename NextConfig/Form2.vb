@@ -14,6 +14,10 @@ Public Class Form2
     ' пока настройки раскладываются по полям, их события не считаем правкой
     Private updatingFields As Boolean = False
 
+    ' настройки ровно в том виде, в каком они прочитаны с платы:
+    ' по ним видно, что именно меняет запись
+    Private onBoard As clOpros.s_config
+
     ' незаконченная строка журнала ждёт продолжения
     Private logTail As String = ""
     Private Const LogLimit As Integer = 500000
@@ -242,19 +246,19 @@ Public Class Form2
     End Sub
 
     Private Sub btnTranspMode_Click(sender As Object, e As EventArgs) Handles btnTranspMode.Click
-        Using f As New frmInfo("Информация", "Перевести контроллер в прозрачный режим с GSM модулем?" & vbCrLf & "Конфигуратор будет закрыт!",, True)
+        Using f As New frmInfo("Прозрачный режим", "Перевести контроллер в прозрачный режим с GSM модулем?" & vbCrLf & "Конфигуратор будет закрыт!",, True)
             f.Button1.Text = "Перевести"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 If opros.SetTransparentMode() Then
-                    Using f2 As New frmInfo("Информация", "Контроллер переведен в прозрачный режим с GSM модулем!" & vbCrLf &
+                    Using f2 As New frmInfo("Прозрачный режим", "Контроллер переведен в прозрачный режим с GSM модулем!" & vbCrLf &
                                             "Программа будет закрыта")
                         f2.ShowDialog()
                     End Using
                     Me.DialogResult = DialogResult.Abort
                     Me.Close()
                 Else
-                    Using f2 As New frmInfo("Информация", "Команда не поддерживается!" & vbCrLf &
+                    Using f2 As New frmInfo("Прозрачный режим", "Команда не поддерживается!" & vbCrLf &
                                             "Или нет ответа контроллера")
                         f2.ShowDialog()
                     End Using
@@ -264,7 +268,7 @@ Public Class Form2
     End Sub
 
     Private Sub btnFactory_Click(sender As Object, e As EventArgs) Handles btnFactory.Click
-        Using f As New frmInfo("Информация", "Вы уверены что хотите сбросить контроллер на заводские настройки?",, True)
+        Using f As New frmInfo("Заводские настройки", "Вы уверены что хотите сбросить контроллер на заводские настройки?",, True)
             f.Button1.Text = "Сбросить"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
@@ -274,7 +278,7 @@ Public Class Form2
                 Else
                     str = "Не удалось установить настройки!" & vbCrLf & "Повторите операцию!"
                 End If
-                Using f2 As New frmInfo("Информация", str)
+                Using f2 As New frmInfo("Заводские настройки", str)
                     f2.ShowDialog()
                 End Using
             End If
@@ -292,24 +296,36 @@ Public Class Form2
 
     Private Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
 
-        If Not CollectConfig() Then
+        If Not ValidateFields() Then
             lblSaveState.Text = "Проверьте отмеченные значения"
             lblSaveState.ForeColor = Theme.Danger
             Exit Sub
         End If
 
-        Using f As New frmInfo("Информация", "Сохранить настройки?",, True)
+        ApplyFields()
+
+        Dim changes As List(Of String) = ChangeList()
+        Dim question As String
+
+        If changes.Count = 0 Then
+            question = "На экране то же, что в контроллере. Записать всё равно?"
+        Else
+            question = "В контроллере изменится:" & vbCrLf & vbCrLf & String.Join(vbCrLf, changes)
+        End If
+
+        Using f As New frmInfo("Сохранение настроек", question, ContentAlignment.MiddleLeft, True)
             f.Button1.Text = "Сохранить"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
                 Dim str As String
                 If opros.SetConfig(config) Then
                     str = "Настройки сохранены!"
+                    onBoard = config
                     SetSaveState(True)
                 Else
                     str = "Не удалось сохранить настройки!" & vbCrLf & "Повторите операцию!"
                 End If
-                Using f2 As New frmInfo("Информация", str)
+                Using f2 As New frmInfo("Сохранение настроек", str)
                     f2.ShowDialog()
                 End Using
             End If
@@ -317,7 +333,7 @@ Public Class Form2
     End Sub
 
     Private Sub btnDefault_Click(sender As Object, e As EventArgs) Handles btnDefault.Click
-        Using f As New frmInfo("Информация", "Вы уверены что хотите установить настройки по умолчанию?",, True)
+        Using f As New frmInfo("Настройки по умолчанию", "Вы уверены что хотите установить настройки по умолчанию?",, True)
             f.Button1.Text = "Записать"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
@@ -325,11 +341,12 @@ Public Class Form2
 
                 SetDefaultConfig()
                 If opros.SetConfig(config) Then
+                    onBoard = config
                     str = "Настройки установлены по умолчанию!"
                 Else
                     str = "Не удалось установить настройки!" & vbCrLf & "Повторите операцию!"
                 End If
-                Using f2 As New frmInfo("Информация", str)
+                Using f2 As New frmInfo("Настройки по умолчанию", str)
                     f2.ShowDialog()
                 End Using
             End If
@@ -429,12 +446,9 @@ Public Class Form2
 
     End Sub
 
-    ' Собрать настройки из полей. Ошибку пишем возле того значения, из-за
-    ' которого она возникла, и ничего на плату не отправляем.
-    Private Function CollectConfig() As Boolean
-        lblServer1Err.Text = ""
-        lblServer2Err.Text = ""
-
+    ' Проверка введённого. Ошибку пишем возле того значения, из-за которого
+    ' она возникла, и ничего на плату не отправляем.
+    Private Function ValidateFields() As Boolean
         lblServer1Err.Text = ServerError(txtServer1.Text, True)
         lblServer2Err.Text = ServerError(txtServer2.Text, False)
 
@@ -442,19 +456,59 @@ Public Class Form2
         lblServer1Err.Visible = (lblServer1Err.Text <> "")
         lblServer2Err.Visible = (lblServer2Err.Text <> "")
 
-        If lblServer1Err.Visible OrElse lblServer2Err.Visible Then Return False
+        Return Not (lblServer1Err.Visible OrElse lblServer2Err.Visible)
+    End Function
 
+    ' Перенести введённое в настройки. Список, который почему-то не выбран,
+    ' оставляем как есть: молча записать вместо него первый пункт нельзя.
+    Private Sub ApplyFields()
         With config
             .server1 = txtServer1.Text.Trim()
             .server2 = txtServer2.Text.Trim()
             .useServer1 = If(chServer1.Checked, 1, 0)
             .useserver2 = If(chServer2.Checked, 1, 0)
             .opType = txtOperator.Text.Trim()
-            .VoLTE = CByte(Math.Max(0, cmbVoLTE.SelectedIndex))
-            .netType = CType(Math.Max(0, cmbNetType.SelectedIndex), clOpros.eNetType)
-        End With
 
-        Return True
+            If cmbVoLTE.SelectedIndex >= 0 Then .VoLTE = CByte(cmbVoLTE.SelectedIndex)
+            If cmbNetType.SelectedIndex >= 0 Then .netType = CType(cmbNetType.SelectedIndex, clOpros.eNetType)
+        End With
+    End Sub
+
+    ' Что именно изменится на плате. Сравниваем с тем, что прочитано, а не с
+    ' тем, что сейчас в памяти окна.
+    Private Function ChangeList() As List(Of String)
+        Dim list As New List(Of String)
+
+        AddChange(list, "Адрес сервера 1", onBoard.server1, config.server1)
+        AddChange(list, "Использовать сервер 1", YesNo(onBoard.useServer1), YesNo(config.useServer1))
+        AddChange(list, "Адрес сервера 2", onBoard.server2, config.server2)
+        AddChange(list, "Использовать сервер 2", YesNo(onBoard.useserver2), YesNo(config.useserver2))
+        AddChange(list, "Точка доступа", ApnText(onBoard.opType), ApnText(config.opType))
+        AddChange(list, "Тип сети", opros.NetTypeToString(onBoard.netType), opros.NetTypeToString(config.netType))
+        AddChange(list, "VoLTE", OnOff(onBoard.VoLTE), OnOff(config.VoLTE))
+        AddChange(list, "ПИН-код", PinText(onBoard.pin), PinText(config.pin))
+
+        Return list
+    End Function
+
+    Private Sub AddChange(ByVal list As List(Of String), ByVal name As String, ByVal was As String, ByVal now As String)
+        If was <> now Then list.Add("• " & name & ": " & was & " → " & now)
+    End Sub
+
+    Private Function YesNo(ByVal v As Byte) As String
+        Return If(v = 0, "нет", "да")
+    End Function
+
+    Private Function OnOff(ByVal v As Byte) As String
+        Return If(v = 0, "выключено", "включено")
+    End Function
+
+    Private Function ApnText(ByVal v As String) As String
+        Return If(v = "", "у оператора", v)
+    End Function
+
+    Private Function PinText(ByVal v As UInt32) As String
+        Return System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(v))
     End Function
 
     ' Адрес сервера пишется как узел:порт, например 87.244.4.92:15010.
@@ -520,19 +574,19 @@ Public Class Form2
     ' Выгрузки и загрузки базы идентификаторов в программе нет: в протоколе с
     ' контроллером она не заведена. Кнопка должна об этом сказать, а не молчать.
     Private Sub btnExport_Click(sender As Object, e As EventArgs) Handles btnExport.Click
-        Using f As New frmInfo("Информация", "Выгрузка базы идентификаторов пока не сделана.")
+        Using f As New frmInfo("База идентификаторов", "Выгрузка базы идентификаторов пока не сделана.")
             f.ShowDialog(Me)
         End Using
     End Sub
 
     Private Sub btnImport_Click(sender As Object, e As EventArgs) Handles btnImport.Click
-        Using f As New frmInfo("Информация", "Загрузка базы идентификаторов пока не сделана.")
+        Using f As New frmInfo("База идентификаторов", "Загрузка базы идентификаторов пока не сделана.")
             f.ShowDialog(Me)
         End Using
     End Sub
 
     Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
-        Using f As New frmInfo("Информация", "Вы уверены что хотите удалить из памяти все идентификаторы?",, True)
+        Using f As New frmInfo("Очистка памяти", "Вы уверены что хотите удалить из памяти все идентификаторы?",, True)
             f.Button1.Text = "Очистить"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
@@ -542,7 +596,7 @@ Public Class Form2
                 Else
                     str = "Не удалось очистить память идентифиаторов!" & vbCrLf & "Повторите операцию!"
                 End If
-                Using f2 As New frmInfo("Информация", str)
+                Using f2 As New frmInfo("Очистка памяти", str)
                     f2.ShowDialog()
                 End Using
             End If
@@ -559,7 +613,7 @@ Public Class Form2
     End Sub
 
     Private Sub btnUnConnect_Click(sender As Object, e As EventArgs) Handles btnUnConnect.Click
-        Using f As New frmInfo("Информация", "Вы уверены что хотите отвязать контроллер от объекта?",, True)
+        Using f As New frmInfo("Отвязка от объекта", "Вы уверены что хотите отвязать контроллер от объекта?",, True)
             f.Button1.Text = "Отвязать"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
@@ -658,7 +712,7 @@ Public Class Form2
             Else
                 str = "Не удалось выполнить!" & vbCrLf & "Повторите операцию!"
             End If
-            Using f2 As New frmInfo("Информация", str)
+            Using f2 As New frmInfo("Тип модуля", str)
                 f2.ShowDialog()
             End Using
             Me.Close()
@@ -672,9 +726,10 @@ Public Class Form2
     ' Чтение настроек с платы. При открытии окна - молча, по кнопке - с ответом.
     Private Sub ReadConfig(ByVal silent As Boolean)
         If opros.GetConfig(config) Then
+            onBoard = config
             UpdateConfigFields()
-            lblSaveState.Text = ""
-            lblLastUpdate.Text = "Настройки считаны: " & DateTime.Now.ToString("HH:mm:ss")
+            lblSaveState.Text = "Настройки считаны в " & DateTime.Now.ToString("HH:mm:ss")
+            lblSaveState.ForeColor = Theme.TextMuted
             Exit Sub
         End If
 
@@ -683,7 +738,7 @@ Public Class Form2
 
         If silent Then Exit Sub
 
-        Using f2 As New frmInfo("Информация", "Не удалось считать конфигурацию!" & vbCrLf & "Повторите операцию!")
+        Using f2 As New frmInfo("Чтение настроек", "Не удалось считать конфигурацию!" & vbCrLf & "Повторите операцию!")
             f2.ShowDialog()
         End Using
     End Sub
