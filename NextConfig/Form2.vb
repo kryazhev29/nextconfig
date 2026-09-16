@@ -386,12 +386,18 @@ Public Class Form2
 
     End Sub
 
+    ' Выгрузки и загрузки базы идентификаторов в программе нет: в протоколе с
+    ' контроллером она не заведена. Кнопка должна об этом сказать, а не молчать.
     Private Sub btnExport_Click(sender As Object, e As EventArgs) Handles btnExport.Click
-        '777
+        Using f As New frmInfo("Информация", "Выгрузка базы идентификаторов пока не сделана.")
+            f.ShowDialog(Me)
+        End Using
     End Sub
 
     Private Sub btnImport_Click(sender As Object, e As EventArgs) Handles btnImport.Click
-        '777
+        Using f As New frmInfo("Информация", "Загрузка базы идентификаторов пока не сделана.")
+            f.ShowDialog(Me)
+        End Using
     End Sub
 
     Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click

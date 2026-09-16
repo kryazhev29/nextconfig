@@ -29,6 +29,17 @@ Partial Class Form2
         Me.Label1 = New System.Windows.Forms.Label()
         Me.PictureBox1 = New System.Windows.Forms.PictureBox()
         Me.Panel1 = New System.Windows.Forms.Panel()
+        Me.lblBootHint = New System.Windows.Forms.Label()
+        Me.lblFwHint = New System.Windows.Forms.Label()
+        Me.pnlFW = New System.Windows.Forms.Panel()
+        Me.tabLog = New System.Windows.Forms.TabPage()
+        Me.tabObject = New System.Windows.Forms.TabPage()
+        Me.tabIds = New System.Windows.Forms.TabPage()
+        Me.tabSettings = New System.Windows.Forms.TabPage()
+        Me.tabFW = New System.Windows.Forms.TabPage()
+        Me.tabState = New System.Windows.Forms.TabPage()
+        Me.tabs = New System.Windows.Forms.TabControl()
+        Me.pnlHead = New System.Windows.Forms.Panel()
         Me.Panel3 = New System.Windows.Forms.Panel()
         Me.Button2 = New System.Windows.Forms.Button()
         Me.CheckBox4 = New System.Windows.Forms.CheckBox()
@@ -64,8 +75,8 @@ Partial Class Form2
         Me.lblFW = New System.Windows.Forms.Label()
         Me.lblBoot = New System.Windows.Forms.Label()
         Me.lblHW = New System.Windows.Forms.Label()
-        Me.btnUpdateFW = New System.Windows.Forms.Label()
-        Me.btnUpdateBoot = New System.Windows.Forms.Label()
+        Me.btnUpdateFW = New System.Windows.Forms.Button()
+        Me.btnUpdateBoot = New System.Windows.Forms.Button()
         Me.btnTestOUT2 = New System.Windows.Forms.Label()
         Me.btnTestOUT1 = New System.Windows.Forms.Label()
         Me.lbOUT2 = New System.Windows.Forms.Label()
@@ -211,11 +222,10 @@ Partial Class Form2
         Me.Panel3.Controls.Add(Me.CheckBox1)
         Me.Panel3.Controls.Add(Me.RichTextBox1)
         Me.Panel3.Controls.Add(Me.btnClearLog)
-        Me.Panel3.Controls.Add(Me.Label2)
-        Me.Panel3.Dock = System.Windows.Forms.DockStyle.Right
-        Me.Panel3.Location = New System.Drawing.Point(705, 46)
+        Me.Panel3.Dock = System.Windows.Forms.DockStyle.None
+        Me.Panel3.Location = New System.Drawing.Point(0, 0)
         Me.Panel3.Name = "Panel3"
-        Me.Panel3.Size = New System.Drawing.Size(313, 737)
+        Me.Panel3.Size = New System.Drawing.Size(939, 370)
         Me.Panel3.TabIndex = 43
         '
         'Button2
@@ -224,7 +234,7 @@ Partial Class Form2
         Me.Button2.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.Button2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Button2.ForeColor = System.Drawing.Color.White
-        Me.Button2.Location = New System.Drawing.Point(202, 631)
+        Me.Button2.Location = New System.Drawing.Point(600, 296)
         Me.Button2.Name = "Button2"
         Me.Button2.Size = New System.Drawing.Size(98, 32)
         Me.Button2.TabIndex = 52
@@ -236,7 +246,7 @@ Partial Class Form2
         Me.CheckBox4.AutoSize = True
         Me.CheckBox4.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.CheckBox4.ForeColor = System.Drawing.Color.Gray
-        Me.CheckBox4.Location = New System.Drawing.Point(18, 633)
+        Me.CheckBox4.Location = New System.Drawing.Point(8, 302)
         Me.CheckBox4.Name = "CheckBox4"
         Me.CheckBox4.Size = New System.Drawing.Size(178, 20)
         Me.CheckBox4.TabIndex = 51
@@ -248,7 +258,7 @@ Partial Class Form2
         Me.CheckBox3.AutoSize = True
         Me.CheckBox3.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.CheckBox3.ForeColor = System.Drawing.Color.Gray
-        Me.CheckBox3.Location = New System.Drawing.Point(18, 712)
+        Me.CheckBox3.Location = New System.Drawing.Point(390, 302)
         Me.CheckBox3.Name = "CheckBox3"
         Me.CheckBox3.Size = New System.Drawing.Size(60, 20)
         Me.CheckBox3.TabIndex = 50
@@ -260,7 +270,7 @@ Partial Class Form2
         Me.CheckBox2.AutoSize = True
         Me.CheckBox2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.CheckBox2.ForeColor = System.Drawing.Color.Gray
-        Me.CheckBox2.Location = New System.Drawing.Point(18, 686)
+        Me.CheckBox2.Location = New System.Drawing.Point(270, 302)
         Me.CheckBox2.Name = "CheckBox2"
         Me.CheckBox2.Size = New System.Drawing.Size(104, 20)
         Me.CheckBox2.TabIndex = 49
@@ -272,7 +282,7 @@ Partial Class Form2
         Me.CheckBox1.AutoSize = True
         Me.CheckBox1.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.CheckBox1.ForeColor = System.Drawing.Color.Gray
-        Me.CheckBox1.Location = New System.Drawing.Point(18, 660)
+        Me.CheckBox1.Location = New System.Drawing.Point(200, 302)
         Me.CheckBox1.Name = "CheckBox1"
         Me.CheckBox1.Size = New System.Drawing.Size(60, 20)
         Me.CheckBox1.TabIndex = 48
@@ -284,9 +294,9 @@ Partial Class Form2
         Me.RichTextBox1.BackColor = System.Drawing.Color.WhiteSmoke
         Me.RichTextBox1.BorderStyle = System.Windows.Forms.BorderStyle.None
         Me.RichTextBox1.Dock = System.Windows.Forms.DockStyle.Top
-        Me.RichTextBox1.Location = New System.Drawing.Point(0, 24)
+        Me.RichTextBox1.Location = New System.Drawing.Point(0, 0)
         Me.RichTextBox1.Name = "RichTextBox1"
-        Me.RichTextBox1.Size = New System.Drawing.Size(311, 603)
+        Me.RichTextBox1.Size = New System.Drawing.Size(939, 290)
         Me.RichTextBox1.TabIndex = 47
         Me.RichTextBox1.Text = ""
         '
@@ -296,7 +306,7 @@ Partial Class Form2
         Me.btnClearLog.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnClearLog.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnClearLog.ForeColor = System.Drawing.Color.White
-        Me.btnClearLog.Location = New System.Drawing.Point(155, 670)
+        Me.btnClearLog.Location = New System.Drawing.Point(720, 292)
         Me.btnClearLog.Name = "btnClearLog"
         Me.btnClearLog.Size = New System.Drawing.Size(148, 48)
         Me.btnClearLog.TabIndex = 46
@@ -312,7 +322,7 @@ Partial Class Form2
         Me.Label2.ForeColor = System.Drawing.Color.White
         Me.Label2.Location = New System.Drawing.Point(0, 0)
         Me.Label2.Name = "Label2"
-        Me.Label2.Size = New System.Drawing.Size(311, 24)
+        Me.Label2.Size = New System.Drawing.Size(939, 24)
         Me.Label2.TabIndex = 45
         Me.Label2.Text = "Системный лог"
         Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
@@ -343,24 +353,11 @@ Partial Class Form2
         Me.Panel4.Controls.Add(Me.Label16)
         Me.Panel4.Controls.Add(Me.lblServerConnect)
         Me.Panel4.Controls.Add(Me.lblNet)
-        Me.Panel4.Controls.Add(Me.lblInt)
-        Me.Panel4.Controls.Add(Me.pbSig)
-        Me.Panel4.Controls.Add(Me.lblSig)
-        Me.Panel4.Controls.Add(Me.lblGSM)
         Me.Panel4.Controls.Add(Me.btnFactory)
         Me.Panel4.Controls.Add(Me.btnTranspMode)
         Me.Panel4.Controls.Add(Me.Label33)
         Me.Panel4.Controls.Add(Me.Label32)
-        Me.Panel4.Controls.Add(Me.Label31)
-        Me.Panel4.Controls.Add(Me.Label30)
-        Me.Panel4.Controls.Add(Me.Label29)
-        Me.Panel4.Controls.Add(Me.lblIMEI)
         Me.Panel4.Controls.Add(Me.lblTime)
-        Me.Panel4.Controls.Add(Me.lblFW)
-        Me.Panel4.Controls.Add(Me.lblBoot)
-        Me.Panel4.Controls.Add(Me.lblHW)
-        Me.Panel4.Controls.Add(Me.btnUpdateFW)
-        Me.Panel4.Controls.Add(Me.btnUpdateBoot)
         Me.Panel4.Controls.Add(Me.btnTestOUT2)
         Me.Panel4.Controls.Add(Me.btnTestOUT1)
         Me.Panel4.Controls.Add(Me.lbOUT2)
@@ -371,15 +368,11 @@ Partial Class Form2
         Me.Panel4.Controls.Add(Me.Label14)
         Me.Panel4.Controls.Add(Me.Label13)
         Me.Panel4.Controls.Add(Me.Label12)
-        Me.Panel4.Controls.Add(Me.Label11)
-        Me.Panel4.Controls.Add(Me.Label10)
-        Me.Panel4.Controls.Add(Me.Label9)
         Me.Panel4.Controls.Add(Me.Label8)
-        Me.Panel4.Controls.Add(Me.Label7)
-        Me.Panel4.Dock = System.Windows.Forms.DockStyle.Top
-        Me.Panel4.Location = New System.Drawing.Point(71, 70)
+        Me.Panel4.Dock = System.Windows.Forms.DockStyle.None
+        Me.Panel4.Location = New System.Drawing.Point(0, 0)
         Me.Panel4.Name = "Panel4"
-        Me.Panel4.Size = New System.Drawing.Size(634, 242)
+        Me.Panel4.Size = New System.Drawing.Size(939, 240)
         Me.Panel4.TabIndex = 45
         '
         'Label21
@@ -388,7 +381,7 @@ Partial Class Form2
         Me.Label21.BackColor = System.Drawing.Color.White
         Me.Label21.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label21.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.Label21.Location = New System.Drawing.Point(582, 116)
+        Me.Label21.Location = New System.Drawing.Point(680, 69)
         Me.Label21.Name = "Label21"
         Me.Label21.Size = New System.Drawing.Size(50, 16)
         Me.Label21.TabIndex = 40
@@ -401,7 +394,7 @@ Partial Class Form2
         Me.Label17.BackColor = System.Drawing.Color.White
         Me.Label17.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label17.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.Label17.Location = New System.Drawing.Point(569, 90)
+        Me.Label17.Location = New System.Drawing.Point(600, 11)
         Me.Label17.Name = "Label17"
         Me.Label17.Size = New System.Drawing.Size(61, 16)
         Me.Label17.TabIndex = 39
@@ -413,7 +406,7 @@ Partial Class Form2
         Me.Label19.BackColor = System.Drawing.Color.White
         Me.Label19.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label19.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.Label19.Location = New System.Drawing.Point(570, 141)
+        Me.Label19.Location = New System.Drawing.Point(620, 40)
         Me.Label19.Name = "Label19"
         Me.Label19.Size = New System.Drawing.Size(61, 16)
         Me.Label19.TabIndex = 38
@@ -425,7 +418,7 @@ Partial Class Form2
         Me.lblModuleType.BackColor = System.Drawing.Color.White
         Me.lblModuleType.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblModuleType.ForeColor = System.Drawing.Color.Gray
-        Me.lblModuleType.Location = New System.Drawing.Point(431, 141)
+        Me.lblModuleType.Location = New System.Drawing.Point(531, 40)
         Me.lblModuleType.Name = "lblModuleType"
         Me.lblModuleType.Size = New System.Drawing.Size(23, 16)
         Me.lblModuleType.TabIndex = 37
@@ -437,7 +430,7 @@ Partial Class Form2
         Me.Label18.BackColor = System.Drawing.Color.White
         Me.Label18.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label18.ForeColor = System.Drawing.Color.Gray
-        Me.Label18.Location = New System.Drawing.Point(330, 141)
+        Me.Label18.Location = New System.Drawing.Point(430, 40)
         Me.Label18.Name = "Label18"
         Me.Label18.Size = New System.Drawing.Size(98, 16)
         Me.Label18.TabIndex = 36
@@ -449,7 +442,7 @@ Partial Class Form2
         Me.Label16.BackColor = System.Drawing.Color.White
         Me.Label16.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label16.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.Label16.Location = New System.Drawing.Point(206, 36)
+        Me.Label16.Location = New System.Drawing.Point(206, 11)
         Me.Label16.Name = "Label16"
         Me.Label16.Size = New System.Drawing.Size(74, 16)
         Me.Label16.TabIndex = 35
@@ -461,7 +454,7 @@ Partial Class Form2
         Me.lblServerConnect.BackColor = System.Drawing.Color.White
         Me.lblServerConnect.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblServerConnect.ForeColor = System.Drawing.Color.Gray
-        Me.lblServerConnect.Location = New System.Drawing.Point(475, 116)
+        Me.lblServerConnect.Location = New System.Drawing.Point(575, 69)
         Me.lblServerConnect.Name = "lblServerConnect"
         Me.lblServerConnect.Size = New System.Drawing.Size(23, 16)
         Me.lblServerConnect.TabIndex = 34
@@ -473,7 +466,7 @@ Partial Class Form2
         Me.lblNet.BackColor = System.Drawing.Color.White
         Me.lblNet.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblNet.ForeColor = System.Drawing.Color.Gray
-        Me.lblNet.Location = New System.Drawing.Point(414, 90)
+        Me.lblNet.Location = New System.Drawing.Point(514, 11)
         Me.lblNet.Name = "lblNet"
         Me.lblNet.Size = New System.Drawing.Size(23, 16)
         Me.lblNet.TabIndex = 33
@@ -485,7 +478,7 @@ Partial Class Form2
         Me.lblInt.BackColor = System.Drawing.Color.White
         Me.lblInt.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblInt.ForeColor = System.Drawing.Color.Gray
-        Me.lblInt.Location = New System.Drawing.Point(503, 63)
+        Me.lblInt.Location = New System.Drawing.Point(442, 40)
         Me.lblInt.Name = "lblInt"
         Me.lblInt.Size = New System.Drawing.Size(23, 16)
         Me.lblInt.TabIndex = 32
@@ -493,7 +486,7 @@ Partial Class Form2
         '
         'pbSig
         '
-        Me.pbSig.Location = New System.Drawing.Point(513, 36)
+        Me.pbSig.Location = New System.Drawing.Point(758, 40)
         Me.pbSig.Maximum = 31
         Me.pbSig.Name = "pbSig"
         Me.pbSig.Size = New System.Drawing.Size(100, 16)
@@ -505,7 +498,7 @@ Partial Class Form2
         Me.lblSig.AutoSize = True
         Me.lblSig.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblSig.ForeColor = System.Drawing.Color.Gray
-        Me.lblSig.Location = New System.Drawing.Point(475, 36)
+        Me.lblSig.Location = New System.Drawing.Point(724, 40)
         Me.lblSig.Name = "lblSig"
         Me.lblSig.Size = New System.Drawing.Size(23, 16)
         Me.lblSig.TabIndex = 30
@@ -517,7 +510,7 @@ Partial Class Form2
         Me.lblGSM.BackColor = System.Drawing.Color.White
         Me.lblGSM.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblGSM.ForeColor = System.Drawing.Color.Gray
-        Me.lblGSM.Location = New System.Drawing.Point(463, 11)
+        Me.lblGSM.Location = New System.Drawing.Point(142, 40)
         Me.lblGSM.Name = "lblGSM"
         Me.lblGSM.Size = New System.Drawing.Size(23, 16)
         Me.lblGSM.TabIndex = 29
@@ -529,7 +522,7 @@ Partial Class Form2
         Me.btnFactory.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnFactory.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnFactory.ForeColor = System.Drawing.Color.White
-        Me.btnFactory.Location = New System.Drawing.Point(477, 190)
+        Me.btnFactory.Location = New System.Drawing.Point(170, 170)
         Me.btnFactory.Name = "btnFactory"
         Me.btnFactory.Size = New System.Drawing.Size(148, 48)
         Me.btnFactory.TabIndex = 28
@@ -542,7 +535,7 @@ Partial Class Form2
         Me.btnTranspMode.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnTranspMode.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnTranspMode.ForeColor = System.Drawing.Color.White
-        Me.btnTranspMode.Location = New System.Drawing.Point(321, 190)
+        Me.btnTranspMode.Location = New System.Drawing.Point(6, 170)
         Me.btnTranspMode.Name = "btnTranspMode"
         Me.btnTranspMode.Size = New System.Drawing.Size(148, 48)
         Me.btnTranspMode.TabIndex = 27
@@ -555,7 +548,7 @@ Partial Class Form2
         Me.Label33.BackColor = System.Drawing.Color.White
         Me.Label33.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label33.ForeColor = System.Drawing.Color.Gray
-        Me.Label33.Location = New System.Drawing.Point(330, 116)
+        Me.Label33.Location = New System.Drawing.Point(430, 69)
         Me.Label33.Name = "Label33"
         Me.Label33.Size = New System.Drawing.Size(143, 16)
         Me.Label33.TabIndex = 26
@@ -567,7 +560,7 @@ Partial Class Form2
         Me.Label32.BackColor = System.Drawing.Color.White
         Me.Label32.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label32.ForeColor = System.Drawing.Color.Gray
-        Me.Label32.Location = New System.Drawing.Point(330, 90)
+        Me.Label32.Location = New System.Drawing.Point(430, 11)
         Me.Label32.Name = "Label32"
         Me.Label32.Size = New System.Drawing.Size(78, 16)
         Me.Label32.TabIndex = 25
@@ -579,7 +572,7 @@ Partial Class Form2
         Me.Label31.BackColor = System.Drawing.Color.White
         Me.Label31.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label31.ForeColor = System.Drawing.Color.Gray
-        Me.Label31.Location = New System.Drawing.Point(330, 63)
+        Me.Label31.Location = New System.Drawing.Point(270, 40)
         Me.Label31.Name = "Label31"
         Me.Label31.Size = New System.Drawing.Size(167, 16)
         Me.Label31.TabIndex = 24
@@ -591,7 +584,7 @@ Partial Class Form2
         Me.Label30.BackColor = System.Drawing.Color.White
         Me.Label30.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label30.ForeColor = System.Drawing.Color.Gray
-        Me.Label30.Location = New System.Drawing.Point(330, 36)
+        Me.Label30.Location = New System.Drawing.Point(580, 40)
         Me.Label30.Name = "Label30"
         Me.Label30.Size = New System.Drawing.Size(139, 16)
         Me.Label30.TabIndex = 23
@@ -603,7 +596,7 @@ Partial Class Form2
         Me.Label29.BackColor = System.Drawing.Color.White
         Me.Label29.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label29.ForeColor = System.Drawing.Color.Gray
-        Me.Label29.Location = New System.Drawing.Point(329, 11)
+        Me.Label29.Location = New System.Drawing.Point(8, 40)
         Me.Label29.Name = "Label29"
         Me.Label29.Size = New System.Drawing.Size(128, 16)
         Me.Label29.TabIndex = 22
@@ -614,7 +607,7 @@ Partial Class Form2
         Me.lblIMEI.AutoSize = True
         Me.lblIMEI.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblIMEI.ForeColor = System.Drawing.Color.Gray
-        Me.lblIMEI.Location = New System.Drawing.Point(148, 11)
+        Me.lblIMEI.Location = New System.Drawing.Point(150, 10)
         Me.lblIMEI.Name = "lblIMEI"
         Me.lblIMEI.Size = New System.Drawing.Size(23, 16)
         Me.lblIMEI.TabIndex = 21
@@ -625,7 +618,7 @@ Partial Class Form2
         Me.lblTime.AutoSize = True
         Me.lblTime.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblTime.ForeColor = System.Drawing.Color.Gray
-        Me.lblTime.Location = New System.Drawing.Point(66, 36)
+        Me.lblTime.Location = New System.Drawing.Point(66, 11)
         Me.lblTime.Name = "lblTime"
         Me.lblTime.Size = New System.Drawing.Size(23, 16)
         Me.lblTime.TabIndex = 20
@@ -636,7 +629,7 @@ Partial Class Form2
         Me.lblFW.AutoSize = True
         Me.lblFW.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblFW.ForeColor = System.Drawing.Color.Gray
-        Me.lblFW.Location = New System.Drawing.Point(104, 63)
+        Me.lblFW.Location = New System.Drawing.Point(426, 10)
         Me.lblFW.Name = "lblFW"
         Me.lblFW.Size = New System.Drawing.Size(23, 16)
         Me.lblFW.TabIndex = 19
@@ -647,7 +640,7 @@ Partial Class Form2
         Me.lblBoot.AutoSize = True
         Me.lblBoot.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblBoot.ForeColor = System.Drawing.Color.Gray
-        Me.lblBoot.Location = New System.Drawing.Point(168, 90)
+        Me.lblBoot.Location = New System.Drawing.Point(660, 10)
         Me.lblBoot.Name = "lblBoot"
         Me.lblBoot.Size = New System.Drawing.Size(23, 16)
         Me.lblBoot.TabIndex = 18
@@ -658,7 +651,7 @@ Partial Class Form2
         Me.lblHW.AutoSize = True
         Me.lblHW.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblHW.ForeColor = System.Drawing.Color.Gray
-        Me.lblHW.Location = New System.Drawing.Point(106, 116)
+        Me.lblHW.Location = New System.Drawing.Point(818, 10)
         Me.lblHW.Name = "lblHW"
         Me.lblHW.Size = New System.Drawing.Size(23, 16)
         Me.lblHW.TabIndex = 17
@@ -666,27 +659,27 @@ Partial Class Form2
         '
         'btnUpdateFW
         '
-        Me.btnUpdateFW.AutoSize = True
-        Me.btnUpdateFW.BackColor = System.Drawing.Color.White
-        Me.btnUpdateFW.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.btnUpdateFW.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.btnUpdateFW.Location = New System.Drawing.Point(206, 63)
+        Me.btnUpdateFW.AutoSize = False
+        Me.btnUpdateFW.BackColor = System.Drawing.Color.LimeGreen
+        Me.btnUpdateFW.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnUpdateFW.ForeColor = System.Drawing.Color.White
+        Me.btnUpdateFW.Location = New System.Drawing.Point(20, 20)
         Me.btnUpdateFW.Name = "btnUpdateFW"
-        Me.btnUpdateFW.Size = New System.Drawing.Size(100, 16)
+        Me.btnUpdateFW.Size = New System.Drawing.Size(200, 48)
         Me.btnUpdateFW.TabIndex = 16
-        Me.btnUpdateFW.Text = "Обновить"
+        Me.btnUpdateFW.Text = "Обновить прошивку"
         '
         'btnUpdateBoot
         '
-        Me.btnUpdateBoot.AutoSize = True
-        Me.btnUpdateBoot.BackColor = System.Drawing.Color.White
-        Me.btnUpdateBoot.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
-        Me.btnUpdateBoot.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.btnUpdateBoot.Location = New System.Drawing.Point(206, 90)
+        Me.btnUpdateBoot.AutoSize = False
+        Me.btnUpdateBoot.BackColor = System.Drawing.Color.Red
+        Me.btnUpdateBoot.Font = New System.Drawing.Font("Microsoft Sans Serif", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.btnUpdateBoot.ForeColor = System.Drawing.Color.White
+        Me.btnUpdateBoot.Location = New System.Drawing.Point(20, 110)
         Me.btnUpdateBoot.Name = "btnUpdateBoot"
-        Me.btnUpdateBoot.Size = New System.Drawing.Size(100, 16)
+        Me.btnUpdateBoot.Size = New System.Drawing.Size(200, 48)
         Me.btnUpdateBoot.TabIndex = 15
-        Me.btnUpdateBoot.Text = "Заменить"
+        Me.btnUpdateBoot.Text = "Заменить загрузчик"
         '
         'btnTestOUT2
         '
@@ -694,7 +687,7 @@ Partial Class Form2
         Me.btnTestOUT2.BackColor = System.Drawing.Color.White
         Me.btnTestOUT2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnTestOUT2.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.btnTestOUT2.Location = New System.Drawing.Point(124, 217)
+        Me.btnTestOUT2.Location = New System.Drawing.Point(124, 127)
         Me.btnTestOUT2.Name = "btnTestOUT2"
         Me.btnTestOUT2.Size = New System.Drawing.Size(50, 16)
         Me.btnTestOUT2.TabIndex = 14
@@ -707,7 +700,7 @@ Partial Class Form2
         Me.btnTestOUT1.BackColor = System.Drawing.Color.White
         Me.btnTestOUT1.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, CType((System.Drawing.FontStyle.Bold Or System.Drawing.FontStyle.Underline), System.Drawing.FontStyle), System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.btnTestOUT1.ForeColor = System.Drawing.Color.DodgerBlue
-        Me.btnTestOUT1.Location = New System.Drawing.Point(124, 191)
+        Me.btnTestOUT1.Location = New System.Drawing.Point(124, 98)
         Me.btnTestOUT1.Name = "btnTestOUT1"
         Me.btnTestOUT1.Size = New System.Drawing.Size(50, 16)
         Me.btnTestOUT1.TabIndex = 13
@@ -720,7 +713,7 @@ Partial Class Form2
         Me.lbOUT2.BackColor = System.Drawing.Color.White
         Me.lbOUT2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lbOUT2.ForeColor = System.Drawing.Color.Red
-        Me.lbOUT2.Location = New System.Drawing.Point(73, 217)
+        Me.lbOUT2.Location = New System.Drawing.Point(73, 127)
         Me.lbOUT2.Name = "lbOUT2"
         Me.lbOUT2.Size = New System.Drawing.Size(45, 16)
         Me.lbOUT2.TabIndex = 12
@@ -732,7 +725,7 @@ Partial Class Form2
         Me.lblOUT1.BackColor = System.Drawing.Color.White
         Me.lblOUT1.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblOUT1.ForeColor = System.Drawing.Color.Red
-        Me.lblOUT1.Location = New System.Drawing.Point(73, 191)
+        Me.lblOUT1.Location = New System.Drawing.Point(73, 98)
         Me.lblOUT1.Name = "lblOUT1"
         Me.lblOUT1.Size = New System.Drawing.Size(45, 16)
         Me.lblOUT1.TabIndex = 11
@@ -744,7 +737,7 @@ Partial Class Form2
         Me.lblIN2.BackColor = System.Drawing.Color.White
         Me.lblIN2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lblIN2.ForeColor = System.Drawing.Color.Red
-        Me.lblIN2.Location = New System.Drawing.Point(73, 166)
+        Me.lblIN2.Location = New System.Drawing.Point(73, 69)
         Me.lblIN2.Name = "lblIN2"
         Me.lblIN2.Size = New System.Drawing.Size(45, 16)
         Me.lblIN2.TabIndex = 10
@@ -756,7 +749,7 @@ Partial Class Form2
         Me.lbIN1.BackColor = System.Drawing.Color.White
         Me.lbIN1.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.lbIN1.ForeColor = System.Drawing.Color.Red
-        Me.lbIN1.Location = New System.Drawing.Point(73, 141)
+        Me.lbIN1.Location = New System.Drawing.Point(73, 40)
         Me.lbIN1.Name = "lbIN1"
         Me.lbIN1.Size = New System.Drawing.Size(45, 16)
         Me.lbIN1.TabIndex = 9
@@ -768,7 +761,7 @@ Partial Class Form2
         Me.Label15.BackColor = System.Drawing.Color.White
         Me.Label15.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label15.ForeColor = System.Drawing.Color.Gray
-        Me.Label15.Location = New System.Drawing.Point(6, 217)
+        Me.Label15.Location = New System.Drawing.Point(6, 127)
         Me.Label15.Name = "Label15"
         Me.Label15.Size = New System.Drawing.Size(69, 16)
         Me.Label15.TabIndex = 8
@@ -780,7 +773,7 @@ Partial Class Form2
         Me.Label14.BackColor = System.Drawing.Color.White
         Me.Label14.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label14.ForeColor = System.Drawing.Color.Gray
-        Me.Label14.Location = New System.Drawing.Point(6, 191)
+        Me.Label14.Location = New System.Drawing.Point(6, 98)
         Me.Label14.Name = "Label14"
         Me.Label14.Size = New System.Drawing.Size(69, 16)
         Me.Label14.TabIndex = 7
@@ -792,7 +785,7 @@ Partial Class Form2
         Me.Label13.BackColor = System.Drawing.Color.White
         Me.Label13.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label13.ForeColor = System.Drawing.Color.Gray
-        Me.Label13.Location = New System.Drawing.Point(6, 166)
+        Me.Label13.Location = New System.Drawing.Point(6, 69)
         Me.Label13.Name = "Label13"
         Me.Label13.Size = New System.Drawing.Size(59, 16)
         Me.Label13.TabIndex = 6
@@ -804,7 +797,7 @@ Partial Class Form2
         Me.Label12.BackColor = System.Drawing.Color.White
         Me.Label12.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label12.ForeColor = System.Drawing.Color.Gray
-        Me.Label12.Location = New System.Drawing.Point(6, 141)
+        Me.Label12.Location = New System.Drawing.Point(6, 40)
         Me.Label12.Name = "Label12"
         Me.Label12.Size = New System.Drawing.Size(59, 16)
         Me.Label12.TabIndex = 5
@@ -816,7 +809,7 @@ Partial Class Form2
         Me.Label11.BackColor = System.Drawing.Color.White
         Me.Label11.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label11.ForeColor = System.Drawing.Color.Gray
-        Me.Label11.Location = New System.Drawing.Point(6, 116)
+        Me.Label11.Location = New System.Drawing.Point(720, 10)
         Me.Label11.Name = "Label11"
         Me.Label11.Size = New System.Drawing.Size(94, 16)
         Me.Label11.TabIndex = 4
@@ -828,7 +821,7 @@ Partial Class Form2
         Me.Label10.BackColor = System.Drawing.Color.White
         Me.Label10.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label10.ForeColor = System.Drawing.Color.Gray
-        Me.Label10.Location = New System.Drawing.Point(6, 90)
+        Me.Label10.Location = New System.Drawing.Point(500, 10)
         Me.Label10.Name = "Label10"
         Me.Label10.Size = New System.Drawing.Size(156, 16)
         Me.Label10.TabIndex = 3
@@ -840,7 +833,7 @@ Partial Class Form2
         Me.Label9.BackColor = System.Drawing.Color.White
         Me.Label9.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label9.ForeColor = System.Drawing.Color.Gray
-        Me.Label9.Location = New System.Drawing.Point(6, 63)
+        Me.Label9.Location = New System.Drawing.Point(330, 10)
         Me.Label9.Name = "Label9"
         Me.Label9.Size = New System.Drawing.Size(92, 16)
         Me.Label9.TabIndex = 2
@@ -852,7 +845,7 @@ Partial Class Form2
         Me.Label8.BackColor = System.Drawing.Color.White
         Me.Label8.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label8.ForeColor = System.Drawing.Color.Gray
-        Me.Label8.Location = New System.Drawing.Point(6, 36)
+        Me.Label8.Location = New System.Drawing.Point(6, 11)
         Me.Label8.Name = "Label8"
         Me.Label8.Size = New System.Drawing.Size(58, 16)
         Me.Label8.TabIndex = 1
@@ -864,7 +857,7 @@ Partial Class Form2
         Me.Label7.BackColor = System.Drawing.Color.White
         Me.Label7.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label7.ForeColor = System.Drawing.Color.Gray
-        Me.Label7.Location = New System.Drawing.Point(6, 11)
+        Me.Label7.Location = New System.Drawing.Point(8, 10)
         Me.Label7.Name = "Label7"
         Me.Label7.Size = New System.Drawing.Size(136, 16)
         Me.Label7.TabIndex = 0
@@ -902,10 +895,10 @@ Partial Class Form2
         Me.Panel5.Controls.Add(Me.Label41)
         Me.Panel5.Controls.Add(Me.Label40)
         Me.Panel5.Controls.Add(Me.Label39)
-        Me.Panel5.Dock = System.Windows.Forms.DockStyle.Top
-        Me.Panel5.Location = New System.Drawing.Point(71, 336)
+        Me.Panel5.Dock = System.Windows.Forms.DockStyle.None
+        Me.Panel5.Location = New System.Drawing.Point(0, 0)
         Me.Panel5.Name = "Panel5"
-        Me.Panel5.Size = New System.Drawing.Size(634, 123)
+        Me.Panel5.Size = New System.Drawing.Size(939, 140)
         Me.Panel5.TabIndex = 47
         '
         'Label20
@@ -1098,10 +1091,10 @@ Partial Class Form2
         Me.Panel6.Controls.Add(Me.btnExport)
         Me.Panel6.Controls.Add(Me.lblUsedMem)
         Me.Panel6.Controls.Add(Me.Label48)
-        Me.Panel6.Dock = System.Windows.Forms.DockStyle.Top
-        Me.Panel6.Location = New System.Drawing.Point(71, 483)
+        Me.Panel6.Dock = System.Windows.Forms.DockStyle.None
+        Me.Panel6.Location = New System.Drawing.Point(0, 0)
         Me.Panel6.Name = "Panel6"
-        Me.Panel6.Size = New System.Drawing.Size(634, 97)
+        Me.Panel6.Size = New System.Drawing.Size(939, 110)
         Me.Panel6.TabIndex = 49
         '
         'btnClear
@@ -1193,10 +1186,10 @@ Partial Class Form2
         Me.Panel7.Controls.Add(Me.Label52)
         Me.Panel7.Controls.Add(Me.lblObjNum)
         Me.Panel7.Controls.Add(Me.Label50)
-        Me.Panel7.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Panel7.Location = New System.Drawing.Point(71, 604)
+        Me.Panel7.Dock = System.Windows.Forms.DockStyle.None
+        Me.Panel7.Location = New System.Drawing.Point(0, 0)
         Me.Panel7.Name = "Panel7"
-        Me.Panel7.Size = New System.Drawing.Size(634, 179)
+        Me.Panel7.Size = New System.Drawing.Size(939, 190)
         Me.Panel7.TabIndex = 51
         '
         'lblAdmin
@@ -1341,7 +1334,7 @@ Partial Class Form2
         Me.Label22.BackColor = System.Drawing.Color.White
         Me.Label22.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
         Me.Label22.ForeColor = System.Drawing.Color.Gray
-        Me.Label22.Location = New System.Drawing.Point(279, 36)
+        Me.Label22.Location = New System.Drawing.Point(279, 11)
         Me.Label22.Name = "Label22"
         Me.Label22.Size = New System.Drawing.Size(49, 16)
         Me.Label22.TabIndex = 41
@@ -1352,17 +1345,8 @@ Partial Class Form2
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.BackColor = System.Drawing.Color.White
-        Me.ClientSize = New System.Drawing.Size(1018, 783)
+        Me.ClientSize = New System.Drawing.Size(1018, 526)
         Me.ControlBox = False
-        Me.Controls.Add(Me.Panel7)
-        Me.Controls.Add(Me.Label6)
-        Me.Controls.Add(Me.Panel6)
-        Me.Controls.Add(Me.Label5)
-        Me.Controls.Add(Me.Panel5)
-        Me.Controls.Add(Me.Label4)
-        Me.Controls.Add(Me.Panel4)
-        Me.Controls.Add(Me.Label3)
-        Me.Controls.Add(Me.Panel3)
         Me.Controls.Add(Me.Panel2)
         Me.Controls.Add(Me.Panel1)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
@@ -1382,6 +1366,75 @@ Partial Class Form2
         Me.Panel6.PerformLayout()
         Me.Panel7.ResumeLayout(False)
         Me.Panel7.PerformLayout()
+        Me.tabState.Text = "Состояние"
+        Me.tabState.BackColor = System.Drawing.Color.White
+        Me.tabs.Controls.Add(Me.tabState)
+        Me.tabFW.Text = "Прошивка"
+        Me.tabFW.BackColor = System.Drawing.Color.White
+        Me.tabs.Controls.Add(Me.tabFW)
+        Me.tabSettings.Text = "Настройки"
+        Me.tabSettings.BackColor = System.Drawing.Color.White
+        Me.tabs.Controls.Add(Me.tabSettings)
+        Me.tabIds.Text = "Идентификаторы"
+        Me.tabIds.BackColor = System.Drawing.Color.White
+        Me.tabs.Controls.Add(Me.tabIds)
+        Me.tabObject.Text = "Объект"
+        Me.tabObject.BackColor = System.Drawing.Color.White
+        Me.tabs.Controls.Add(Me.tabObject)
+        Me.tabLog.Text = "Журнал"
+        Me.tabLog.BackColor = System.Drawing.Color.White
+        Me.tabs.Controls.Add(Me.tabLog)
+        Me.pnlHead.BackColor = System.Drawing.Color.White
+        Me.pnlHead.Location = New System.Drawing.Point(71, 46)
+        Me.pnlHead.Size = New System.Drawing.Size(947, 70)
+        Me.tabs.Location = New System.Drawing.Point(71, 116)
+        Me.tabs.Size = New System.Drawing.Size(947, 410)
+        Me.tabs.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.tabs.SelectedIndex = 0
+        Me.pnlFW.BackColor = System.Drawing.Color.White
+        Me.pnlFW.Location = New System.Drawing.Point(0, 0)
+        Me.pnlFW.Size = New System.Drawing.Size(939, 300)
+        Me.lblFwHint.AutoSize = True
+        Me.lblFwHint.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.lblFwHint.ForeColor = System.Drawing.Color.Gray
+        Me.lblFwHint.Location = New System.Drawing.Point(240, 34)
+        Me.lblFwHint.Text = "Файл вида 139.71.1789482488.bin. Контроллер сам проверит " & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "контрольную сумму, установит прошивку и перезагрузится."
+        Me.lblBootHint.AutoSize = True
+        Me.lblBootHint.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(204, Byte))
+        Me.lblBootHint.ForeColor = System.Drawing.Color.Gray
+        Me.lblBootHint.Location = New System.Drawing.Point(240, 124)
+        Me.lblBootHint.Text = "Необратимо: прежний загрузчик без программатора не вернуть. " & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Сначала пробная передача, она ничего на плате не меняет."
+        Me.Controls.Add(Me.pnlHead)
+        Me.Controls.Add(Me.tabs)
+        Me.btnUpdateFW.UseVisualStyleBackColor = False
+        Me.btnUpdateBoot.UseVisualStyleBackColor = False
+        Me.pnlFW.Controls.Add(Me.btnUpdateFW)
+        Me.pnlFW.Controls.Add(Me.btnUpdateBoot)
+        Me.pnlFW.Controls.Add(Me.lblFwHint)
+        Me.pnlFW.Controls.Add(Me.lblBootHint)
+        Me.pnlHead.Controls.Add(Me.Label7)
+        Me.pnlHead.Controls.Add(Me.lblIMEI)
+        Me.pnlHead.Controls.Add(Me.Label9)
+        Me.pnlHead.Controls.Add(Me.lblFW)
+        Me.pnlHead.Controls.Add(Me.Label10)
+        Me.pnlHead.Controls.Add(Me.lblBoot)
+        Me.pnlHead.Controls.Add(Me.Label11)
+        Me.pnlHead.Controls.Add(Me.lblHW)
+        Me.pnlHead.Controls.Add(Me.Label29)
+        Me.pnlHead.Controls.Add(Me.lblGSM)
+        Me.pnlHead.Controls.Add(Me.Label31)
+        Me.pnlHead.Controls.Add(Me.lblInt)
+        Me.pnlHead.Controls.Add(Me.Label30)
+        Me.pnlHead.Controls.Add(Me.lblSig)
+        Me.pnlHead.Controls.Add(Me.pbSig)
+        Me.tabState.Controls.Add(Me.Panel4)
+        Me.tabSettings.Controls.Add(Me.Panel5)
+        Me.tabIds.Controls.Add(Me.Panel6)
+        Me.tabObject.Controls.Add(Me.Panel7)
+        Me.tabLog.Controls.Add(Me.Panel3)
+        Me.tabFW.Controls.Add(Me.pnlFW)
+        Me.pnlFW.Location = New System.Drawing.Point(0, 0)
+        Me.pnlFW.Size = New System.Drawing.Size(939, 300)
         Me.ResumeLayout(False)
 
     End Sub
@@ -1413,8 +1466,8 @@ Partial Class Form2
     Friend WithEvents lblFW As Label
     Friend WithEvents lblBoot As Label
     Friend WithEvents lblHW As Label
-    Friend WithEvents btnUpdateFW As Label
-    Friend WithEvents btnUpdateBoot As Label
+    Friend WithEvents btnUpdateFW As Button
+    Friend WithEvents btnUpdateBoot As Button
     Friend WithEvents btnTestOUT2 As Label
     Friend WithEvents btnTestOUT1 As Label
     Friend WithEvents lbOUT2 As Label
@@ -1482,4 +1535,15 @@ Partial Class Form2
     Friend WithEvents Button2 As Button
     Friend WithEvents Label21 As Label
     Friend WithEvents Label22 As Label
+    Friend WithEvents pnlHead As Panel
+    Friend WithEvents tabs As TabControl
+    Friend WithEvents tabState As TabPage
+    Friend WithEvents tabFW As TabPage
+    Friend WithEvents tabSettings As TabPage
+    Friend WithEvents tabIds As TabPage
+    Friend WithEvents tabObject As TabPage
+    Friend WithEvents tabLog As TabPage
+    Friend WithEvents pnlFW As Panel
+    Friend WithEvents lblFwHint As Label
+    Friend WithEvents lblBootHint As Label
 End Class

@@ -112,9 +112,15 @@ Public Class frmFW
         Return CInt(mark And &HFFUI)
     End Function
 
+    ' Окно показывает поток окна, а не поток записи: иначе форма живёт в двух потоках.
     Private Sub ShowMsg(ByVal caption As String, ByVal text As String)
+        If Me.InvokeRequired Then
+            Me.Invoke(New Action(Of String, String)(AddressOf ShowMsg), caption, text)
+            Exit Sub
+        End If
+
         Using f As New frmInfo(caption, text)
-            f.ShowDialog()
+            f.ShowDialog(Me)
         End Using
     End Sub
 
