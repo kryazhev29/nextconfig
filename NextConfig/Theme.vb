@@ -156,6 +156,7 @@ Public Module Theme
         b.Height = ButtonHeightSmall
         b.Font = FontCaption
         If b.Width < ButtonWidthSmall Then b.Width = ButtonWidthSmall
+        FitWidth(b)
     End Sub
 
     Private Sub Base(ByVal b As Button)
@@ -167,6 +168,26 @@ Public Module Theme
         b.Cursor = Cursors.Hand
         b.TextAlign = ContentAlignment.MiddleCenter
         b.UseCompatibleTextRendering = False
+
+        If minWidths.Add(b) Then AddHandler b.TextChanged, AddressOf OnButtonTextChanged
+
+        FitWidth(b)
+    End Sub
+
+    ' Надпись не должна обрезаться: кнопка не уже своего текста. Ширину,
+    ' заданную в форме, считаем наименьшей - кнопки в ряду остаются ровными.
+    Private ReadOnly minWidths As New HashSet(Of Button)
+
+    Private Sub OnButtonTextChanged(ByVal sender As Object, ByVal e As EventArgs)
+        FitWidth(DirectCast(sender, Button))
+    End Sub
+
+    Private Sub FitWidth(ByVal b As Button)
+        If b.Text = "" Then Exit Sub
+
+        Dim need As Integer = TextRenderer.MeasureText(b.Text, b.Font).Width + Px(28)
+
+        If b.Width < need Then b.Width = need
     End Sub
 
     ' У плоской кнопки с заданным фоном Windows сама его не гасит: недоступная
@@ -262,24 +283,56 @@ Public Module Theme
     End Function
 
     ' Точка. Текст состояния подписывается отдельной надписью рядом.
+    ' Статус приходит раз в секунду, поэтому меняем только то, что изменилось:
+    ' лишнее присваивание перерисовывает надпись и вся карточка мигает.
     Public Sub Dot(ByVal l As Label, ByVal state As eDot)
-        l.Font = FontDot
-        l.Text = "●"
-        l.AutoSize = True
-        l.BackColor = Color.Transparent
-        l.ForeColor = DotColor(state)
+        If l.Text <> "●" Then
+            l.Font = FontDot
+            l.Text = "●"
+            l.AutoSize = True
+            l.BackColor = Color.Transparent
+        End If
+
+        SetColor(l, DotColor(state))
     End Sub
 
     ' Текст состояния рядом с точкой. Цветом выделяем только успех и ошибку.
     Public Sub DotText(ByVal l As Label, ByVal state As eDot, ByVal text As String)
-        l.Font = FontBody
-        l.BackColor = Color.Transparent
-        l.Text = text
+        If l.Font IsNot FontBody Then
+            l.Font = FontBody
+            l.BackColor = Color.Transparent
+        End If
+
+        SetText(l, text)
+
         Select Case state
-            Case eDot.Good : l.ForeColor = OkText
-            Case eDot.Bad : l.ForeColor = Danger
-            Case Else : l.ForeColor = TextMain
+            Case eDot.Good : SetColor(l, OkText)
+            Case eDot.Bad : SetColor(l, Danger)
+            Case Else : SetColor(l, TextMain)
         End Select
+    End Sub
+
+    ' Присвоение только при изменении: иначе каждая надпись перерисовывается
+    ' на каждый пакет статуса, а надписи с автоподбором ширины ещё и двигают соседей.
+    Public Sub SetText(ByVal l As Label, ByVal text As String)
+        If l.Text <> text Then l.Text = text
+    End Sub
+
+    Public Sub SetColor(ByVal l As Label, ByVal c As Color)
+        If l.ForeColor <> c Then l.ForeColor = c
+    End Sub
+
+    ' Двойная буферизация у контейнеров: штатно её нет, и при перерисовке
+    ' карточки видно моргание.
+    Public Sub EnableDoubleBuffer(ByVal c As Control)
+        Dim prop As Reflection.PropertyInfo = GetType(Control).GetProperty(
+            "DoubleBuffered", Reflection.BindingFlags.Instance Or Reflection.BindingFlags.NonPublic)
+
+        If prop IsNot Nothing Then prop.SetValue(c, True, Nothing)
+
+        For Each child As Control In c.Controls
+            EnableDoubleBuffer(child)
+        Next
     End Sub
 
     ' ---- поля ввода ----
@@ -374,7 +427,10 @@ Public Class Meter
             Return _value
         End Get
         Set(ByVal v As Integer)
-            _value = Math.Max(0, Math.Min(v, _max))
+            Dim n As Integer = Math.Max(0, Math.Min(v, _max))
+            If n = _value Then Exit Property
+
+            _value = n
             Invalidate()
         End Set
     End Property

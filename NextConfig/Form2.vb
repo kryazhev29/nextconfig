@@ -40,6 +40,7 @@ Public Class Form2
 
     Private Sub Form2_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         FitToScreen()
+        Theme.EnableDoubleBuffer(Me)
 
         AddHandler opros.onStatus, AddressOf opros_onStatus
         AddHandler tmr1.Tick, AddressOf TmrTick
@@ -105,6 +106,28 @@ Public Class Form2
         Theme.DotText(text, state, If(good, onText, offText))
     End Sub
 
+    ' Контроллер держит время сервера, а не местное: без подсказки это выглядит
+    ' как сбитые часы. Пишем расхождение с компьютером, когда оно заметное.
+    Private Function DeviceTimeText(ByVal unix As UInt32) As String
+        Dim t As DateTime = UnixTimestampToDateTime(unix)
+        Dim text As String = t.ToString("dd.MM.yyyy HH:mm:ss")
+        Dim diff As TimeSpan = DateTime.Now.Subtract(t)
+
+        If Math.Abs(diff.TotalMinutes) < 2 Then Return text
+
+        Return text & " · расходится с компьютером на " & FormatDiff(diff)
+    End Function
+
+    Private Function FormatDiff(ByVal diff As TimeSpan) As String
+        Dim d As TimeSpan = diff.Duration()
+
+        If d.TotalHours >= 1 Then
+            Return CInt(Math.Floor(d.TotalHours)) & " ч " & d.Minutes & " мин"
+        End If
+
+        Return CInt(Math.Floor(d.TotalMinutes)) & " мин"
+    End Function
+
     Private Function ModuleName(ByVal m As clOpros.eModuleType) As String
         Select Case m
             Case clOpros.eModuleType.M_UG95 : Return "UG95/UG915"
@@ -138,17 +161,17 @@ Public Class Form2
         status = _status
         lastStatus = DateTime.Now
 
-        lblTime.Text = UnixTimestampToDateTime(status.time).ToString("dd.MM.yyyy HH:mm:ss")
-        lblFW.Text = status.fw_version & ", сборка " & status.fw_build
-        lblBoot.Text = "0x" & status.boot_version.ToString("X2")
-        lblHW.Text = status.hw_version.ToString()
-        lblModuleType.Text = ModuleName(status.moduleType)
+        Theme.SetText(lblTime, DeviceTimeText(status.time))
+        Theme.SetText(lblFW, status.fw_version & ", сборка " & status.fw_build)
+        Theme.SetText(lblBoot, "0x" & status.boot_version.ToString("X2"))
+        Theme.SetText(lblHW, status.hw_version.ToString())
+        Theme.SetText(lblModuleType, ModuleName(status.moduleType))
 
         ' то же самое коротко в шапке: она видна на любой вкладке
-        lblHeadModel.Text = "Модуль " & ModuleName(status.moduleType)
-        lblHeadHW.Text = "Плата " & status.hw_version
-        lblHeadFW.Text = "Прошивка " & status.fw_version
-        lblHeadBoot.Text = "Загрузчик 0x" & status.boot_version.ToString("X2")
+        Theme.SetText(lblHeadModel, "Модуль " & ModuleName(status.moduleType))
+        Theme.SetText(lblHeadHW, "Плата " & status.hw_version)
+        Theme.SetText(lblHeadFW, "Прошивка " & status.fw_version)
+        Theme.SetText(lblHeadBoot, "Загрузчик 0x" & status.boot_version.ToString("X2"))
 
         SetDot(dotIN1, lbIN1, status.in1, "Включён", "Выключен")
         SetDot(dotIN2, lblIN2, status.in2, "Включён", "Выключен")
@@ -159,15 +182,15 @@ Public Class Form2
         SetDot(dotInt, lblInt, status.gprs = 1, "Подключено", "Нет интернета", True)
         SetDot(dotServer, lblServerConnect, status.connectToServer <> 0, "Подключено", "Нет связи с сервером", True)
 
-        lblSig.Text = status.signal & " из 31"
+        Theme.SetText(lblSig, status.signal & " из 31")
         pbSig.Value = Math.Max(0, Math.Min(CInt(status.signal), pbSig.Maximum))
-        lblNet.Text = opros.NetTypeToString(status.netType)
+        Theme.SetText(lblNet, opros.NetTypeToString(status.netType))
 
-        lblUsedMem.Text = status.usedMem & " из 50 000"
+        Theme.SetText(lblUsedMem, status.usedMem & " из 50 000")
         meterMem.Value = status.usedMem
 
         SetHeadState(Theme.eDot.Good, "На связи")
-        lblLastUpdate.Text = "Последнее обновление: " & lastStatus.ToString("HH:mm:ss")
+        Theme.SetText(lblLastUpdate, "Последнее обновление: " & lastStatus.ToString("HH:mm:ss"))
 
     End Sub
 
