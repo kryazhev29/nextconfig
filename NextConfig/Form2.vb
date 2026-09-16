@@ -11,6 +11,10 @@ Public Class Form2
     Private logBits As Byte = 0
     Private thread_getInfo As Threading.Thread
 
+    ' когда последний раз приходил статус: по нему видно, свежие данные на экране или нет
+    Private lastStatus As DateTime = DateTime.MinValue
+    Private Const StaleSeconds As Integer = 6
+
 
     Public Sub New(ByVal _opros As clOpros, ByVal _info As String, ByVal _imei As String, ByVal _pin As Integer)
 
@@ -23,18 +27,20 @@ Public Class Form2
         lblIMEI.Text = _imei
         lblPIN.Text = System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(_pin))
         pinCode = _pin
+
+        If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
     End Sub
 
     Private Sub Form2_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         AddHandler opros.onStatus, AddressOf opros_onStatus
         AddHandler tmr1.Tick, AddressOf TmrTick
-        tmr1.Interval = 100
-        tmr1.Enabled = False
+        tmr1.Interval = 1000
+        tmr1.Enabled = True
 
         AddHandler opros.GetComPort.ReceiveComand, AddressOf OnRecStr
         opros.StopGetStatus(False)
 
-        Button1_Click(Nothing, Nothing)
+        ReadConfig(True)
         AddHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
     End Sub
 
@@ -46,9 +52,58 @@ Public Class Form2
         CheckBox3.Checked = False
     End Sub
 
+    ' Раз в секунду смотрим, давно ли приходил статус. Если связь пропала,
+    ' в шапке видно, что на экране последнее полученное, а не текущее состояние.
     Private Sub TmrTick()
-        Label3.ForeColor = Color.White
-        tmr1.Enabled = False
+        If lastStatus = DateTime.MinValue Then
+            SetHeadState(Theme.eDot.Waiting, "Ожидание данных")
+        ElseIf DateTime.Now.Subtract(lastStatus).TotalSeconds > StaleSeconds Then
+            SetHeadState(Theme.eDot.Bad, "Данные не обновляются")
+        End If
+    End Sub
+
+    Private Sub SetHeadState(ByVal state As Theme.eDot, ByVal text As String)
+        Theme.Dot(dotConn, state)
+        Theme.DotText(lblConnState, state, text)
+    End Sub
+
+    ' Состояние строкой и цветом сразу: точка плюс подпись.
+    Private Sub SetDot(ByVal dot As Label, ByVal text As Label, ByVal good As Boolean,
+                       ByVal onText As String, ByVal offText As String,
+                       Optional ByVal offIsError As Boolean = False)
+        Dim state As Theme.eDot
+
+        If good Then
+            state = Theme.eDot.Good
+        ElseIf offIsError Then
+            state = Theme.eDot.Bad
+        Else
+            state = Theme.eDot.Idle
+        End If
+
+        Theme.Dot(dot, state)
+        Theme.DotText(text, state, If(good, onText, offText))
+    End Sub
+
+    Private Function ModuleName(ByVal m As clOpros.eModuleType) As String
+        Select Case m
+            Case clOpros.eModuleType.M_UG95 : Return "UG95/UG915"
+            Case clOpros.eModuleType.M_SLM336 : Return "SLM336"
+            Case clOpros.eModuleType.M_M66 : Return "M66"
+            Case clOpros.eModuleType.M_OTHER : Return "другой"
+            Case Else : Return "не определён"
+        End Select
+    End Function
+
+    ' Строка итога внизу окна: сохранены ли настройки.
+    Private Sub SetSaveState(ByVal saved As Boolean)
+        If saved Then
+            lblSaveState.Text = "Настройки сохранены"
+            lblSaveState.ForeColor = Theme.OkText
+        Else
+            lblSaveState.Text = "Есть несохранённые изменения"
+            lblSaveState.ForeColor = Theme.Warning
+        End If
     End Sub
 
     Private Delegate Sub delegate_onStatus(ByVal status As clOpros.s_status)
@@ -61,56 +116,37 @@ Public Class Form2
     Private Sub refOnStatus(ByVal _status As clOpros.s_status)
 
         status = _status
+        lastStatus = DateTime.Now
 
         lblTime.Text = UnixTimestampToDateTime(status.time).ToString("dd.MM.yyyy HH:mm:ss")
-        lblFW.Text = status.fw_version
-        lblBoot.Text = status.boot_version
-        lblHW.Text = status.hw_version
+        lblFW.Text = status.fw_version & ", сборка " & status.fw_build
+        lblBoot.Text = "0x" & status.boot_version.ToString("X2")
+        lblHW.Text = status.hw_version.ToString()
+        lblModuleType.Text = ModuleName(status.moduleType)
 
-        If status.in1 Then
-            lbIN1.Text = "Вкл"
-            lbIN1.ForeColor = Color.LimeGreen
-        Else
-            lbIN1.Text = "Выкл"
-            lbIN1.ForeColor = Color.Red
-        End If
+        ' то же самое коротко в шапке: она видна на любой вкладке
+        lblHeadModel.Text = "Модуль " & ModuleName(status.moduleType)
+        lblHeadHW.Text = "Плата " & status.hw_version
+        lblHeadFW.Text = "Прошивка " & status.fw_version
+        lblHeadBoot.Text = "Загрузчик 0x" & status.boot_version.ToString("X2")
 
-        If status.in2 Then
-            lblIN2.Text = "Вкл"
-            lblIN2.ForeColor = Color.LimeGreen
-        Else
-            lblIN2.Text = "Выкл"
-            lblIN2.ForeColor = Color.Red
-        End If
+        SetDot(dotIN1, lbIN1, status.in1, "Включён", "Выключен")
+        SetDot(dotIN2, lblIN2, status.in2, "Включён", "Выключен")
+        SetDot(dotOUT1, lblOUT1, status.out1, "Включён", "Выключен")
+        SetDot(dotOUT2, lbOUT2, status.out2, "Включён", "Выключен")
 
-        If status.out1 Then
-            lblOUT1.Text = "Вкл"
-            lblOUT1.ForeColor = Color.LimeGreen
-        Else
-            lblOUT1.Text = "Выкл"
-            lblOUT1.ForeColor = Color.Red
-        End If
+        SetDot(dotGSM, lblGSM, status.gsm = 1, "Подключено", "Нет сети", True)
+        SetDot(dotInt, lblInt, status.gprs = 1, "Подключено", "Нет интернета", True)
+        SetDot(dotServer, lblServerConnect, status.connectToServer <> 0, "Подключено", "Нет связи с сервером", True)
 
-        If status.out2 Then
-            lbOUT2.Text = "Вкл"
-            lbOUT2.ForeColor = Color.LimeGreen
-        Else
-            lbOUT2.Text = "Выкл"
-            lbOUT2.ForeColor = Color.Red
-        End If
-
-        lblGSM.Text = If(status.gsm = 1, "Подключено", "Отключено")
-        lblSig.Text = status.signal
-        pbSig.Value = status.signal
-        lblInt.Text = If(status.gprs = 1, "Подключено", "Отключено")
+        lblSig.Text = status.signal & " из 31"
+        pbSig.Value = Math.Max(0, Math.Min(CInt(status.signal), pbSig.Maximum))
         lblNet.Text = opros.NetTypeToString(status.netType)
-        lblServerConnect.Text = If(status.connectToServer, "Подключено", "Отключено")
 
-        lblUsedMem.Text = status.usedMem & "/50000"
-        lblModuleType.Text = status.moduleType.ToString
+        lblUsedMem.Text = status.usedMem & " из 50 000"
 
-        Label3.ForeColor = Color.Black
-        tmr1.Enabled = True
+        SetHeadState(Theme.eDot.Good, "На связи")
+        lblLastUpdate.Text = "Последнее обновление: " & lastStatus.ToString("HH:mm:ss")
 
     End Sub
 
@@ -151,7 +187,7 @@ Public Class Form2
         Dim _o1 As Boolean = Not status.out1
         Dim _o2 As Boolean = Not status.out2
 
-        Select Case CType(sender, Label).Tag
+        Select Case CType(sender, Control).Tag
             Case 0
                 opros.SetOut(_o1, status.out2)
 
@@ -273,6 +309,7 @@ Public Class Form2
                 Dim str As String
                 If opros.SetConfig(config) Then
                     str = "Настройки сохранены!"
+                    SetSaveState(True)
                 Else
                     str = "Не удалось сохранить настройки!" & vbCrLf & "Повторите операцию!"
                 End If
@@ -374,6 +411,8 @@ Public Class Form2
     End Sub
 
     Private Sub UpdateConfigFields()
+        SetSaveState(False)
+
         With config
             lblPIN.Text = System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(.pin))
             lblOperator.Text = If(.opType = "", "Автоматически", .opType)
@@ -454,11 +493,12 @@ Public Class Form2
     End Sub
 
     Private Sub onLogTextReceive(ByVal _str As String)
-        RichTextBox1.Text &= _str
-    End Sub
+        RichTextBox1.AppendText(_str)
 
-    Private Sub btnClose_Click(sender As Object, e As EventArgs) Handles btnClose.Click
-        Me.Close()
+        If chAutoScroll.Checked Then
+            RichTextBox1.SelectionStart = RichTextBox1.TextLength
+            RichTextBox1.ScrollToCaret()
+        End If
     End Sub
 
     Private Sub Label16_Click(sender As Object, e As EventArgs) Handles Label16.Click
@@ -493,14 +533,24 @@ Public Class Form2
     End Sub
 
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
-        Dim str As String
+        ReadConfig(False)
+    End Sub
+
+    ' Чтение настроек с платы. При открытии окна - молча, по кнопке - с ответом.
+    Private Sub ReadConfig(ByVal silent As Boolean)
         If opros.GetConfig(config) Then
-            str = "Конфигурация считана!"
             UpdateConfigFields()
-        Else
-            str = "Не удалось считать конфигурацию!" & vbCrLf & "Повторите операцию!"
+            lblSaveState.Text = ""
+            lblLastUpdate.Text = "Настройки считаны: " & DateTime.Now.ToString("HH:mm:ss")
+            Exit Sub
         End If
-        Using f2 As New frmInfo("Информация", str)
+
+        lblSaveState.Text = "Не удалось считать настройки"
+        lblSaveState.ForeColor = Theme.Danger
+
+        If silent Then Exit Sub
+
+        Using f2 As New frmInfo("Информация", "Не удалось считать конфигурацию!" & vbCrLf & "Повторите операцию!")
             f2.ShowDialog()
         End Using
     End Sub
@@ -525,6 +575,7 @@ Public Class Form2
 
     Private Sub chServer1_CheckedChanged(sender As Object, e As EventArgs) Handles chServer1.CheckedChanged
         config.useServer1 = chServer1.Checked
+        SetSaveState(False)
     End Sub
 
     Private Sub Label17_Click(sender As Object, e As EventArgs) Handles Label17.Click
@@ -550,6 +601,7 @@ Public Class Form2
 
     Private Sub chServer2_CheckedChanged(sender As Object, e As EventArgs) Handles chServer2.CheckedChanged
         config.useserver2 = chServer2.Checked
+        SetSaveState(False)
     End Sub
 
     Private Sub CheckBox1_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox1.CheckedChanged

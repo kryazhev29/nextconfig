@@ -45,6 +45,7 @@ Public Module Theme
     Public Const GapSection As Integer = 22   ' между блоками
 
     Public Const ButtonHeight As Integer = 40
+    Public Const ButtonHeightSmall As Integer = 32
     Public Const ButtonWidth As Integer = 168
     Public Const ButtonWidthSmall As Integer = 120
     Public Const FieldHeight As Integer = 32
@@ -129,6 +130,13 @@ Public Module Theme
         b.FlatAppearance.MouseOverBackColor = DangerHover
         b.FlatAppearance.MouseDownBackColor = Color.FromArgb(&HA0, &H26, &H32)
         WatchEnabled(b)
+    End Sub
+
+    ' Второстепенный размер: одна высота для всех кнопок внутри блоков.
+    Public Sub Small(ByVal b As Button)
+        b.Height = ButtonHeightSmall
+        b.Font = FontCaption
+        If b.Width < ButtonWidthSmall Then b.Width = ButtonWidthSmall
     End Sub
 
     Private Sub Base(ByVal b As Button)
@@ -299,3 +307,53 @@ Public Module Theme
     End Sub
 
 End Module
+
+' Шкала уровня. Своя, а не стандартная полоса Windows: та всегда зелёная,
+' цвет у неё при включённых темах оформления не меняется.
+Public Class Meter
+    Inherits Control
+
+    Private _value As Integer = 0
+    Private _max As Integer = 31
+
+    Public Sub New()
+        SetStyle(ControlStyles.AllPaintingInWmPaint Or ControlStyles.UserPaint Or
+                 ControlStyles.OptimizedDoubleBuffer Or ControlStyles.SupportsTransparentBackColor, True)
+        BackColor = Color.Transparent
+        Size = New Size(120, 8)
+    End Sub
+
+    Public Property Maximum As Integer
+        Get
+            Return _max
+        End Get
+        Set(ByVal v As Integer)
+            _max = Math.Max(1, v)
+            Invalidate()
+        End Set
+    End Property
+
+    Public Property Value As Integer
+        Get
+            Return _value
+        End Get
+        Set(ByVal v As Integer)
+            _value = Math.Max(0, Math.Min(v, _max))
+            Invalidate()
+        End Set
+    End Property
+
+    Protected Overrides Sub OnPaint(ByVal e As PaintEventArgs)
+        Using b As New SolidBrush(Theme.Border)
+            e.Graphics.FillRectangle(b, 0, 0, Width, Height)
+        End Using
+
+        Dim w As Integer = CInt(Width * (_value / _max))
+        If w > 0 Then
+            Using b As New SolidBrush(Theme.Accent)
+                e.Graphics.FillRectangle(b, 0, 0, w, Height)
+            End Using
+        End If
+    End Sub
+
+End Class
