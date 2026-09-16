@@ -135,6 +135,21 @@ Public Class Form2
         Return CInt(Math.Floor(d.TotalMinutes)) & " мин"
     End Function
 
+    ' В статусе приходит не настройка, а технология, которую модем сейчас
+    ' использует (device.netType = gsm.net_type в прошивке): 0 неизвестно,
+    ' 1 GSM/EDGE, 3 3G, 4 LTE. Словарь настроек сюда не подходит: 0 у него
+    ' называется «Авто», а на деле это «модем ещё не сообщил».
+    Private Function CurrentNetName(ByVal v As clOpros.eNetType) As String
+        Select Case CInt(v)
+            Case 0 : Return "не сообщается"
+            Case 1 : Return "2G (GSM/EDGE)"
+            Case 2 : Return "3G/4G"
+            Case 3 : Return "3G"
+            Case 4 : Return "4G (LTE)"
+            Case Else : Return "код " & CInt(v)
+        End Select
+    End Function
+
     Private Function ModuleName(ByVal m As clOpros.eModuleType) As String
         Select Case m
             Case clOpros.eModuleType.M_UG95 : Return "UG95/UG915"
@@ -191,7 +206,7 @@ Public Class Form2
 
         Theme.SetText(lblSig, status.signal & " из 31")
         pbSig.Value = Math.Max(0, Math.Min(CInt(status.signal), pbSig.Maximum))
-        Theme.SetText(lblNet, opros.NetTypeToString(status.netType))
+        Theme.SetText(lblNet, CurrentNetName(status.netType))
 
         Theme.SetText(lblUsedMem, status.usedMem & " из 50 000")
         meterMem.Value = status.usedMem

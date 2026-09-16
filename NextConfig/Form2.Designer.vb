@@ -389,7 +389,7 @@ Partial Class Form2
                       Row("Мобильная сеть", DotPair(Me.dotGSM, Me.lblGSM)),
                       Row("Интернет", DotPair(Me.dotInt, Me.lblInt)),
                       Row("Соединение с сервером", DotPair(Me.dotServer, Me.lblServerConnect)),
-                      Row("Тип сети", Me.lblNet),
+                      Row("Технология сейчас", Me.lblNet),
                       Row("Уровень сигнала", Me.sigRow)),
             CardBlock("Устройство",
                       Row("Модуль связи", Me.lblModuleType, Me.Label19),
@@ -534,7 +534,7 @@ Partial Class Form2
                       Row("Точка доступа", Me.boxOperator),
                       Note(Hint("Пусто — контроллер берёт параметры у оператора. Иначе три значения через запятую: " &
                                 "точка доступа, логин, пароль. Например: internet,gdata,gdata")),
-                      Row("Тип сети", Me.cmbNetType),
+                      Row("Разрешённые сети", Me.cmbNetType),
                       Row("VoLTE", Me.cmbVoLTE)),
             CardBlock("Доступ",
                       Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)),
