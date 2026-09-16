@@ -172,6 +172,10 @@ Partial Class frmFW
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
         Me.ClientSize = New System.Drawing.Size(Theme.Px(600), Theme.Px(400))
         Me.MinimumSize = New System.Drawing.Size(Theme.Px(560), Theme.Px(380))
+        ' итог операции бывает в две-три строки: окно должно вырасти за ним,
+        ' иначе кнопки уходят за нижний край
+        Me.AutoSize = True
+        Me.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
         Me.MaximizeBox = False

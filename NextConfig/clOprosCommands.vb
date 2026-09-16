@@ -602,6 +602,7 @@ Partial Public Class clOpros
     End Function
 
     Public Function StartUpdate(ByVal fwI As s_fwinfo) As eCmdAnswer
+        If Demo.IsOn Then Return DemoStartUpdate(fwI)
         Dim rez As eCmdAnswer = eCmdAnswer.CMD_UNDEFRESULT
 
         SyncLock Me
@@ -639,6 +640,7 @@ Partial Public Class clOpros
     End Function
 
     Public Function WriteFWBlock(ByVal nBlock As UInt16, ByVal buf As Byte(), ByRef _percent As Byte) As eCmdAnswer
+        If Demo.IsOn Then Return DemoWriteBlock(nBlock, _percent)
         Dim rez As eCmdAnswer = eCmdAnswer.CMD_UNDEFRESULT
 
         SyncLock Me

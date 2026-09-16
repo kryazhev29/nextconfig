@@ -142,6 +142,27 @@ Partial Public Class clOpros
         Return demoLog((demoTick \ 4) Mod demoLog.Length) & vbCrLf
     End Function
 
+    ' Обновление прошивки в демонстрационном режиме: блоки уходят «в никуда»,
+    ' зато виден весь ход операции и её итог.
+    Private demoBlocks As Integer = 0
+
+    Private Function DemoStartUpdate(ByVal fwI As s_fwinfo) As eCmdAnswer
+        demoBlocks = fwI.nBlocks
+        Return eCmdAnswer.CMD_SUCCESS
+    End Function
+
+    Private Function DemoWriteBlock(ByVal nBlock As UInt16, ByRef percent As Byte) As eCmdAnswer
+        Threading.Thread.Sleep(20)
+
+        If demoBlocks > 0 AndAlso nBlock >= demoBlocks - 1 Then
+            percent = 248  ' обновление завершено
+        Else
+            percent = CByte(Math.Min(99, CInt((nBlock + 1) * 100L \ Math.Max(1, demoBlocks))))
+        End If
+
+        Return eCmdAnswer.CMD_SUCCESS
+    End Function
+
     ' Настройки, какие обычно стоят на стендовой плате.
     Private Function DemoConfig() As s_config
         Dim c As New s_config

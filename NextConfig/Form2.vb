@@ -18,6 +18,9 @@ Public Class Form2
     ' по ним видно, что именно меняет запись
     Private onBoard As clOpros.s_config
 
+    ' пока идёт долгая работа с платой, окно операции само всё рассказывает
+    Private busyWithBoard As Boolean = False
+
     ' незаконченная строка журнала ждёт продолжения
     Private logTail As String = ""
     Private Const LogLimit As Integer = 500000
@@ -201,13 +204,25 @@ Public Class Form2
     Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
         OpenFileDialog1.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
         OpenFileDialog1.FileName = "FW_xx.bin"
-        If OpenFileDialog1.ShowDialog = DialogResult.OK Then
-            Using f As New frmFW(OpenFileDialog1.FileName, opros)
-                If f.ShowDialog() = DialogResult.OK Then
-                    Me.Close()
-                End If
-            End Using
-        End If
+
+        If OpenFileDialog1.ShowDialog <> DialogResult.OK Then Exit Sub
+
+        ' опрос статуса на время записи не нужен: порт занимают блоки прошивки
+        busyWithBoard = True
+        tmr1.Enabled = False
+        opros.StopGetStatus(True)
+
+        Using f As New frmFW(OpenFileDialog1.FileName, opros)
+            If f.ShowDialog() = DialogResult.OK Then
+                ' контроллер устанавливает прошивку и перезагружается, связь потеряна
+                Me.Close()
+                Exit Sub
+            End If
+        End Using
+
+        busyWithBoard = False
+        opros.StopGetStatus(False)
+        tmr1.Enabled = True
     End Sub
 
     Private Sub btnUpdateBoot_Click(sender As Object, e As EventArgs) Handles btnUpdateBoot.Click
@@ -215,6 +230,7 @@ Public Class Form2
         OpenFileDialog1.FileName = "Boot_xx.bin"
         If OpenFileDialog1.ShowDialog = DialogResult.OK Then
             ' опрос статуса на время замены не нужен: порт занимает команда 110
+            busyWithBoard = True
             tmr1.Enabled = False
             opros.StopGetStatus(True)
 
@@ -226,6 +242,7 @@ Public Class Form2
                 End If
             End Using
 
+            busyWithBoard = False
             opros.StopGetStatus(False)
             tmr1.Enabled = True
         End If
@@ -1026,6 +1043,12 @@ Public Class Form2
     End Sub
 
     Private Sub UIonErrorPort()
+
+        ' Во время записи прошивки или замены загрузчика контроллер перезагружается
+        ' сам, и порт пропадает по делу. Про это рассказывает экран операции,
+        ' а не окно с ошибкой поверх него.
+        If busyWithBoard Then Exit Sub
+
         RemoveHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
 
         Using f As New frmInfo("Подключение", "Потеряно соединение с контроллером!")
