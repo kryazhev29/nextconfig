@@ -1,4 +1,4 @@
-Public Class frmSelecter
+﻿Public Class frmSelecter
 
     Public ID As Integer
     Public TextValue As String
