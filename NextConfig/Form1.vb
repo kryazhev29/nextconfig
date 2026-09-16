@@ -161,7 +161,7 @@ Public Class Form1
             ofd.FileName = hw & ".FW.БИЛД.bin"
 
             If ofd.ShowDialog() = DialogResult.OK Then
-                Using f As New frmBoot(ofd.FileName, opros.GetComPort)
+                Using f As New frmFW(ofd.FileName, opros.GetComPort)
                     f.ShowDialog()
                 End Using
             End If

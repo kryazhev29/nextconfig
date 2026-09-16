@@ -134,7 +134,7 @@ Public Class Form2
             tmr1.Enabled = False
             opros.StopGetStatus(True)
 
-            Using f As New frmBoot(OpenFileDialog1.FileName, opros, status.hw_version)
+            Using f As New frmFW(OpenFileDialog1.FileName, opros, status.hw_version)
                 If f.ShowDialog() = DialogResult.OK Then
                     ' контроллер перезагружается с новым загрузчиком, связь потеряна
                     Me.Close()
