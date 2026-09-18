@@ -154,11 +154,8 @@ Partial Public Class clOpros
     Private Function DemoWriteBlock(ByVal nBlock As UInt16, ByRef percent As Byte) As eCmdAnswer
         Threading.Thread.Sleep(20)
 
-        If demoBlocks > 0 AndAlso nBlock >= demoBlocks - 1 Then
-            percent = 248  ' обновление завершено
-        Else
-            percent = CByte(Math.Min(99, CInt((nBlock + 1) * 100L \ Math.Max(1, demoBlocks))))
-        End If
+        ' «Протокол2»: ход 0…100, код 0 — блок принят
+        percent = CByte(Math.Min(100, CInt((nBlock + 1) * 100L \ Math.Max(1, demoBlocks))))
 
         Return eCmdAnswer.CMD_SUCCESS
     End Function

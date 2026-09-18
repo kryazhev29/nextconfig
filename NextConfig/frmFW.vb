@@ -282,25 +282,35 @@ Public Class frmFW
         While Not break AndAlso nBlock < fwInfo.nBlocks
 
             ' Блок читается по своему смещению: после неудачи повторяется тот же блок.
-            If opros.WriteFWBlock(CUShort(nBlock), BlockOf(image, nBlock), percent) = clOpros.eCmdAnswer.CMD_SUCCESS Then
-                nBlock += 1
-                fReaded = Math.Min(nBlock * 1024, fSize)
-                tries = 0
-            Else
-                tries += 1
-            End If
+            Dim code As clOpros.eCmdAnswer = opros.WriteFWBlock(CUShort(nBlock), BlockOf(image, nBlock), percent)
 
-            Select Case percent
-                Case 248
-                    Return True
-                Case 249, 250, 251, 252, 253, 254
-                    errText = ProgressText(percent)
-                    Return False
-                Case 255
-                    ' блок отклонён, обновление продолжается — повторяем тот же блок
-                Case Else
-                    fw_onRead(fReaded, percent)
-            End Select
+            If percent > 100 Then
+                ' Прошивка до «Протокола2» (FW 71 от 16.09) сообщала итог в поле хода.
+                Select Case percent
+                    Case 248
+                        Return True
+                    Case 255
+                        tries += 1
+                    Case Else
+                        errText = ProgressText(percent)
+                        Return False
+                End Select
+            Else
+                ' «Протокол2», команда 4: ход 0…100 и код. 0 — блок принят,
+                ' 254 и 255 — тот же блок ещё раз, 253 — контроллер прекратил загрузку.
+                Select Case CInt(code)
+                    Case 0
+                        nBlock += 1
+                        fReaded = Math.Min(nBlock * 1024, fSize)
+                        tries = 0
+                        fw_onRead(fReaded, percent)
+                    Case 253
+                        errText = "Контроллер прекратил загрузку. Причина записана в его журнал событий."
+                        Return False
+                    Case Else
+                        tries += 1
+                End Select
+            End If
 
             If tries >= MAX_BLOCK_TRIES Then
                 errText = "Блок " & nBlock & " не принят " & MAX_BLOCK_TRIES & " раз подряд. Обновление прервано."
@@ -315,8 +325,9 @@ Public Class frmFW
             Return False
         End If
 
-        errText = "Контроллер не сообщил о завершении обновления."
-        Return False
+        ' Все блоки приняты: контроллер сам проверит контрольную сумму файла
+        ' и перезагрузится на установку.
+        Return True
     End Function
 
     ' Блок команды 20 всегда ровно 1024 байта, хвост последнего добивается 0xFF.
@@ -337,7 +348,7 @@ Public Class frmFW
             Case clOpros.eCmdAnswer.CMD_PARAMERROR
                 Return "Ошибка в параметрах команды!"
             Case clOpros.eCmdAnswer.CMD_RUNERROR
-                Return "Контроллер занят: идёт обновление, пробный запуск новой прошивки или замена загрузчика."
+                Return "Контроллер сейчас не может принять прошивку: идёт другая загрузка, пробный запуск новой прошивки, замена загрузчика или стоит старый загрузчик. Причина записана в журнал событий контроллера."
             Case clOpros.eCmdAnswer.CMD_UNDEFRESULT
                 Return "Контроллер не ответил на команду обновления!"
             Case clOpros.eCmdAnswer.CMD_GETPASSWORD
@@ -353,7 +364,7 @@ Public Class frmFW
         End Select
     End Function
 
-    ' Код хода обновления в команде 4 (лист «Протокол», D473).
+    ' Итог в поле хода команды 4 у прошивки до «Протокола2» (лист «Протокол», D473).
     Private Shared Function ProgressText(ByVal percent As Byte) As String
         Select Case percent
             Case 249
