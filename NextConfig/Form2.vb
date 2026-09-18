@@ -59,6 +59,7 @@ Public Class Form2
 
         ReadConfig(True)
         AddHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
+        AddHandler opros.GetComPort.PinRequired, AddressOf OnPinRequired
     End Sub
 
     Private Sub Form2_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
@@ -1073,5 +1074,19 @@ Public Class Form2
 
         Me.Close()
 
+    End Sub
+    Private Sub OnPinRequired()
+        Me.BeginInvoke(New delegate_onErrorPort(AddressOf UIonPinRequired))
+    End Sub
+
+    ' Контроллер больше не считает программу вошедшей по ПИН-коду - вернуться на экран входа.
+    Private Sub UIonPinRequired()
+        If busyWithBoard Then Exit Sub
+        RemoveHandler opros.GetComPort.PinRequired, AddressOf OnPinRequired
+        RemoveHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
+        Using f As New frmInfo("Подключение", "Контроллер просит ПИН-код. Подключитесь заново.")
+            f.ShowDialog()
+        End Using
+        Me.Close()
     End Sub
 End Class

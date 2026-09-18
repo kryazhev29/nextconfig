@@ -8,6 +8,9 @@ Public Class ClComPort
     Public Event ReceiveComand(ByVal value As String)
     Public Event ReceiveBytes(ByVal buffer As Byte())
     Public Event ErrorPort()
+    ' Контроллер ответил 11 с кодом 4: команды по USB, кроме опознания и статуса, прошивка
+    ' выполняет только после ПИН-кода (прошивка с 18.09.2026).
+    Public Event PinRequired()
 
     ' Строка журнала в демонстрационном режиме: порт закрыт, а показать
     ' работу журнала надо.
@@ -542,6 +545,7 @@ Public Class ClComPort
 
                                     If crc_16 = crc_rec Then
                                         EnableEventReceived = True
+                                        If data_rec.Length > 10 AndAlso data_rec(8) = 11 AndAlso data_rec(10) = 4 Then RaiseEvent PinRequired()
                                         Return True
                                     Else
                                         Exit Do
