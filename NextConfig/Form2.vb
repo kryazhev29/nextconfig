@@ -113,10 +113,10 @@ Public Class Form2
         Theme.DotText(text, state, If(good, onText, offText))
     End Sub
 
-    ' Контроллер держит время сервера, а не местное: без подсказки это выглядит
-    ' как сбитые часы. Пишем расхождение с компьютером, когда оно заметное.
+    ' Контроллер держит время в UTC; показываем его по местному поясу компьютера
+    ' и пишем расхождение, когда оно заметное.
     Private Function DeviceTimeText(ByVal unix As UInt32) As String
-        Dim t As DateTime = UnixTimestampToDateTime(unix)
+        Dim t As DateTime = DateTime.SpecifyKind(UnixTimestampToDateTime(unix), DateTimeKind.Utc).ToLocalTime()
         Dim text As String = t.ToString("dd.MM.yyyy HH:mm:ss")
         Dim diff As TimeSpan = DateTime.Now.Subtract(t)
 
@@ -387,7 +387,7 @@ Public Class Form2
 
     Private Sub SetDefaultConfig()
         With config
-            .time = DateTimeToUnixTimestamp(Now)
+            .time = DateTimeToUnixTimestamp(DateTime.UtcNow)
             .pin = BitConverter.ToUInt32(System.Text.Encoding.UTF8.GetBytes("4321"), 0)
             .server1 = "93.189.229.197:15010"
             .useServer1 = 1
@@ -721,7 +721,8 @@ Public Class Form2
     End Function
 
     Private Sub Label16_Click(sender As Object, e As EventArgs) Handles Label16.Click
-        opros.SetTime(DateTimeToUnixTimestamp(Now))
+        ' Контроллер и сервер считают время в UTC; местное время уводило часы на пояс вперёд.
+        opros.SetTime(DateTimeToUnixTimestamp(DateTime.UtcNow))
     End Sub
 
     Private Sub Label19_Click(sender As Object, e As EventArgs) Handles Label19.Click

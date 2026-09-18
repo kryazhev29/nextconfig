@@ -25,7 +25,13 @@ Partial Public Class clOpros
             ' при любом другом он включает оба выхода по правилам и запрошенные
             ' состояния не смотрит. В исходниках заказчика тут стояло 255, и
             ' поэтому кнопка «ТЕСТ» выходом не управляла.
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, New Byte() {SRC_TEST, _o1, _o2}), 500) Then
+            ' Полный пакет команды 8: источник, два выхода и 10 байт ID абонента (пустой).
+            Dim p(12) As Byte
+            p(0) = SRC_TEST
+            p(1) = _o1
+            p(2) = _o2
+
+            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, p), 500) Then
                 If rec(cmdIdx) = eCmd.REC_ANSWER Then
                     If rec(payloadIdx + 1) = 0 Then
                         rez = True
