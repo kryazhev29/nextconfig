@@ -14,6 +14,7 @@ Partial Public Class clOpros
     ' ошибка параметра.
     Public Function SetOut(ByVal _o1 As Boolean, ByVal _o2 As Boolean) As Integer
         Dim rez As Integer = -1
+        If Demo.IsOn Then Return 0
 
         SyncLock Me
             _isPause = True

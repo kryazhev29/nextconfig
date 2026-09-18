@@ -265,43 +265,28 @@ Public Class Form2
         End If
     End Sub
 
-    ' Кнопка ТЕСТ по ТЗ: запускает алгоритм работы выхода по его настройкам (команда 8
-    ' со значением 1) и сразу запрашивает статус. Второму выходу передаётся его текущее
-    ' состояние: 0 выключил бы его, если он сейчас включён.
+    ' Кнопка ТЕСТ по ТЗ: запускает алгоритм выхода по его настройкам (команда 8, значение 1)
+    ' и сразу запрашивает статус. В режиме УРОВЕНЬ включённый выход выключает (значение 0).
+    ' Отказ контроллера (пауза реле, запрет в настройках) по ТЗ штатный - без сообщения.
+    ' Второму выходу передаётся его текущее состояние: 0 выключил бы его.
     Private Sub btnTestOUT_Click(sender As Object, e As EventArgs) Handles btnTestOUT2.Click, btnTestOUT1.Click
-        Dim code As Integer = -1
+        Dim n As Integer = CInt(CType(sender, Control).Tag)
+        Dim level As Boolean = If(n = 0, onBoard.out1.outMode, onBoard.out2.outMode) = 1
+        Dim want As Boolean = Not (level AndAlso If(n = 0, status.out1, status.out2))
+        Dim code As Integer
 
-        Select Case CType(sender, Control).Tag
-            Case 0
-                code = opros.SetOut(True, status.out2)
+        If n = 0 Then
+            code = opros.SetOut(want, status.out2)
+        Else
+            code = opros.SetOut(status.out1, want)
+        End If
 
-            Case 1
-                code = opros.SetOut(status.out1, True)
-
-        End Select
-
-        If code = 0 Then Exit Sub
-
-        Dim txt As String
-        Select Case code
-            Case -1
-                txt = "Контроллер не ответил на команду."
-            Case 1
-                txt = "Контроллер отклонил команду: ошибка параметра."
-            Case 2
-                txt = "Выход не включился." & vbCrLf &
-                      "Проверьте в настройках реле, что управление командой сервера разрешено."
-            Case 4
-                txt = "Контроллер требует ПИН."
-            Case Else
-                txt = "Контроллер ответил кодом " & code & "."
-        End Select
-
-        Using f As New frmInfo("Выходы", txt)
-            f.ShowDialog()
-        End Using
+        If code = -1 Then
+            Using f As New frmInfo("Выходы", "Контроллер не ответил на команду.")
+                f.ShowDialog()
+            End Using
+        End If
     End Sub
-
     Private Sub btnTranspMode_Click(sender As Object, e As EventArgs) Handles btnTranspMode.Click
         Using f As New frmInfo("Прозрачный режим", "Перевести контроллер в прозрачный режим с GSM модулем?" & vbCrLf & "Конфигуратор будет закрыт!",, True)
             f.Button1.Text = "Перевести"
