@@ -370,13 +370,13 @@ Partial Class Form2
         Me.lbOUT2.AutoSize = True
 
         Me.btnTestOUT1.Name = "btnTestOUT1"
-        Me.btnTestOUT1.Text = "Переключить"
+        Me.btnTestOUT1.Text = "ТЕСТ"
         Me.btnTestOUT1.Tag = 0
         Theme.Secondary(Me.btnTestOUT1)
         Theme.Small(Me.btnTestOUT1)
 
         Me.btnTestOUT2.Name = "btnTestOUT2"
-        Me.btnTestOUT2.Text = "Переключить"
+        Me.btnTestOUT2.Text = "ТЕСТ"
         Me.btnTestOUT2.Tag = 1
         Theme.Secondary(Me.btnTestOUT2)
         Theme.Small(Me.btnTestOUT2)

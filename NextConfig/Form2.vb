@@ -196,10 +196,11 @@ Public Class Form2
         Theme.SetText(lblHeadFW, "Прошивка " & status.fw_version)
         Theme.SetText(lblHeadBoot, "Загрузчик 0x" & status.boot_version.ToString("X2"))
 
-        SetDot(dotIN1, lbIN1, status.in1, "Включён", "Выключен")
-        SetDot(dotIN2, lblIN2, status.in2, "Включён", "Выключен")
-        SetDot(dotOUT1, lblOUT1, status.out1, "Включён", "Выключен")
-        SetDot(dotOUT2, lbOUT2, status.out2, "Включён", "Выключен")
+        ' ТЗ: индикатор входа и выхода зелёный - активен, красный - не активен
+        SetDot(dotIN1, lbIN1, status.in1, "Включён", "Выключен", True)
+        SetDot(dotIN2, lblIN2, status.in2, "Включён", "Выключен", True)
+        SetDot(dotOUT1, lblOUT1, status.out1, "Включён", "Выключен", True)
+        SetDot(dotOUT2, lbOUT2, status.out2, "Включён", "Выключен", True)
 
         SetDot(dotGSM, lblGSM, status.gsm = 1, "Подключено", "Нет сети", True)
         SetDot(dotInt, lblInt, status.gprs = 1, "Подключено", "Нет интернета", True)
@@ -264,18 +265,18 @@ Public Class Form2
         End If
     End Sub
 
+    ' Кнопка ТЕСТ по ТЗ: запускает алгоритм работы выхода по его настройкам (команда 8
+    ' со значением 1) и сразу запрашивает статус. Второму выходу передаётся его текущее
+    ' состояние: 0 выключил бы его, если он сейчас включён.
     Private Sub btnTestOUT_Click(sender As Object, e As EventArgs) Handles btnTestOUT2.Click, btnTestOUT1.Click
-        Dim _o1 As Boolean = Not status.out1
-        Dim _o2 As Boolean = Not status.out2
-
         Dim code As Integer = -1
 
         Select Case CType(sender, Control).Tag
             Case 0
-                code = opros.SetOut(_o1, status.out2)
+                code = opros.SetOut(True, status.out2)
 
             Case 1
-                code = opros.SetOut(status.out1, _o2)
+                code = opros.SetOut(status.out1, True)
 
         End Select
 

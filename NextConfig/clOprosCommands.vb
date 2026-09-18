@@ -39,6 +39,12 @@ Partial Public Class clOpros
                 End If
             End If
 
+            ' По ТЗ после ТЕСТ сразу запрашивается статус: включение выхода видно на экране,
+            ' даже если импульс короче периода опроса.
+            If rez = 0 AndAlso Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STATUS, Nothing), 500) Then
+                ParseRec(rec)
+            End If
+
             _isPause = False
         End SyncLock
 
