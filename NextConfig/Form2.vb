@@ -268,14 +268,37 @@ Public Class Form2
         Dim _o1 As Boolean = Not status.out1
         Dim _o2 As Boolean = Not status.out2
 
+        Dim code As Integer = -1
+
         Select Case CType(sender, Control).Tag
             Case 0
-                opros.SetOut(_o1, status.out2)
+                code = opros.SetOut(_o1, status.out2)
 
             Case 1
-                opros.SetOut(status.out1, _o2)
+                code = opros.SetOut(status.out1, _o2)
 
         End Select
+
+        If code = 0 Then Exit Sub
+
+        Dim txt As String
+        Select Case code
+            Case -1
+                txt = "Контроллер не ответил на команду."
+            Case 1
+                txt = "Контроллер отклонил команду: ошибка параметра."
+            Case 2
+                txt = "Выход не включился." & vbCrLf &
+                      "Проверьте в настройках реле, что управление командой сервера разрешено."
+            Case 4
+                txt = "Контроллер требует ПИН."
+            Case Else
+                txt = "Контроллер ответил кодом " & code & "."
+        End Select
+
+        Using f As New frmInfo("Выходы", txt)
+            f.ShowDialog()
+        End Using
     End Sub
 
     Private Sub btnTranspMode_Click(sender As Object, e As EventArgs) Handles btnTranspMode.Click

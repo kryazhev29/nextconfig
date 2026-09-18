@@ -8,8 +8,12 @@ Partial Public Class clOpros
     ' 4 - голосовой помощник
     Private Const SRC_TEST As Byte = 3
 
-    Public Function SetOut(ByVal _o1 As Byte, ByVal _o2 As Byte) As Boolean
-        Dim rez As Boolean = False
+    ' Возвращает код ответа контроллера на команду 8: 0 - выполнено, 1 - ошибка параметра,
+    ' 2 - выход не включился (не разрешён настройками реле или занят); -1 - ответа нет.
+    ' Выходы задаются строго 0 или 1: по Протоколу2 (строки 185-188) значение больше 1 -
+    ' ошибка параметра.
+    Public Function SetOut(ByVal _o1 As Boolean, ByVal _o2 As Boolean) As Integer
+        Dim rez As Integer = -1
 
         SyncLock Me
             _isPause = True
@@ -20,22 +24,18 @@ Partial Public Class clOpros
 
             Dim rec As Byte()
 
-            ' Первый байт - источник команды. Контроллер ставит выходы в заданное
-            ' состояние только при источнике 3 «тест из админки» (user_fun.c:2807):
-            ' при любом другом он включает оба выхода по правилам и запрошенные
-            ' состояния не смотрит. В исходниках заказчика тут стояло 255, и
-            ' поэтому кнопка «ТЕСТ» выходом не управляла.
+            ' Первый байт - источник команды (3 - тест из админки), от него зависит только
+            ' номер события в журнале. Выходом контроллер управляет, если настройки реле
+            ' разрешают команды сервера.
             ' Полный пакет команды 8: источник, два выхода и 10 байт ID абонента (пустой).
             Dim p(12) As Byte
             p(0) = SRC_TEST
-            p(1) = _o1
-            p(2) = _o2
+            p(1) = If(_o1, CByte(1), CByte(0))
+            p(2) = If(_o2, CByte(1), CByte(0))
 
             If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, p), 500) Then
                 If rec(cmdIdx) = eCmd.REC_ANSWER Then
-                    If rec(payloadIdx + 1) = 0 Then
-                        rez = True
-                    End If
+                    rez = rec(payloadIdx + 1)
                 End If
             End If
 
