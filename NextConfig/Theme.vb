@@ -416,8 +416,6 @@ Public Module Theme
         body.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.TopDown, .WrapContents = False,
             .Margin = New Padding(0), .Padding = New Padding(Px(12), Px(24), Px(12), 0), .BackColor = WindowBack}
-        Dim title As New Label With {.Text = "НАСТРОЙКИ", .AutoSize = False, .Size = New Size(Px(150), Px(30)), .Font = FontCaption, .ForeColor = TextMuted}
-        nav.Controls.Add(title)
         Dim hosts As New List(Of Panel)
         Dim links As New List(Of Button)
         Dim content As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
