@@ -58,6 +58,7 @@ Public Class Form2
         opros.StopGetStatus(False)
 
         ReadConfig(True)
+        If names485.Notice <> "" Then RichTextBox1.AppendText(names485.Notice & vbCrLf)
         AddHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
         AddHandler opros.GetComPort.PinRequired, AddressOf OnPinRequired
     End Sub
@@ -183,6 +184,7 @@ Public Class Form2
 
         status = _status
         lastStatus = DateTime.Now
+        Status485()
 
         Theme.SetText(lblTime, DeviceTimeText(status.time))
         Theme.SetText(lblFW, status.fw_version & ", сборка " & status.fw_build)
@@ -350,12 +352,14 @@ Public Class Form2
         Dim question As String
 
         If changes.Count = 0 Then
-            question = "На экране то же, что в контроллере. Записать всё равно?"
+            lblSaveState.Text = "Изменений нет"
+            Return
         Else
             question = "В контроллере изменится:" & vbCrLf & vbCrLf & String.Join(vbCrLf, changes)
         End If
 
         Using f As New frmInfo("Сохранение настроек", question, ContentAlignment.MiddleLeft, True)
+            Theme.ConfigChanges(f, question)
             f.Button1.Text = "Сохранить"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
@@ -478,10 +482,11 @@ Public Class Form2
             chServer1.Checked = .useServer1
             chServer2.Checked = .useserver2
             txtOperator.Text = .opType
-            cmbVoLTE.SelectedIndex = If(.VoLTE = 0, 0, 1)
-            cmbNetType.SelectedIndex = Math.Max(0, Math.Min(CInt(.netType), cmbNetType.Items.Count - 1))
+            cmbVoLTE.SelectedIndex = If(.VoLTE <= 1, CInt(.VoLTE), -1)
+            cmbNetType.SelectedIndex = If(CInt(.netType) < cmbNetType.Items.Count, CInt(.netType), -1)
         End With
 
+        Load485()
         updatingFields = False
 
         UpdateDirty()
@@ -504,6 +509,7 @@ Public Class Form2
     ' Перенести введённое в настройки. Список, который почему-то не выбран,
     ' оставляем как есть: молча записать вместо него первый пункт нельзя.
     Private Sub ApplyFields()
+        Apply485()
         With config
             .server1 = txtServer1.Text.Trim()
             .server2 = txtServer2.Text.Trim()
@@ -530,6 +536,7 @@ Public Class Form2
         AddChange(list, "VoLTE", OnOff(onBoard.VoLTE), OnOff(config.VoLTE))
         AddChange(list, "ПИН-код", PinText(onBoard.pin), PinText(config.pin))
 
+        Changes485(list)
         Return list
     End Function
 
@@ -595,6 +602,7 @@ Public Class Form2
     End Sub
 
     Private Function FieldsDiffer() As Boolean
+        If FieldsDiffer485() Then Return True
         With config
             If txtServer1.Text.Trim() <> .server1 Then Return True
             If txtServer2.Text.Trim() <> .server2 Then Return True

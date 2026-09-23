@@ -117,6 +117,8 @@ Partial Public Class clOpros
         Dim VoLTE As Byte
         Dim rs485Mode As Byte
         Dim enableNTPsync As Byte
+        Dim rs485Baud As Byte
+        Dim rawConfig As Byte()
         Dim wiegandType As Byte
         Dim periph1 As s_periphery
         Dim periph2 As s_periphery

@@ -79,6 +79,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Theme.vb" />
+    <Compile Include="Rs485.vb" />
+    <EmbeddedResource Include="periphery.ini"><LogicalName>NextConfig.periphery.ini</LogicalName><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></EmbeddedResource>
     <Compile Include="clComPort.vb" />
     <Compile Include="ClLog_NT.vb" />
     <Compile Include="clOpros.vb" />

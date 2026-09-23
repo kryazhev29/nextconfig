@@ -119,6 +119,7 @@ Partial Public Class clOpros
         s.connectToServer = 1
         s.netType = eNetType._4G
         s.peripheryState = New Byte(7) {}
+        s.peripheryState(0) = 1
         s.usedMem = 1274
         s.moduleType = eModuleType.M_SLM336
 
@@ -177,9 +178,12 @@ Partial Public Class clOpros
         c.resetTime = 0
         c.fullLog = 0
         c.VoLTE = 1
-        c.rs485Mode = 0
+        c.rs485Mode = 1
+        c.rs485Baud = 0
+        c.periph1.rs485Adr = 1
+        c.periph1.rs485Type = 3
         c.enableNTPsync = 1
-        c.wiegandType = 26
+        c.wiegandType = 0
         c.in1Func = 0
         c.in2Func = 0
         c.useServer1 = 1

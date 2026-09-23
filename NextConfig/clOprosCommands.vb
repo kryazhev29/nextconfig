@@ -145,6 +145,8 @@ Partial Public Class clOpros
     Public Function SetConfig(ByVal _conf As s_config) As Boolean
 
         Dim bt_conf(511) As Byte
+        If _conf.rawConfig IsNot Nothing Then Array.Copy(_conf.rawConfig, bt_conf, 512)
+        If Demo.IsOn Then Return True
         Dim rez As Boolean = False
 
         SyncLock Me
@@ -155,69 +157,8 @@ Partial Public Class clOpros
             End While
 
             Dim rec As Byte()
-            Dim bts As Byte()
 
-            bts = BitConverter.GetBytes(_conf.time)
-            Array.Copy(bts, 0, bt_conf, 0, 4)
-            bts = BitConverter.GetBytes(_conf.pin)
-            Array.Copy(bts, 0, bt_conf, 4, 4)
-            CopyStrToBuffer(_conf.server1, bt_conf, 8, 32)
-            CopyStrToBuffer(_conf.server2, bt_conf, 40, 32)
-            CopyStrToBuffer(_conf.ntpServer, bt_conf, 72, 32)
-            CopyStrToBuffer(_conf.opType, bt_conf, 104, 32)
-            bt_conf(136) = _conf.netType
-            CopyStrToBuffer(_conf.countryCode, bt_conf, 137, 8)
-            CopyStrToBuffer(_conf.simNumber, bt_conf, 145, 16)
-            CopyStrToBuffer(_conf.ussdBalance, bt_conf, 161, 8)
-            bt_conf(169) = _conf.resetTime
-            bt_conf(170) = _conf.fullLog
-            bt_conf(171) = _conf.VoLTE
-            bt_conf(172) = _conf.rs485Mode
-            bt_conf(173) = _conf.enableNTPsync
-            '''
-            bt_conf(178) = _conf.wiegandType
-            bt_conf(179) = _conf.periph1.rs485Adr
-            bt_conf(180) = _conf.periph1.rs485Type
-            bt_conf(181) = _conf.periph2.rs485Adr
-            bt_conf(182) = _conf.periph2.rs485Type
-            bt_conf(183) = _conf.periph3.rs485Adr
-            bt_conf(184) = _conf.periph3.rs485Type
-            bt_conf(185) = _conf.periph4.rs485Adr
-            bt_conf(186) = _conf.periph4.rs485Type
-            bt_conf(187) = _conf.periph5.rs485Adr
-            bt_conf(188) = _conf.periph5.rs485Type
-            bt_conf(189) = _conf.periph6.rs485Adr
-            bt_conf(190) = _conf.periph6.rs485Type
-            bt_conf(191) = _conf.periph7.rs485Adr
-            bt_conf(192) = _conf.periph7.rs485Type
-            bt_conf(193) = _conf.periph8.rs485Adr
-            bt_conf(194) = _conf.periph8.rs485Type
-            bt_conf(195) = _conf.out1.unBlockUse
-            bt_conf(196) = _conf.out1.outMode
-            bt_conf(197) = _conf.out1.onServerCmd
-            bt_conf(198) = _conf.out1.onWiegand
-            bt_conf(199) = _conf.out1.onCam
-            bt_conf(200) = _conf.out1.onRFID
-            bt_conf(201) = _conf.out1.onOther485
-            bt_conf(202) = _conf.out1.onRF433
-            bt_conf(203) = _conf.out1.impulse
-            bt_conf(204) = _conf.out1.pause
-            bt_conf(205) = _conf.out1.repeate
-            bt_conf(206) = _conf.out2.unBlockUse
-            bt_conf(207) = _conf.out2.outMode
-            bt_conf(208) = _conf.out2.onServerCmd
-            bt_conf(209) = _conf.out2.onWiegand
-            bt_conf(210) = _conf.out2.onCam
-            bt_conf(211) = _conf.out2.onRFID
-            bt_conf(212) = _conf.out2.onOther485
-            bt_conf(213) = _conf.out2.onRF433
-            bt_conf(214) = _conf.out2.impulse
-            bt_conf(215) = _conf.out2.pause
-            bt_conf(216) = _conf.out2.repeate
-            bt_conf(217) = _conf.in1Func
-            bt_conf(218) = _conf.in2Func
-            bt_conf(219) = _conf.useServer1
-            bt_conf(220) = _conf.useserver2
+            bt_conf = EncodeConfig(_conf)
 
             If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETCONFIG, bt_conf), 3000) Then
                 If rec(cmdIdx) = eCmd.REC_TIMESHTAMP Then
@@ -233,7 +174,80 @@ Partial Public Class clOpros
         Return rez
     End Function
 
-    Public Sub CopyStrToBuffer(ByVal _s As String, ByRef bt_conf As Byte(), ByVal idx As Integer, ByVal sz As Integer)
+    Public Shared Function EncodeConfig(_conf As s_config) As Byte()
+        Dim bt_conf(511) As Byte
+        If _conf.rawConfig IsNot Nothing Then Array.Copy(_conf.rawConfig, bt_conf, 512)
+        Dim bts As Byte()
+        bts = BitConverter.GetBytes(_conf.time)
+        Array.Copy(bts, 0, bt_conf, 0, 4)
+        bts = BitConverter.GetBytes(_conf.pin)
+        Array.Copy(bts, 0, bt_conf, 4, 4)
+        CopyStrToBuffer(_conf.server1, bt_conf, 8, 32)
+        CopyStrToBuffer(_conf.server2, bt_conf, 40, 32)
+        CopyStrToBuffer(_conf.ntpServer, bt_conf, 72, 32)
+        CopyStrToBuffer(_conf.opType, bt_conf, 104, 32)
+        bt_conf(136) = _conf.netType
+        CopyStrToBuffer(_conf.countryCode, bt_conf, 137, 8)
+        CopyStrToBuffer(_conf.simNumber, bt_conf, 145, 16)
+        CopyStrToBuffer(_conf.ussdBalance, bt_conf, 161, 8)
+        bt_conf(169) = _conf.resetTime
+        bt_conf(170) = _conf.fullLog
+        bt_conf(171) = _conf.VoLTE
+        bt_conf(172) = _conf.rs485Mode
+        bt_conf(173) = _conf.enableNTPsync
+        bt_conf(174) = _conf.rs485Baud
+        ' Остальные резервные байты сохраняются.
+        bt_conf(178) = _conf.wiegandType
+        bt_conf(179) = _conf.periph1.rs485Adr
+        bt_conf(180) = _conf.periph1.rs485Type
+        bt_conf(181) = _conf.periph2.rs485Adr
+        bt_conf(182) = _conf.periph2.rs485Type
+        bt_conf(183) = _conf.periph3.rs485Adr
+        bt_conf(184) = _conf.periph3.rs485Type
+        bt_conf(185) = _conf.periph4.rs485Adr
+        bt_conf(186) = _conf.periph4.rs485Type
+        bt_conf(187) = _conf.periph5.rs485Adr
+        bt_conf(188) = _conf.periph5.rs485Type
+        bt_conf(189) = _conf.periph6.rs485Adr
+        bt_conf(190) = _conf.periph6.rs485Type
+        bt_conf(191) = _conf.periph7.rs485Adr
+        bt_conf(192) = _conf.periph7.rs485Type
+        bt_conf(193) = _conf.periph8.rs485Adr
+        bt_conf(194) = _conf.periph8.rs485Type
+        bt_conf(195) = _conf.out1.unBlockUse
+        bt_conf(196) = _conf.out1.outMode
+        bt_conf(197) = _conf.out1.onServerCmd
+        bt_conf(198) = _conf.out1.onWiegand
+        bt_conf(199) = _conf.out1.onCam
+        bt_conf(200) = _conf.out1.onRFID
+        bt_conf(201) = _conf.out1.onOther485
+        bt_conf(202) = _conf.out1.onRF433
+        bt_conf(203) = _conf.out1.impulse
+        bt_conf(204) = _conf.out1.pause
+        bt_conf(205) = _conf.out1.repeate
+        bt_conf(206) = _conf.out2.unBlockUse
+        bt_conf(207) = _conf.out2.outMode
+        bt_conf(208) = _conf.out2.onServerCmd
+        bt_conf(209) = _conf.out2.onWiegand
+        bt_conf(210) = _conf.out2.onCam
+        bt_conf(211) = _conf.out2.onRFID
+        bt_conf(212) = _conf.out2.onOther485
+        bt_conf(213) = _conf.out2.onRF433
+        bt_conf(214) = _conf.out2.impulse
+        bt_conf(215) = _conf.out2.pause
+        bt_conf(216) = _conf.out2.repeate
+        bt_conf(217) = _conf.in1Func
+        bt_conf(218) = _conf.in2Func
+        bt_conf(219) = _conf.useServer1
+        bt_conf(220) = _conf.useserver2
+
+        Return bt_conf
+    End Function
+
+    Public Shared Sub CopyStrToBuffer(ByVal _s As String, ByRef bt_conf As Byte(), ByVal idx As Integer, ByVal sz As Integer)
+        Dim old = System.Text.Encoding.UTF8.GetString(bt_conf, idx, sz).Split(ChrW(0))(0)
+        If old = If(_s, "") Then Return
+        Array.Clear(bt_conf, idx, sz)
         If _s Is Nothing Then
             bt_conf(idx) = 0
             Exit Sub
@@ -275,6 +289,8 @@ Partial Public Class clOpros
             If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_GETCONFIG, Nothing), 500) Then
                 If rec(cmdIdx) = eCmd.CMD_GETCONFIG Then
 
+                    _conf.rawConfig = New Byte(511) {}
+                    Array.Copy(rec, 9, _conf.rawConfig, 0, 512)
                     _conf.time = BitConverter.ToUInt32(rec, 9)
                     _conf.pin = BitConverter.ToUInt32(rec, 13)
                     _conf.server1 = ZStr(rec, 17, 32)
@@ -290,7 +306,8 @@ Partial Public Class clOpros
                     _conf.VoLTE = rec(180)
                     _conf.rs485Mode = rec(181)
                     _conf.enableNTPsync = rec(182)
-                    '''
+                    _conf.rs485Baud = rec(183)
+                    ' Остальные резервные байты сохраняются.
                     _conf.wiegandType = rec(187)
                     _conf.periph1.rs485Adr = rec(188)
                     _conf.periph1.rs485Type = rec(189)

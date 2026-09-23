@@ -27,15 +27,15 @@ Public Module Theme
     Public Const Family As String = "Segoe UI"
     Public Const FamilyMono As String = "Consolas"
 
-    Public ReadOnly FontProduct As New Font(Family, 18.0F, FontStyle.Regular)      ' название программы
-    Public ReadOnly FontTitle As New Font(Family, 15.0F, FontStyle.Regular)        ' заголовок раздела, диалога
-    Public ReadOnly FontGroup As New Font(Family, 11.0F, FontStyle.Bold)           ' заголовок группы
-    Public ReadOnly FontBody As New Font(Family, 10.0F, FontStyle.Regular)         ' основной текст и поля
-    Public ReadOnly FontBodyBold As New Font(Family, 10.0F, FontStyle.Bold)        ' важное в основном тексте
-    Public ReadOnly FontCaption As New Font(Family, 9.0F, FontStyle.Regular)       ' подписи и пояснения
-    Public ReadOnly FontValueBig As New Font(Family, 16.0F, FontStyle.Bold)        ' крупное значение состояния
-    Public ReadOnly FontDot As New Font(Family, 12.0F, FontStyle.Regular)          ' точка индикатора
-    Public ReadOnly FontMono As New Font(FamilyMono, 9.5F, FontStyle.Regular)      ' журнал
+    Public ReadOnly FontProduct As Font = MakeFont(Family, 18.0F, FontStyle.Regular)      ' название программы
+    Public ReadOnly FontTitle As Font = MakeFont(Family, 15.0F, FontStyle.Regular)        ' заголовок раздела, диалога
+    Public ReadOnly FontGroup As Font = MakeFont(Family, 11.0F, FontStyle.Bold)           ' заголовок группы
+    Public ReadOnly FontBody As Font = MakeFont(Family, 10.0F, FontStyle.Regular)         ' основной текст и поля
+    Public ReadOnly FontBodyBold As Font = MakeFont(Family, 10.0F, FontStyle.Bold)        ' важное в основном тексте
+    Public ReadOnly FontCaption As Font = MakeFont(Family, 9.0F, FontStyle.Regular)       ' подписи и пояснения
+    Public ReadOnly FontValueBig As Font = MakeFont(Family, 16.0F, FontStyle.Bold)        ' крупное значение состояния
+    Public ReadOnly FontDot As Font = MakeFont(Family, 12.0F, FontStyle.Regular)          ' точка индикатора
+    Public ReadOnly FontMono As Font = MakeFont(FamilyMono, 9.5F, FontStyle.Regular)      ' журнал
 
     ' ---- масштаб Windows ----
     ' Размеры в оформлении и в формах записаны для обычного масштаба (100 %),
@@ -43,7 +43,22 @@ Public Module Theme
     ' сразу давали двойной пересчёт и окно не по размеру.
     Private ReadOnly uiScale As Single = ReadScale()
 
+    Private Function DemoScale() As Single
+        If Demo.IsOn AndAlso Environment.GetCommandLineArgs().Contains("--demo-dpi=120") Then Return 1.25F
+        Return 0
+    End Function
+
+    Private Function MakeFont(family As String, size As Single, style As FontStyle) As Font
+        If DemoScale() > 0 Then
+            Using g = Graphics.FromHwnd(IntPtr.Zero)
+                size *= DemoScale() * 96.0F / g.DpiX
+            End Using
+        End If
+        Return New Font(family, size, style)
+    End Function
+
     Private Function ReadScale() As Single
+        If DemoScale() > 0 Then Return DemoScale()
         Try
             Using g As Graphics = Graphics.FromHwnd(IntPtr.Zero)
                 Return g.DpiX / 96.0F
@@ -372,6 +387,30 @@ Public Module Theme
     End Function
 
     ' Выпадающий список: выбор из нескольких значений вместо отдельного окна.
+    ' Длинный список изменений прокручивается, кнопки остаются доступны.
+    Public Sub ConfigChanges(f As frmInfo, text As String)
+        Dim area As New TextBox With {.Multiline = True, .ReadOnly = True, .ScrollBars = ScrollBars.Vertical,
+            .BorderStyle = BorderStyle.None, .BackColor = Surface, .ForeColor = TextMain, .Font = FontBody,
+            .Width = Px(660), .Text = text, .Margin = New Padding(0, 0, 0, GapSection)}
+        area.Height = Math.Min(Px(360), TextRenderer.MeasureText(text, FontBody,
+            New Size(Px(620), Integer.MaxValue), TextFormatFlags.WordBreak).Height + Px(24))
+        f.root.Controls.Remove(f.info)
+        f.info.Dispose()
+        f.root.Controls.Add(area, 0, 1)
+    End Sub
+
+    Public Sub Compact485(rows As IEnumerable(Of Control))
+        For Each row In rows
+            row.Margin = New Padding(0, 0, 0, Px(4))
+        Next
+    End Sub
+
+    Public Sub Address485(n As NumericUpDown)
+        n.Font = FontBody
+        n.Margin = New Padding(0, 0, GapRelated, 0)
+        AddHandler n.MouseWheel, AddressOf SwallowWheel
+    End Sub
+
     Public Sub Combo(ByVal c As ComboBox, ByVal width As Integer)
         c.DropDownStyle = ComboBoxStyle.DropDownList
         c.FlatStyle = FlatStyle.Flat

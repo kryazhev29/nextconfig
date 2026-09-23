@@ -538,6 +538,7 @@ Partial Class Form2
                       Row("VoLTE", Me.cmbVoLTE)),
             CardBlock("Доступ",
                       Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)),
+            Build485(),
             SaveBlock(Me.saveRow),
             CardBlock("Сервисные операции", Me.serviceRow)))
 
