@@ -77,6 +77,7 @@ Partial Class frmSelecter
         Me.Text = "Домовой NEXT"
         Me.CancelButton = Me.btnCancel
         Theme.StyleForm(Me)
+        Theme.DialogLayout(Me, Me.root, Me.buttons)
 
         Me.buttons.ResumeLayout(False)
         Me.root.ResumeLayout(False)

@@ -1,6 +1,6 @@
 ﻿Public Class frmInfo
     Public Sub New(ByVal title As String, ByVal txt As String,
-                   Optional ByVal align As ContentAlignment = ContentAlignment.MiddleCenter,
+                   Optional ByVal align As ContentAlignment = ContentAlignment.MiddleLeft,
                    Optional ByVal isDialog As Boolean = False)
 
         ' Этот вызов необходим конструктору форм Windows.
@@ -16,6 +16,7 @@
         Else
             ' одна кнопка: Escape тоже должен закрывать окно
             Me.CancelButton = Button1
+            Button1.Text = "Понятно"
         End If
 
     End Sub

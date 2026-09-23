@@ -184,6 +184,9 @@ Partial Class frmFW
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent
         Me.Text = "Домовой NEXT"
         Theme.StyleForm(Me)
+        Theme.SurfaceCard(Me.fileCard)
+        Theme.SurfaceCard(Me.workCard)
+        Theme.DialogLayout(Me, Me.root, Me.buttons)
 
         Me.buttons.ResumeLayout(False)
         Me.workCard.ResumeLayout(False)

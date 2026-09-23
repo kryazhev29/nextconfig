@@ -370,13 +370,13 @@ Partial Class Form2
         Me.lbOUT2.AutoSize = True
 
         Me.btnTestOUT1.Name = "btnTestOUT1"
-        Me.btnTestOUT1.Text = "ТЕСТ"
+        Me.btnTestOUT1.Text = "Проверить выход"
         Me.btnTestOUT1.Tag = 0
         Theme.Secondary(Me.btnTestOUT1)
         Theme.Small(Me.btnTestOUT1)
 
         Me.btnTestOUT2.Name = "btnTestOUT2"
-        Me.btnTestOUT2.Text = "ТЕСТ"
+        Me.btnTestOUT2.Text = "Проверить выход"
         Me.btnTestOUT2.Tag = 1
         Theme.Secondary(Me.btnTestOUT2)
         Theme.Small(Me.btnTestOUT2)
@@ -384,24 +384,23 @@ Partial Class Form2
         Me.tabState.Text = "Состояние"
         Me.tabState.BackColor = Theme.WindowBack
         Me.tabState.AutoScroll = True
-        Me.tabState.Controls.Add(Page(
+        Me.tabState.Controls.Add(Theme.Overview(New Control() {
             CardBlock("Связь",
-                      Row("Мобильная сеть", DotPair(Me.dotGSM, Me.lblGSM)),
-                      Row("Интернет", DotPair(Me.dotInt, Me.lblInt)),
-                      Row("Соединение с сервером", DotPair(Me.dotServer, Me.lblServerConnect)),
-                      Row("Технология сейчас", Me.lblNet),
-                      Row("Уровень сигнала", Me.sigRow)),
+                      CompactRow("Мобильная сеть", DotPair(Me.dotGSM, Me.lblGSM)),
+                      CompactRow("Интернет", DotPair(Me.dotInt, Me.lblInt)),
+                      CompactRow("Соединение с сервером", DotPair(Me.dotServer, Me.lblServerConnect)),
+                      CompactRow("Технология сейчас", Me.lblNet),
+                      CompactRow("Уровень сигнала", Me.sigRow)),
             CardBlock("Устройство",
-                      Row("Модуль связи", Me.lblModuleType, Me.Label19),
-                      Row("Версия платы", Me.lblHW),
-                      Row("Версия прошивки", Me.lblFW),
-                      Row("Версия загрузчика", Me.lblBoot),
-                      Row("Время устройства", Me.lblTime, Me.Label16)),
-            CardBlock("Входы и выходы",
-                      Row("Вход 1", DotPair(Me.dotIN1, Me.lbIN1)),
-                      Row("Вход 2", DotPair(Me.dotIN2, Me.lblIN2)),
-                      Row("Выход 1", DotPair(Me.dotOUT1, Me.lblOUT1), Me.btnTestOUT1),
-                      Row("Выход 2", DotPair(Me.dotOUT2, Me.lbOUT2), Me.btnTestOUT2))))
+                      CompactRow("Модуль связи", Me.lblModuleType, Me.Label19),
+                      CompactRow("Версия платы", Me.lblHW),
+                      CompactRow("Версия прошивки", Me.lblFW),
+                      CompactRow("Версия загрузчика", Me.lblBoot),
+                      CompactRow("Время устройства", Me.lblTime, Me.Label16)),
+            CardBlock("Входы и выходы", Theme.SignalGrid(
+                New Control() {DotPair(Me.dotIN1, Me.lbIN1), DotPair(Me.dotIN2, Me.lblIN2),
+                               DotPair(Me.dotOUT1, Me.lblOUT1), DotPair(Me.dotOUT2, Me.lbOUT2)},
+                New Button() {Nothing, Nothing, Me.btnTestOUT1, Me.btnTestOUT2}))}))
 
         ' ---- вкладка «Настройки» ----
         Me.txtServer1.Name = "txtServer1"
@@ -535,6 +534,7 @@ Partial Class Form2
         Dim busPage = Page(Build485())
         Dim accessPage = Page(Theme.SettingsSection("Доступ", "Управление ПИН-кодом контроллера", Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)))
         Me.serviceRow.Controls.Add(Me.Button1)
+        Theme.ServiceActions(Me.serviceRow, Me.Button1)
         Dim servicePage = Page(Theme.SettingsSection("Сервис", "Чтение настроек и обслуживание контроллера", Me.serviceRow))
         Me.tabSettings.Controls.Add(Theme.SettingsWorkspace(
             New Control() {connectionPage, busPage, accessPage, servicePage},
@@ -590,12 +590,13 @@ Partial Class Form2
         Me.tabIds.BackColor = Theme.WindowBack
         Me.tabIds.AutoScroll = True
         Me.tabIds.Controls.Add(Page(
+            Theme.PageHeading("Идентификаторы", "Память контроллера и обслуживание базы доступа"),
             CardBlock("Память идентификаторов",
                       Row("Занято", Me.lblUsedMem),
                       Note(Me.meterMem)),
             CardBlock("База идентификаторов",
                       Me.idsRow,
-                      Hint("Чтения и записи базы в протоколе с контроллером пока нет, поэтому обе кнопки только сообщают об этом.")),
+                      Hint("Импорт и экспорт файлов пока недоступны.")),
             CardBlock("Очистка",
                       Me.idsClearRow,
                       Hint("Удаляет из памяти контроллера все идентификаторы. Вернуть их можно только повторной загрузкой с сервера."))))
@@ -645,6 +646,7 @@ Partial Class Form2
         Me.tabObject.BackColor = Theme.WindowBack
         Me.tabObject.AutoScroll = True
         Me.tabObject.Controls.Add(Page(
+            Theme.PageHeading("Объект", "Привязка контроллера и сведения с сервера"),
             CardBlock("Объект",
                       Row("Уникальный номер", Me.lblObjNum),
                       Row("Наименование", Me.lblObjName),
@@ -686,6 +688,7 @@ Partial Class Form2
         Me.tabFW.BackColor = Theme.WindowBack
         Me.tabFW.AutoScroll = True
         Me.tabFW.Controls.Add(Page(
+            Theme.PageHeading("Прошивка и загрузчик", "Обслуживание программного обеспечения контроллера"),
             CardBlock("Прошивка контроллера", Me.btnUpdateFW, Me.lblFwHint),
             CardBlock("Загрузчик", Me.btnUpdateBoot, Me.lblBootHint)))
 
@@ -731,7 +734,7 @@ Partial Class Form2
         Me.RichTextBox1.Font = Theme.FontMono
         Me.RichTextBox1.ForeColor = Theme.TextMain
         Me.RichTextBox1.BackColor = Theme.Surface
-        Me.RichTextBox1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.RichTextBox1.BorderStyle = System.Windows.Forms.BorderStyle.None
         Me.RichTextBox1.[ReadOnly] = True
         Me.RichTextBox1.WordWrap = False
         Me.RichTextBox1.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Both
@@ -760,16 +763,18 @@ Partial Class Form2
         Me.logActions.Controls.Add(Me.btnClearLog)
 
         Me.logRoot.ColumnCount = 1
-        Me.logRoot.RowCount = 3
+        Me.logRoot.RowCount = 4
         Me.logRoot.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.logRoot.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize))
         Me.logRoot.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.logRoot.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize))
         Me.logRoot.Dock = System.Windows.Forms.DockStyle.Fill
         Me.logRoot.Padding = New System.Windows.Forms.Padding(Theme.GapSection)
-        Me.logRoot.Controls.Add(Me.logFilters, 0, 0)
-        Me.logRoot.Controls.Add(Me.RichTextBox1, 0, 1)
-        Me.logRoot.Controls.Add(Me.logActions, 0, 2)
+        Me.logRoot.RowStyles.Insert(0, New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize))
+        Me.logRoot.Controls.Add(Theme.PageHeading("Журнал событий", "Диагностика обмена и сообщений контроллера"), 0, 0)
+        Me.logRoot.Controls.Add(Me.logFilters, 0, 1)
+        Me.logRoot.Controls.Add(Me.RichTextBox1, 0, 2)
+        Me.logRoot.Controls.Add(Me.logActions, 0, 3)
 
         Me.tabLog.Text = "Журнал"
         Me.tabLog.BackColor = Theme.WindowBack
@@ -832,7 +837,7 @@ Partial Class Form2
         Me.root.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize))
         Me.root.Dock = System.Windows.Forms.DockStyle.Fill
         Me.root.Controls.Add(Me.pnlHead, 0, 0)
-        Me.root.Controls.Add(Me.tabs, 0, 1)
+        Me.root.Controls.Add(Theme.MainNavigation(Me.tabs), 0, 1)
         Me.root.Controls.Add(Me.pnlStatusBar, 0, 2)
 
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
@@ -881,10 +886,10 @@ Partial Class Form2
         c.AutoSize = True
         c.AutoSizeMode = AutoSizeMode.GrowAndShrink
         c.BackColor = Theme.Surface
-        c.BorderStyle = BorderStyle.FixedSingle
-        c.Padding = New Padding(Theme.GapBlock)
+        Theme.SurfaceCard(c)
+        c.Padding = New Padding(Theme.GapSection)
         c.Margin = New Padding(0, 0, 0, Theme.GapSection)
-        c.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        c.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
 
         If title <> "" Then
             Dim h As New Label()
@@ -910,12 +915,18 @@ Partial Class Form2
         c.AutoSize = True
         c.AutoSizeMode = AutoSizeMode.GrowAndShrink
         c.Margin = New Padding(0, 0, 0, Theme.GapSection)
-        c.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        c.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
         c.Controls.Add(row)
         Return c
     End Function
 
     ' Строка блока: название слева, значение, справа - действие, если оно есть.
+    Private Function CompactRow(caption As String, value As Control, Optional action As Control = Nothing) As TableLayoutPanel
+        Dim line = Row(caption, value, action)
+        line.ColumnStyles(0).Width = Theme.Px(146)
+        Return line
+    End Function
+
     Private Function Row(ByVal caption As String, ByVal value As Control, Optional ByVal action As Control = Nothing) As TableLayoutPanel
         Dim r As New TableLayoutPanel()
         r.ColumnCount = 3

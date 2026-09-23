@@ -131,6 +131,7 @@ Partial Class frmPIN
         Me.AcceptButton = Me.Button1
         Me.CancelButton = Me.Button2
         Theme.StyleForm(Me)
+        Theme.DialogLayout(Me, Me.root, Me.buttons)
 
         Me.buttons.ResumeLayout(False)
         Me.root.ResumeLayout(False)

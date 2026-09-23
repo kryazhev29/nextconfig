@@ -64,7 +64,7 @@ Partial Class Form1
         '
         Me.lblProduct.AutoSize = True
         Me.lblProduct.Name = "lblProduct"
-        Me.lblProduct.Text = "Домовой NEXT"
+        Me.lblProduct.Text = "Подключение"
         Me.lblProduct.Anchor = System.Windows.Forms.AnchorStyles.Left
         Me.lblProduct.Margin = New System.Windows.Forms.Padding(0)
         Theme.Product(Me.lblProduct)
@@ -86,7 +86,7 @@ Partial Class Form1
         '
         Me.lblSubtitle.AutoSize = True
         Me.lblSubtitle.Name = "lblSubtitle"
-        Me.lblSubtitle.Text = "Подключение к контроллеру"
+        Me.lblSubtitle.Text = "Укажите устройство и ПИН-код доступа"
         Me.lblSubtitle.Margin = New System.Windows.Forms.Padding(0, 2, 0, Theme.GapSection)
         Theme.Caption(Me.lblSubtitle)
         '
@@ -217,6 +217,7 @@ Partial Class Form1
         Me.Text = "Домовой NEXT"
         Me.AcceptButton = Me.btnConnect
         Theme.StyleForm(Me)
+        Theme.ConnectionLayout(Me, Me.root, Me.card)
 
         CType(Me.picLogo, System.ComponentModel.ISupportInitialize).EndInit()
         Me.head.ResumeLayout(False)

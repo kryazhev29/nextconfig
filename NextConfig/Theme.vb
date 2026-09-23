@@ -6,10 +6,10 @@ Imports System.Windows.Forms
 Public Module Theme
 
     ' ---- цвета ----
-    Public ReadOnly Accent As Color = Color.FromArgb(&H1E, &H90, &HFF)       ' основной синий
+    Public ReadOnly Accent As Color = Color.FromArgb(&H25, &H63, &HEB)       ' основной синий
     Public ReadOnly AccentHover As Color = Color.FromArgb(&H16, &H78, &HD2)  ' синий при наведении
     Public ReadOnly AccentDown As Color = Color.FromArgb(&H12, &H62, &HAD)   ' синий при нажатии
-    Public ReadOnly Ok As Color = Color.FromArgb(&H32, &HCD, &H32)           ' зелёный индикатора
+    Public ReadOnly Ok As Color = Color.FromArgb(&H22, &HA0, &H60)           ' зелёный индикатора
     Public ReadOnly OkText As Color = Color.FromArgb(&H23, &H7A, &H32)       ' зелёный текста
     Public ReadOnly Danger As Color = Color.FromArgb(&HDC, &H35, &H45)       ' красный
     Public ReadOnly DangerHover As Color = Color.FromArgb(&HBD, &H2D, &H3B)
@@ -18,7 +18,7 @@ Public Module Theme
     Public ReadOnly Surface As Color = Color.White                           ' поверхность блоков
     Public ReadOnly SurfaceHover As Color = Color.FromArgb(&HEE, &HF3, &HFA)
     Public ReadOnly TextMain As Color = Color.FromArgb(&H20, &H2B, &H3A)     ' основной текст
-    Public ReadOnly TextMuted As Color = Color.FromArgb(&H65, &H73, &H86)    ' второстепенный текст
+    Public ReadOnly TextMuted As Color = Color.FromArgb(&H52, &H60, &H73)    ' второстепенный текст
     Public ReadOnly Border As Color = Color.FromArgb(&HDC, &HE4, &HEE)       ' границы
     Public ReadOnly Idle As Color = Color.FromArgb(&H9A, &HA6, &HB6)         ' серая точка
     Public ReadOnly Disabled As Color = Color.FromArgb(&HEB, &HEF, &HF5)     ' фон недоступного
@@ -80,7 +80,7 @@ Public Module Theme
     Public ReadOnly GapSection As Integer = Px(22)   ' между блоками
 
     Public ReadOnly ButtonHeight As Integer = Px(40)
-    Public ReadOnly ButtonHeightSmall As Integer = Px(32)
+    Public ReadOnly ButtonHeightSmall As Integer = Px(36)
     Public ReadOnly ButtonWidth As Integer = Px(168)
     Public ReadOnly ButtonWidthSmall As Integer = Px(120)
     Public ReadOnly FieldHeight As Integer = Px(32)
@@ -394,9 +394,10 @@ Public Module Theme
             .Width = Px(660), .Text = text, .Margin = New Padding(0, 0, 0, GapSection)}
         area.Height = Math.Min(Px(360), TextRenderer.MeasureText(text, FontBody,
             New Size(Px(620), Integer.MaxValue), TextFormatFlags.WordBreak).Height + Px(24))
+        Dim contentRow = f.root.GetRow(f.info)
         f.root.Controls.Remove(f.info)
         f.info.Dispose()
-        f.root.Controls.Add(area, 0, 1)
+        f.root.Controls.Add(area, 0, contentRow)
     End Sub
 
     ' Доработка: Кряжев А., 2026. Общие стили панели наладки.
@@ -489,6 +490,187 @@ Public Module Theme
         Next
         Return section
     End Function
+
+    ' Доработка: Кряжев А., 2026. Общая композиция всех экранов и диалогов.
+    Public Function BrandLine() As Control
+        Dim line As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 2, .Anchor = AnchorStyles.Left Or AnchorStyles.Right,
+            .Margin = New Padding(0, 0, 0, Px(24)), .Padding = New Padding(0, 0, 0, Px(16))}
+        line.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        line.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        Dim resource As New System.ComponentModel.ComponentResourceManager(GetType(Form1))
+        Dim logo As New PictureBox With {.Image = LogoHorizontal(DirectCast(resource.GetObject("PictureBox1.Image"), Image)),
+            .Size = New Size(Px(104), Px(30)), .SizeMode = PictureBoxSizeMode.Zoom, .Margin = New Padding(0)}
+        AddHandler logo.Disposed, Sub(sender, e)
+            If logo.Image IsNot Nothing Then logo.Image.Dispose()
+        End Sub
+        line.Controls.Add(logo, 0, 0)
+        line.Controls.Add(New Label With {.Text = "ДОМОВОЙ NEXT", .Font = FontCaption, .ForeColor = TextMuted,
+            .AutoSize = True, .Anchor = AnchorStyles.Right, .Margin = New Padding(Px(24), 0, 0, 0)}, 1, 0)
+        AddHandler line.Paint, Sub(sender, e)
+            Using pen As New Pen(Border)
+                e.Graphics.DrawLine(pen, 0, line.Height - 1, line.Width, line.Height - 1)
+            End Using
+        End Sub
+        Return line
+    End Function
+
+    Public Sub DialogLayout(form As Form, content As TableLayoutPanel, actions As FlowLayoutPanel)
+        form.BackColor = Surface
+        form.AutoSize = True
+        form.AutoSizeMode = AutoSizeMode.GrowAndShrink
+        content.BackColor = Surface
+        content.Padding = New Padding(Px(28))
+        Dim children = content.Controls.Cast(Of Control)().ToArray()
+        content.Controls.Clear()
+        content.RowCount = children.Length + 1
+        content.Controls.Add(BrandLine(), 0, 0)
+        For i = 0 To children.Length - 1
+            content.Controls.Add(children(i), 0, i + 1)
+        Next
+        actions.Padding = New Padding(0, Px(18), 0, 0)
+        actions.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        AddHandler actions.Paint, Sub(sender, e)
+            Using pen As New Pen(Border)
+                e.Graphics.DrawLine(pen, 0, 0, actions.Width, 0)
+            End Using
+        End Sub
+    End Sub
+
+    Public Sub SurfaceCard(panel As TableLayoutPanel)
+        panel.BorderStyle = BorderStyle.None
+        panel.BackColor = Surface
+        panel.Padding = New Padding(Px(22))
+        AddHandler panel.Paint, Sub(sender, e)
+            Using pen As New Pen(Border)
+                e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1)
+            End Using
+        End Sub
+    End Sub
+
+    Public Function PageHeading(title As String, subtitle As String) As Control
+        Dim panel As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .Margin = New Padding(0, 0, 0, Px(22)), .Anchor = AnchorStyles.Left Or AnchorStyles.Right}
+        panel.Controls.Add(New Label With {.Text = title, .AutoSize = True, .Font = FontTitle, .ForeColor = TextMain, .Margin = New Padding(0, 0, 0, Px(6))})
+        panel.Controls.Add(New Label With {.Text = subtitle, .AutoSize = True, .Font = FontCaption, .ForeColor = TextMuted, .Margin = New Padding(0)})
+        Return panel
+    End Function
+
+    Public Function Overview(cards As Control()) As Control
+        Dim page As New TableLayoutPanel With {.Dock = DockStyle.Top, .AutoSize = True, .ColumnCount = 1, .Padding = New Padding(GapSection)}
+        page.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        page.Controls.Add(PageHeading("Состояние контроллера", "Связь, параметры устройства и сигналы в реальном времени"))
+        Dim grid As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 2, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
+        grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
+        For i = 0 To cards.Length - 1
+            cards(i).Margin = New Padding(If(i = 1, GapRelated, 0), 0, If(i = 0, GapRelated, 0), GapRelated)
+            grid.Controls.Add(cards(i), If(i < 2, i, 0), If(i < 2, 0, i - 1))
+            If i >= 2 Then grid.SetColumnSpan(cards(i), 2)
+        Next
+        page.Controls.Add(grid)
+        Return page
+    End Function
+
+    Public Function SignalGrid(states As Control(), actions As Button()) As Control
+        Dim grid As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 4, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        Dim captions = New String() {"Вход 1", "Вход 2", "Выход 1", "Выход 2"}
+        For i = 0 To 3
+            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 25))
+            Dim tile As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right,
+                .Margin = New Padding(0, 0, GapRelated, 0)}
+            tile.Controls.Add(New Label With {.Text = captions(i), .AutoSize = True, .Font = FontCaption, .ForeColor = TextMuted, .Margin = New Padding(0, 0, 0, GapRelated)})
+            states(i).Margin = New Padding(0, 0, 0, GapRelated)
+            tile.Controls.Add(states(i))
+            If actions(i) IsNot Nothing Then tile.Controls.Add(actions(i))
+            grid.Controls.Add(tile, i, 0)
+        Next
+        Return grid
+    End Function
+
+    Public Function MainNavigation(tabs As TabControl) As Control
+        Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
+        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        shell.RowStyles.Add(New RowStyle(SizeType.Absolute, Px(48)))
+        shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .WrapContents = False, .BackColor = Surface,
+            .Padding = New Padding(GapSection, 0, 0, 0), .Margin = New Padding(0)}
+        Dim links As New List(Of Button)
+        For i = 0 To tabs.TabPages.Count - 1
+            Dim index = i
+            Dim link As New Button With {.Text = tabs.TabPages(i).Text, .Name = "mainSection" & i, .FlatStyle = FlatStyle.Flat,
+                .Font = FontBody, .Height = Px(48), .Width = TextRenderer.MeasureText(tabs.TabPages(i).Text, FontBody).Width + Px(34),
+                .Margin = New Padding(0), .BackColor = Surface, .ForeColor = TextMuted, .Cursor = Cursors.Hand}
+            link.FlatAppearance.BorderSize = 0
+            link.FlatAppearance.MouseOverBackColor = SurfaceHover
+            AddHandler link.Click, Sub(sender, e) tabs.SelectedIndex = index
+            AddHandler link.Paint, Sub(sender, e)
+                If tabs.SelectedIndex = index Then
+                    Using brush As New SolidBrush(Accent)
+                        e.Graphics.FillRectangle(brush, Px(12), link.Height - Px(3), link.Width - Px(24), Px(3))
+                    End Using
+                End If
+            End Sub
+            links.Add(link)
+            nav.Controls.Add(link)
+        Next
+        AddHandler tabs.SelectedIndexChanged, Sub(sender, e)
+            For i = 0 To links.Count - 1
+                links(i).ForeColor = If(i = tabs.SelectedIndex, Accent, TextMuted)
+                links(i).Invalidate()
+            Next
+        End Sub
+        links(0).ForeColor = Accent
+        ' Родной TabControl остаётся доступен с клавиатуры; его заголовки скрыты контейнером.
+        tabs.Appearance = TabAppearance.FlatButtons
+        tabs.SizeMode = TabSizeMode.Fixed
+        tabs.ItemSize = New Size(1, 1)
+        tabs.Padding = New Point(0, 0)
+        tabs.Dock = DockStyle.None
+        Dim host As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
+        host.Controls.Add(tabs)
+        AddHandler host.Resize, Sub(sender, e)
+            tabs.SetBounds(-Px(4), -Px(8), host.Width + Px(8), host.Height + Px(12))
+        End Sub
+        shell.Controls.Add(nav, 0, 0)
+        shell.Controls.Add(host, 0, 1)
+        Return shell
+    End Function
+
+    Public Sub ConnectionLayout(form As Form, root As TableLayoutPanel, card As TableLayoutPanel)
+        form.ClientSize = New Size(Px(760), Px(520))
+        root.ColumnCount = 2
+        root.ColumnStyles.Clear()
+        root.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(285)))
+        root.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        root.Controls.Remove(card)
+        Dim intro As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .Padding = New Padding(Px(30), Px(44), Px(26), Px(30)), .Margin = New Padding(0), .BackColor = Color.FromArgb(232, 240, 252)}
+        intro.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        intro.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        intro.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        intro.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        intro.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        intro.Controls.Add(New Label With {.Text = "ДОМОВОЙ" & vbCrLf & "NEXT", .AutoSize = True, .Font = FontProduct, .ForeColor = TextMain, .Margin = New Padding(0, 0, 0, Px(24))})
+        intro.Controls.Add(New Label With {.Text = "Настройка и обслуживание контроллеров доступа", .AutoSize = True, .MaximumSize = New Size(Px(220), 0), .Font = FontBody, .ForeColor = TextMuted, .Margin = New Padding(0)})
+        intro.Controls.Add(New Panel With {.Dock = DockStyle.Fill})
+        intro.Controls.Add(New Label With {.Text = "USB-подключение" & vbCrLf & "Параметры · диагностика · прошивка", .AutoSize = True, .MaximumSize = New Size(Px(225), 0), .Font = FontCaption, .ForeColor = TextMuted, .Margin = New Padding(0)})
+        card.BorderStyle = BorderStyle.None
+        card.Padding = New Padding(Px(30))
+        root.Controls.Add(intro, 0, 0)
+        root.Controls.Add(card, 1, 0)
+        root.BackColor = Surface
+    End Sub
+
+    Public Sub ServiceActions(panel As FlowLayoutPanel, first As Button)
+        panel.Controls.SetChildIndex(first, 0)
+        panel.FlowDirection = FlowDirection.TopDown
+        panel.WrapContents = False
+        For Each button As Button In panel.Controls
+            button.Width = Px(310)
+            button.Height = ButtonHeight
+            button.Font = FontBody
+            button.TextAlign = ContentAlignment.MiddleLeft
+            button.Margin = New Padding(0, 0, 0, GapRelated)
+        Next
+    End Sub
 
     Public Sub BusOptions(panel As TableLayoutPanel)
         panel.ColumnCount = 3
