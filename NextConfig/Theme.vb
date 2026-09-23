@@ -400,6 +400,96 @@ Public Module Theme
     End Sub
 
     ' Доработка: Кряжев А., 2026. Общие стили панели наладки.
+    ' Доработка: Кряжев А., 2026. Разделы сохраняют свои поля при переключении.
+    Public Function SettingsWorkspace(pages As Control(), save As Button, revert As Button, state As Label) As Control
+        Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .ColumnCount = 1, .RowCount = 2, .BackColor = Surface}
+        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        shell.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Dim body As New TableLayoutPanel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .ColumnCount = 2, .RowCount = 1}
+        body.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(174)))
+        body.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        body.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.TopDown, .WrapContents = False,
+            .Margin = New Padding(0), .Padding = New Padding(Px(12), Px(24), Px(12), 0), .BackColor = WindowBack}
+        Dim title As New Label With {.Text = "НАСТРОЙКИ", .AutoSize = False, .Size = New Size(Px(150), Px(30)), .Font = FontCaption, .ForeColor = TextMuted}
+        nav.Controls.Add(title)
+        Dim hosts As New List(Of Panel)
+        Dim links As New List(Of Button)
+        Dim content As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
+        Dim titles = New String() {"Связь", "485 и Wiegand", "Доступ", "Сервис"}
+        For i = 0 To pages.Length - 1
+            Dim index = i
+            Dim host As New Panel With {.Dock = DockStyle.Fill, .AutoScroll = True, .Visible = False}
+            host.Controls.Add(pages(i))
+            hosts.Add(host)
+            content.Controls.Add(host)
+            Dim link As New Button With {.Text = titles(i), .Name = "settingsSection" & i, .Size = New Size(Px(150), Px(42)),
+                .FlatStyle = FlatStyle.Flat, .TextAlign = ContentAlignment.MiddleLeft, .Padding = New Padding(Px(10), 0, 0, 0),
+                .Font = FontBody, .Margin = New Padding(0, 0, 0, Px(4)), .Cursor = Cursors.Hand, .UseVisualStyleBackColor = False}
+            link.FlatAppearance.BorderSize = 0
+            links.Add(link)
+            nav.Controls.Add(link)
+            AddHandler link.Click, Sub(sender, e)
+                For j = 0 To hosts.Count - 1
+                    hosts(j).Visible = j = index
+                    links(j).BackColor = If(j = index, Color.FromArgb(222, 235, 252), WindowBack)
+                    links(j).ForeColor = If(j = index, Accent, TextMain)
+                    links(j).Font = If(j = index, FontBodyBold, FontBody)
+                Next
+                hosts(index).BringToFront()
+            End Sub
+        Next
+        body.Controls.Add(nav, 0, 0)
+        body.Controls.Add(content, 1, 0)
+        Dim footer As New TableLayoutPanel With {.Dock = DockStyle.Fill, .AutoSize = True, .ColumnCount = 2, .Margin = New Padding(0), .Padding = New Padding(GapSection, GapRelated, GapSection, GapRelated)}
+        footer.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        footer.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        AddHandler footer.Paint, Sub(sender, e)
+            Using pen As New Pen(Border)
+                e.Graphics.DrawLine(pen, 0, 0, footer.Width, 0)
+            End Using
+        End Sub
+        Dim summary As New Label With {.AutoSize = True, .Anchor = AnchorStyles.Left, .Font = FontCaption, .MaximumSize = New Size(Px(350), 0), .Text = "Изменений нет", .ForeColor = TextMuted}
+        AddHandler state.TextChanged, Sub(sender, e)
+            summary.Text = If(state.Text = "", "Изменений нет", state.Text)
+        End Sub
+        AddHandler state.ForeColorChanged, Sub(sender, e)
+            summary.ForeColor = state.ForeColor
+        End Sub
+        Dim actions As New FlowLayoutPanel With {.AutoSize = True, .WrapContents = False, .Margin = New Padding(0)}
+        revert.Text = "Отменить"
+        revert.Width = Px(120)
+        save.Width = Px(210)
+        save.Margin = New Padding(0)
+        actions.Controls.Add(revert)
+        actions.Controls.Add(save)
+        footer.Controls.Add(summary, 0, 0)
+        footer.Controls.Add(actions, 1, 0)
+        shell.Controls.Add(body, 0, 0)
+        shell.Controls.Add(footer, 0, 1)
+        ' Начальный раздел задаём до показа формы.
+        hosts(1).Visible = True
+        hosts(1).BringToFront()
+        links(1).BackColor = Color.FromArgb(222, 235, 252)
+        links(1).ForeColor = Accent
+        links(1).Font = FontBodyBold
+        Return shell
+    End Function
+
+    Public Function SettingsSection(title As String, description As String, ParamArray controls As Control()) As Control
+        Dim section As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0), .BackColor = Surface}
+        section.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        section.Controls.Add(New Label With {.Text = title, .AutoSize = True, .Font = FontTitle, .ForeColor = TextMain, .Margin = New Padding(0, 0, 0, GapLabel)})
+        If description <> "" Then
+        section.Controls.Add(New Label With {.Text = description, .AutoSize = True, .Font = FontCaption, .ForeColor = TextMuted, .Margin = New Padding(0, 0, 0, GapBlock)})
+        End If
+        For Each control In controls
+            section.Controls.Add(control)
+        Next
+        Return section
+    End Function
+
     Public Sub BusOptions(panel As TableLayoutPanel)
         panel.ColumnCount = 3
         panel.RowCount = 1
@@ -429,7 +519,7 @@ Public Module Theme
     Public Sub BusTable(panel As TableLayoutPanel)
         panel.ColumnCount = 4
         panel.RowCount = 9
-        panel.Height = Px(32 * 9)
+        panel.Height = Px(34 * 9)
         panel.AutoSize = False
         panel.Width = Px(700)
         panel.Anchor = AnchorStyles.Left Or AnchorStyles.Right
@@ -439,10 +529,10 @@ Public Module Theme
         panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(150)))
         For i = 0 To 8
-            panel.RowStyles.Add(New RowStyle(SizeType.Absolute, Px(32)))
+            panel.RowStyles.Add(New RowStyle(SizeType.Absolute, Px(34)))
         Next
         AddHandler panel.CellPaint, Sub(sender, e)
-            If e.Row = 0 OrElse e.Row Mod 2 = 0 Then
+            If e.Row = 0 Then
                 Using brush As New SolidBrush(WindowBack)
                     e.Graphics.FillRectangle(brush, e.CellBounds)
                 End Using
@@ -464,13 +554,13 @@ Public Module Theme
     Public Function BusNotice(text As String, warning As Boolean) As Label
         Return New Label With {.Text = If(warning, "!  ", "ℹ  ") & text, .AutoSize = True,
             .Font = FontCaption, .ForeColor = If(warning, Theme.Warning, TextMuted),
-            .BackColor = WindowBack, .Padding = New Padding(Px(10)),
+            .BackColor = If(warning, Color.FromArgb(255, 248, 231), Color.FromArgb(239, 245, 253)), .Padding = New Padding(Px(10)),
             .Margin = New Padding(0, 0, 0, GapRelated), .MaximumSize = New Size(0, 0),
             .Anchor = AnchorStyles.Left Or AnchorStyles.Right}
     End Function
 
     Public Sub BusStatus(label As Label, responds As Boolean, configured As Boolean)
-        SetText(label, If(responds, "● Отвечает", "○ Не отвечает"))
+        SetText(label, If(Not configured, "—", If(responds, "● Отвечает", "○ Не отвечает")))
         SetColor(label, If(responds, OkText, If(configured, Warning, TextMuted)))
     End Sub
 
@@ -482,7 +572,7 @@ Public Module Theme
 
     Public Sub Combo(ByVal c As ComboBox, ByVal width As Integer)
         c.DropDownStyle = ComboBoxStyle.DropDownList
-        c.FlatStyle = FlatStyle.Flat
+        c.FlatStyle = FlatStyle.Standard
         c.Font = FontBody
         c.ForeColor = TextMain
         c.BackColor = Surface

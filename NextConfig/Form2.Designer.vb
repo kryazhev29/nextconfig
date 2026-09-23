@@ -521,26 +521,24 @@ Partial Class Form2
 
         Me.tabSettings.Text = "Настройки"
         Me.tabSettings.BackColor = Theme.WindowBack
-        Me.tabSettings.AutoScroll = True
-        Me.tabSettings.Controls.Add(Page(
-            CardBlock("Серверы",
+        Me.tabSettings.AutoScroll = False
+        Dim connectionPage = Page(
+            Theme.SettingsSection("Серверы", "Адреса подключения контроллера",
                       Row("Адрес сервера 1", Me.boxServer1, Me.Label21),
-                      Note(Me.lblServer1Err),
-                      Row("", Me.chServer1),
+                      Note(Me.lblServer1Err), Row("", Me.chServer1),
                       Row("Адрес сервера 2", Me.boxServer2),
-                      Note(Me.lblServer2Err),
-                      Row("", Me.chServer2)),
-            CardBlock("Мобильная связь",
+                      Note(Me.lblServer2Err), Row("", Me.chServer2)),
+            Theme.SettingsSection("Мобильная связь", "",
                       Row("Точка доступа", Me.boxOperator),
-                      Note(Hint("Пусто — контроллер берёт параметры у оператора. Иначе три значения через запятую: " &
-                                "точка доступа, логин, пароль. Например: internet,gdata,gdata")),
-                      Row("Разрешённые сети", Me.cmbNetType),
-                      Row("VoLTE", Me.cmbVoLTE)),
-            CardBlock("Доступ",
-                      Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)),
-            Build485(),
-            SaveBlock(Me.saveRow),
-            CardBlock("Сервисные операции", Me.serviceRow)))
+                      Note(Hint("Пусто — параметры оператора. Иначе: точка доступа, логин, пароль.")),
+                      Row("Разрешённые сети", Me.cmbNetType), Row("VoLTE", Me.cmbVoLTE)))
+        Dim busPage = Page(Build485())
+        Dim accessPage = Page(Theme.SettingsSection("Доступ", "Управление ПИН-кодом контроллера", Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)))
+        Me.serviceRow.Controls.Add(Me.Button1)
+        Dim servicePage = Page(Theme.SettingsSection("Сервис", "Чтение настроек и обслуживание контроллера", Me.serviceRow))
+        Me.tabSettings.Controls.Add(Theme.SettingsWorkspace(
+            New Control() {connectionPage, busPage, accessPage, servicePage},
+            Me.btnSave, Me.btnRevert, Me.lblSaveState))
 
         ' ---- вкладка «Идентификаторы» ----
         Me.lblUsedMem.AutoSize = True
@@ -838,14 +836,17 @@ Partial Class Form2
         Me.root.Controls.Add(Me.pnlStatusBar, 0, 2)
 
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
-        Me.ClientSize = New System.Drawing.Size(Theme.Px(940), Theme.Px(640))
-        Me.MinimumSize = New System.Drawing.Size(Theme.Px(820), Theme.Px(560))
+        Me.ClientSize = New System.Drawing.Size(Theme.Px(1060), Theme.Px(800))
+        Me.MinimumSize = New System.Drawing.Size(Theme.Px(1000), Theme.Px(700))
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable
         Me.Name = "Form2"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "Домовой NEXT"
         Theme.StyleForm(Me)
+        AddHandler Me.tabs.SelectedIndexChanged, Sub(sender, e)
+            Me.lblSaveState.Visible = Me.tabs.SelectedTab IsNot Me.tabSettings
+        End Sub
 
         CType(Me.picLogo, System.ComponentModel.ISupportInitialize).EndInit()
         Me.ResumeLayout(False)

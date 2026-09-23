@@ -114,7 +114,8 @@ Partial Public Class Form2
         Next
         warning485 = Theme.BusNotice("JPEG-камера C328 должна быть на шине одна", True)
         Dim serverNote = Theme.BusNotice("При подключении к серверу эти настройки заменятся серверными", False)
-        Return CardBlock("Наладка 485", serverNote, options, warning485, devices)
+        Return Theme.SettingsSection("485 и Wiegand", "Параметры шины и подключённых устройств", serverNote, options, warning485, devices,
+            Hint("Адрес в списке должен совпадать с адресом, заданным в самом устройстве."))
 
     End Function
     Private Sub Changed485(sender As Object, e As EventArgs)
