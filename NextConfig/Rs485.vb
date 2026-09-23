@@ -42,7 +42,8 @@ End Class
 Partial Public Class Form2
     Private names485 As PeripheryNames
     Private mode485, baud485, wiegand485 As ComboBox
-    Private address485(7) As NumericUpDown
+    Private address485(7) As AddressEditor
+    Private number485(7) As Label
     Private type485(7) As ComboBox
     Private state485(7) As Label
     Private warning485 As Label
@@ -61,6 +62,7 @@ Partial Public Class Form2
     Private Function Combo485(section As String) As ComboBox
         Dim c As New ComboBox
         Theme.Combo(c, 300)
+        If section = "types" Then Theme.PeripheryCombo(c)
         For Each item In names485.Sections(section)
             c.Items.Add(New IndexedName(item.Key, item.Value))
         Next
@@ -100,15 +102,17 @@ Partial Public Class Form2
             devices.Controls.Add(Theme.BusCell(titles(col), True), col, 0)
         Next
         For i = 0 To 7
-            address485(i) = New NumericUpDown With {.Minimum = 0, .Maximum = 255}
+            address485(i) = New AddressEditor
             Theme.Address485(address485(i))
             AddHandler address485(i).ValueChanged, AddressOf Changed485
             type485(i) = Combo485("types")
             state485(i) = Theme.BusCell("Не отвечает", False)
-            Theme.BusEditor(address485(i))
+            Dim addressBox = Theme.FieldBox(address485(i), 70, 24)
+            Theme.BusEditor(addressBox)
             Theme.BusEditor(type485(i))
-            devices.Controls.Add(Theme.BusCell((i + 1).ToString(), False), 0, i + 1)
-            devices.Controls.Add(address485(i), 1, i + 1)
+            number485(i) = Theme.BusCell((i + 1).ToString(), False)
+            devices.Controls.Add(number485(i), 0, i + 1)
+            devices.Controls.Add(addressBox, 1, i + 1)
             devices.Controls.Add(type485(i), 2, i + 1)
             devices.Controls.Add(state485(i), 3, i + 1)
         Next
@@ -131,6 +135,7 @@ Partial Public Class Form2
             If value <> 0 Then count += 1
             address485(i).Enabled = Value485(mode485, 0) = 1
             type485(i).Enabled = address485(i).Enabled
+            Theme.BusRowAppearance(address485(i), type485(i), number485(i), value <> 0)
         Next
         warning485.Visible = camera AndAlso count > 1
         Status485()

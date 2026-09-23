@@ -3,7 +3,7 @@ param([ValidateSet('size','baud','types','wiegand','mode')][string]$Action = 'si
 $ErrorActionPreference = 'Stop'
 $demo = @(Get-CimInstance Win32_Process -Filter "Name='NextConfig.exe'")
 if ($demo.Count -ne 1 -or $demo[0].CommandLine -notlike '*--demo*') { throw 'Нужен ровно один NextConfig --demo; окно владельца трогать нельзя' }
-$stand = Join-Path (Split-Path $PSScriptRoot) 'Стенд_Domovoi\Скрипты'
+$stand = Join-Path (Split-Path (Split-Path $PSScriptRoot)) 'Стенд_Domovoi\Скрипты'
 if ($Action -eq 'size') {
     . "$stand\ui_click.ps1" -List
     Add-Type @'

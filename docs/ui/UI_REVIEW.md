@@ -1,4 +1,4 @@
-# Единое оформление NextConfig — 23.09.2026
+﻿# Единое оформление NextConfig — 23.09.2026
 
 Доработка: Кряжев А., 2026.
 
@@ -42,7 +42,7 @@ AutoScaleMode.None сохранён. Обмен с контроллером и �
 Для повторения диалогов после Release-сборки:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\ui_review.ps1 -Firmware 'полный путь к образу.bin'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\ui_review.ps1 -Firmware 'полный путь к образу.bin'
 ```
 
 Перед UI-проверками открытого NextConfig владельца не было. Проверочные

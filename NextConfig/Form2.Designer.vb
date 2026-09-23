@@ -850,7 +850,7 @@ Partial Class Form2
         Me.Text = "Домовой NEXT"
         Theme.StyleForm(Me)
         AddHandler Me.tabs.SelectedIndexChanged, Sub(sender, e)
-            Me.lblSaveState.Visible = Me.tabs.SelectedTab IsNot Me.tabSettings
+            Me.pnlStatusBar.Visible = Me.tabs.SelectedTab IsNot Me.tabSettings
         End Sub
 
         CType(Me.picLogo, System.ComponentModel.ISupportInitialize).EndInit()
@@ -923,7 +923,7 @@ Partial Class Form2
     ' Строка блока: название слева, значение, справа - действие, если оно есть.
     Private Function CompactRow(caption As String, value As Control, Optional action As Control = Nothing) As TableLayoutPanel
         Dim line = Row(caption, value, action)
-        line.ColumnStyles(0).Width = Theme.Px(146)
+        line.ColumnStyles(0).Width = Theme.Px(If(New String() {"Мобильная сеть", "Интернет", "Соединение с сервером", "Технология сейчас", "Уровень сигнала"}.Contains(caption), 190, 146))
         Return line
     End Function
 

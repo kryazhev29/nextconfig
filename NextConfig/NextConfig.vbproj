@@ -14,6 +14,7 @@
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>naviset.ico</ApplicationIcon>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -79,6 +80,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Theme.vb" />
+    <EmbeddedResource Include="naviset.ico"><LogicalName>NextConfig.naviset.ico</LogicalName></EmbeddedResource>
     <Compile Include="Rs485.vb" />
     <EmbeddedResource Include="periphery.ini"><LogicalName>NextConfig.periphery.ini</LogicalName><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></EmbeddedResource>
     <Compile Include="clComPort.vb" />

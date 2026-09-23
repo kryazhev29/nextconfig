@@ -42,6 +42,7 @@ Partial Class Form1
 
         Me.boxIMEI = Theme.FieldBox(Me.txtIMEI, FieldWidth)
         Me.boxPIN = Theme.FieldBox(Me.txtPIN, FieldWidth)
+        Theme.PasswordField(Me.boxPIN, Me.txtPIN)
 
         CType(Me.picLogo, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.root.SuspendLayout()
@@ -54,15 +55,17 @@ Partial Class Form1
         '
         Me.picLogo.Image = Theme.LogoHorizontal(CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image))
         Me.picLogo.Name = "picLogo"
-        Me.picLogo.Size = New System.Drawing.Size(Theme.Px(100), Theme.Px(32))
-        Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.Left
-        Me.picLogo.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRow, 0)
+        Me.picLogo.Size = New System.Drawing.Size(Theme.Px(100), Theme.Px(40))
+        Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Top
+        Me.picLogo.Margin = New System.Windows.Forms.Padding(0, Theme.Px(5), Theme.GapRow, 0)
         Me.picLogo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
         Me.picLogo.TabStop = False
         '
         'lblProduct
         '
-        Me.lblProduct.AutoSize = True
+        Me.lblProduct.AutoSize = False
+        Me.lblProduct.Size = New System.Drawing.Size(Theme.Px(195), Theme.Px(40))
+        Me.lblProduct.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.lblProduct.Name = "lblProduct"
         Me.lblProduct.Text = "Подключение"
         Me.lblProduct.Anchor = System.Windows.Forms.AnchorStyles.Left

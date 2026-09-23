@@ -1,6 +1,6 @@
 ﻿# Доработка: Кряжев А., 2026. Проверка сериализации без COM-порта.
 $ErrorActionPreference = 'Stop'
-[void][Reflection.Assembly]::LoadFrom("$PSScriptRoot\NextConfig\bin\Release\NextConfig.exe")
+[void][Reflection.Assembly]::LoadFrom("$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe")
 $config = New-Object NextConfig.clOpros+s_config
 $config.server1 = '192.0.2.1:15010'
 $config.countryCode = '+7'

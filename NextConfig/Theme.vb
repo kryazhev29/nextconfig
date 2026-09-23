@@ -107,6 +107,9 @@ Public Module Theme
     Public Sub StyleForm(ByVal f As Form)
         f.BackColor = WindowBack
         f.Font = FontBody
+        Using stream = GetType(Form1).Assembly.GetManifestResourceStream("NextConfig.naviset.ico")
+            f.Icon = New Icon(stream)
+        End Using
     End Sub
 
     ' Блок с белой поверхностью и тонкой границей.
@@ -354,11 +357,11 @@ Public Module Theme
     ' Поле кладётся в панель толщиной в одну точку: она и рисует границу,
     ' синюю при фокусе. У самого поля границы нет.
 
-    Public Function FieldBox(ByVal t As TextBox, ByVal width As Integer) As Panel
+    Public Function FieldBox(ByVal t As TextBox, ByVal width As Integer, Optional height As Integer = 32) As Panel
         Dim p As New Panel()
         p.BackColor = Border
         p.Padding = New Padding(1)
-        p.Size = New Size(Px(width), FieldHeight)
+        p.Size = New Size(Px(width), Px(height))
 
         t.BorderStyle = BorderStyle.None
         t.Font = FontBody
@@ -371,7 +374,7 @@ Public Module Theme
         Dim inner As New Panel()
         inner.BackColor = Surface
         inner.Dock = DockStyle.Fill
-        inner.Padding = New Padding(GapLabel, Math.Max(0, (FieldHeight - 2 - t.PreferredHeight) \ 2), GapLabel, 0)
+        inner.Padding = New Padding(GapLabel, Math.Max(0, (Px(height) - 2 - t.PreferredHeight) \ 2), GapLabel, 0)
         inner.Controls.Add(t)
 
         p.Controls.Add(inner)
@@ -492,6 +495,57 @@ Public Module Theme
     End Function
 
     ' Доработка: Кряжев А., 2026. Общая композиция всех экранов и диалогов.
+    Public Sub PasswordField(box As Panel, field As TextBox)
+        field.UseSystemPasswordChar = True
+        Dim eye As New Button With {.Name = "showPin", .Dock = DockStyle.Right, .Width = Px(34), .FlatStyle = FlatStyle.Flat,
+            .BackColor = Surface, .Cursor = Cursors.Hand, .AccessibleName = "Показать ПИН-код", .TabStop = True}
+        eye.FlatAppearance.BorderSize = 0
+        Dim hint As New ToolTip()
+        hint.SetToolTip(eye, "Показать ПИН-код")
+        AddHandler eye.Click, Sub(sender, e)
+            field.UseSystemPasswordChar = Not field.UseSystemPasswordChar
+            eye.AccessibleName = If(field.UseSystemPasswordChar, "Показать ПИН-код", "Скрыть ПИН-код")
+            hint.SetToolTip(eye, eye.AccessibleName)
+            eye.Invalidate()
+        End Sub
+        AddHandler eye.Paint, Sub(sender, e)
+            e.Graphics.SmoothingMode = Drawing2D.SmoothingMode.AntiAlias
+            Dim x = (eye.Width - Px(18)) \ 2, y = (eye.Height - Px(10)) \ 2
+            Using pen As New Pen(TextMuted, Math.Max(1, Px(1)))
+                e.Graphics.DrawEllipse(pen, x, y, Px(18), Px(10))
+                e.Graphics.DrawEllipse(pen, x + Px(7), y + Px(3), Px(4), Px(4))
+                If Not field.UseSystemPasswordChar Then e.Graphics.DrawLine(pen, x, y + Px(12), x + Px(18), y - Px(2))
+            End Using
+        End Sub
+        AddHandler eye.Disposed, Sub(sender, e) hint.Dispose()
+        box.Controls.Add(eye)
+        eye.SendToBack()
+    End Sub
+
+    Public Sub PeripheryCombo(c As ComboBox)
+        ' Нативный DropDownList игнорирует ForeColor в закрытой части на некоторых темах Windows.
+        c.DrawMode = DrawMode.OwnerDrawFixed
+        AddHandler c.DrawItem, Sub(sender, e)
+            e.DrawBackground()
+            If e.Index >= 0 Then
+                Dim selected = (e.State And DrawItemState.Selected) <> 0
+                Dim color = If(Not c.Enabled, SystemColors.GrayText, If(selected, SystemColors.HighlightText, c.ForeColor))
+                Dim bounds = e.Bounds
+                bounds.Inflate(-Px(3), 0)
+                TextRenderer.DrawText(e.Graphics, c.GetItemText(c.Items(e.Index)), c.Font, bounds, color,
+                    TextFormatFlags.Left Or TextFormatFlags.VerticalCenter Or TextFormatFlags.EndEllipsis Or TextFormatFlags.NoPadding)
+            End If
+            e.DrawFocusRectangle()
+        End Sub
+    End Sub
+
+    Public Sub BusRowAppearance(address As TextBox, kind As ComboBox, number As Label, configured As Boolean)
+        Dim color = If(configured, TextMain, Idle)
+        address.ForeColor = color
+        kind.ForeColor = color
+        number.ForeColor = color
+    End Sub
+
     Public Function BrandLine() As Control
         Dim line As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 2, .Anchor = AnchorStyles.Left Or AnchorStyles.Right,
             .Margin = New Padding(0, 0, 0, Px(24)), .Padding = New Padding(0, 0, 0, Px(16))}
@@ -555,13 +609,18 @@ Public Module Theme
     End Function
 
     Public Function Overview(cards As Control()) As Control
-        Dim page As New TableLayoutPanel With {.Dock = DockStyle.Top, .AutoSize = True, .ColumnCount = 1, .Padding = New Padding(GapSection)}
+        Dim page As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 2, .Padding = New Padding(GapSection), .AutoScroll = True, .AutoScrollMinSize = New Size(0, Px(600))}
         page.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        page.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        page.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         page.Controls.Add(PageHeading("Состояние контроллера", "Связь, параметры устройства и сигналы в реальном времени"))
-        Dim grid As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 2, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        Dim grid As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 2, .RowCount = 2, .Margin = New Padding(0)}
+        grid.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
         grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
         For i = 0 To cards.Length - 1
+            If i < 2 Then cards(i).Dock = DockStyle.Fill
             cards(i).Margin = New Padding(If(i = 1, GapRelated, 0), 0, If(i = 0, GapRelated, 0), GapRelated)
             grid.Controls.Add(cards(i), If(i < 2, i, 0), If(i < 2, 0, i - 1))
             If i >= 2 Then grid.SetColumnSpan(cards(i), 2)
@@ -636,10 +695,10 @@ Public Module Theme
     End Function
 
     Public Sub ConnectionLayout(form As Form, root As TableLayoutPanel, card As TableLayoutPanel)
-        form.ClientSize = New Size(Px(760), Px(520))
+        form.ClientSize = New Size(Px(830), Px(520))
         root.ColumnCount = 2
         root.ColumnStyles.Clear()
-        root.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(285)))
+        root.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(335)))
         root.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         root.Controls.Remove(card)
         Dim intro As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .Padding = New Padding(Px(30), Px(44), Px(26), Px(30)), .Margin = New Padding(0), .BackColor = Color.FromArgb(232, 240, 252)}
@@ -648,7 +707,7 @@ Public Module Theme
         intro.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         intro.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         intro.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        intro.Controls.Add(New Label With {.Text = "ДОМОВОЙ" & vbCrLf & "NEXT", .AutoSize = True, .Font = FontProduct, .ForeColor = TextMain, .Margin = New Padding(0, 0, 0, Px(24))})
+        intro.Controls.Add(New Label With {.Text = "ДОМОВОЙ NEXT", .AutoSize = True, .Font = FontProduct, .ForeColor = TextMain, .Margin = New Padding(0, 0, 0, Px(24))})
         intro.Controls.Add(New Label With {.Text = "Настройка и обслуживание контроллеров доступа", .AutoSize = True, .MaximumSize = New Size(Px(220), 0), .Font = FontBody, .ForeColor = TextMuted, .Margin = New Padding(0)})
         intro.Controls.Add(New Panel With {.Dock = DockStyle.Fill})
         intro.Controls.Add(New Label With {.Text = "USB-подключение" & vbCrLf & "Параметры · диагностика · прошивка", .AutoSize = True, .MaximumSize = New Size(Px(225), 0), .Font = FontCaption, .ForeColor = TextMuted, .Margin = New Padding(0)})
@@ -746,7 +805,7 @@ Public Module Theme
         SetColor(label, If(responds, OkText, If(configured, Warning, TextMuted)))
     End Sub
 
-    Public Sub Address485(n As NumericUpDown)
+    Public Sub Address485(n As AddressEditor)
         n.Font = FontBody
         n.Margin = New Padding(0, 0, GapRelated, 0)
         AddHandler n.MouseWheel, AddressOf SwallowWheel
@@ -837,4 +896,60 @@ Public Class Meter
         End If
     End Sub
 
+End Class
+
+' Доработка: Кряжев А., 2026. Поле байтового адреса без стрелок и изменения колесом.
+Public Class AddressEditor
+    Inherits TextBox
+    Private previousText As String = "0"
+    Private currentValue As Byte
+    Private restoring As Boolean
+    Public Event ValueChanged As EventHandler
+
+    Public Sub New()
+        MaxLength = 3
+        Text = "0"
+        AccessibleDescription = "Адрес устройства: целое число от 0 до 255"
+    End Sub
+
+    Public Property Value As Byte
+        Get
+            Return currentValue
+        End Get
+        Set(value As Byte)
+            Text = value.ToString()
+        End Set
+    End Property
+
+    Protected Overrides Sub OnKeyPress(e As KeyPressEventArgs)
+        If Not Char.IsControl(e.KeyChar) AndAlso (e.KeyChar < "0"c OrElse e.KeyChar > "9"c) Then e.Handled = True
+        MyBase.OnKeyPress(e)
+    End Sub
+
+    Protected Overrides Sub OnTextChanged(e As EventArgs)
+        If restoring Then Return
+        If Text = "" Then
+            MyBase.OnTextChanged(e)
+            Return
+        End If
+        Dim parsed As Byte
+        If Not Text.All(Function(c) c >= "0"c AndAlso c <= "9"c) OrElse Not Byte.TryParse(Text, parsed) Then
+            Dim position = SelectionStart
+            restoring = True
+            Text = previousText
+            SelectionStart = Math.Min(position, TextLength)
+            restoring = False
+            Return
+        End If
+        previousText = Text
+        Dim changed = currentValue <> parsed
+        currentValue = parsed
+        MyBase.OnTextChanged(e)
+        If changed Then RaiseEvent ValueChanged(Me, EventArgs.Empty)
+    End Sub
+
+    Protected Overrides Sub OnLostFocus(e As EventArgs)
+        Text = currentValue.ToString()
+        MyBase.OnLostFocus(e)
+    End Sub
 End Class

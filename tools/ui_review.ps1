@@ -4,9 +4,9 @@ $ErrorActionPreference = 'Stop'
 if (@(Get-Process | Where-Object Path -like '*NextConfig*').Count -gt 0) {
     throw 'Перед просмотром закройте NextConfig; рабочее окно владельца трогать нельзя.'
 }
-$release = Join-Path $PSScriptRoot 'NextConfig\bin\Release'
-$output = Join-Path $PSScriptRoot 'screenshots\all'
-$snap = Join-Path (Split-Path $PSScriptRoot) 'Стенд_Domovoi\Скрипты\ui_snap.ps1'
+$release = Join-Path (Split-Path $PSScriptRoot) 'NextConfig\bin\Release'
+$output = Join-Path (Split-Path $PSScriptRoot) 'docs\ui\screenshots\after'
+$snap = Join-Path $PSScriptRoot 'ui_snap.ps1'
 $harness = Join-Path $release 'UiReview.exe'
 $errorFile = Join-Path $release 'ui-review-error.txt'
 & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe "/out:$harness" "/reference:$release\NextConfig.exe" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll (Join-Path $PSScriptRoot 'ui_dialog_review.cs')
