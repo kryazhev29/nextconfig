@@ -23,3 +23,7 @@ if ($raw[174] -ne 0) { throw 'Сериализация изменила исхо
 $names = New-Object NextConfig.PeripheryNames
 if ($names.Name('types',255) -ne '255' -or $names.Name('baud',4) -ne '9600') { throw 'INI / встроенные имена' }
 'PASS: unchanged config, reserved bytes, string tails, baud offset174, unknown255, fallback names; no COM'
+
+$form = New-Object NextConfig.Form2($null, "UI check", "", 0)
+$form.Dispose()
+'PASS: settings form construction without COM'

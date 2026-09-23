@@ -399,10 +399,79 @@ Public Module Theme
         f.root.Controls.Add(area, 0, 1)
     End Sub
 
-    Public Sub Compact485(rows As IEnumerable(Of Control))
-        For Each row In rows
-            row.Margin = New Padding(0, 0, 0, Px(4))
+    ' Доработка: Кряжев А., 2026. Общие стили панели наладки.
+    Public Sub BusOptions(panel As TableLayoutPanel)
+        panel.ColumnCount = 3
+        panel.RowCount = 1
+        panel.Height = Px(54)
+        panel.AutoSize = False
+        panel.Width = Px(700)
+        panel.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        panel.Margin = New Padding(0, 0, 0, GapBlock)
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 28))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 24))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 48))
+    End Sub
+
+    Public Function BusField(title As String, editor As Control) As Control
+        Dim field As New TableLayoutPanel With {.AutoSize = False, .ColumnCount = 1, .Width = Px(160), .Height = Px(54),
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, GapBlock, 0)}
+        field.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        Dim caption As New Label With {.AutoSize = True, .Text = title, .Margin = New Padding(0, 0, 0, GapLabel)}
+        Theme.Caption(caption)
+        editor.Dock = DockStyle.Fill
+        editor.Margin = New Padding(0)
+        field.Controls.Add(caption, 0, 0)
+        field.Controls.Add(editor, 0, 1)
+        Return field
+    End Function
+
+    Public Sub BusTable(panel As TableLayoutPanel)
+        panel.ColumnCount = 4
+        panel.RowCount = 9
+        panel.Height = Px(32 * 9)
+        panel.AutoSize = False
+        panel.Width = Px(700)
+        panel.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        panel.Margin = New Padding(0, 0, 0, GapRelated)
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(40)))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(90)))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(150)))
+        For i = 0 To 8
+            panel.RowStyles.Add(New RowStyle(SizeType.Absolute, Px(32)))
         Next
+        AddHandler panel.CellPaint, Sub(sender, e)
+            If e.Row = 0 OrElse e.Row Mod 2 = 0 Then
+                Using brush As New SolidBrush(WindowBack)
+                    e.Graphics.FillRectangle(brush, e.CellBounds)
+                End Using
+            End If
+        End Sub
+    End Sub
+
+    Public Function BusCell(text As String, heading As Boolean) As Label
+        Return New Label With {.Text = text, .AutoSize = False, .Dock = DockStyle.Fill,
+            .TextAlign = ContentAlignment.MiddleLeft, .Font = If(heading, FontCaption, FontBody),
+            .ForeColor = TextMuted, .BackColor = Color.Transparent, .Margin = New Padding(Px(8), 0, Px(8), 0)}
+    End Function
+
+    Public Sub BusEditor(editor As Control)
+        editor.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        editor.Margin = New Padding(Px(8), Px(4), Px(12), Px(4))
+    End Sub
+
+    Public Function BusNotice(text As String, warning As Boolean) As Label
+        Return New Label With {.Text = If(warning, "!  ", "ℹ  ") & text, .AutoSize = True,
+            .Font = FontCaption, .ForeColor = If(warning, Theme.Warning, TextMuted),
+            .BackColor = WindowBack, .Padding = New Padding(Px(10)),
+            .Margin = New Padding(0, 0, 0, GapRelated), .MaximumSize = New Size(0, 0),
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right}
+    End Function
+
+    Public Sub BusStatus(label As Label, responds As Boolean, configured As Boolean)
+        SetText(label, If(responds, "● Отвечает", "○ Не отвечает"))
+        SetColor(label, If(responds, OkText, If(configured, Warning, TextMuted)))
     End Sub
 
     Public Sub Address485(n As NumericUpDown)

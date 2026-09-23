@@ -87,26 +87,35 @@ Partial Public Class Form2
         mode485.Items.Add(New IndexedName(1, "Активный"))
         AddHandler mode485.SelectedIndexChanged, AddressOf Changed485
         baud485 = Combo485("baud") : wiegand485 = Combo485("wiegand")
-        Dim rows As New List(Of Control)
-        rows.Add(Note(Hint("При подключении к серверу эти настройки заменятся серверными")))
-        rows.Add(Row("Режим 485", mode485))
-        rows.Add(Row("Скорость 485", baud485))
+        Dim options As New TableLayoutPanel
+        Theme.BusOptions(options)
+        options.Controls.Add(Theme.BusField("Режим работы", mode485), 0, 0)
+        options.Controls.Add(Theme.BusField("Скорость, бод", baud485), 1, 0)
+        options.Controls.Add(Theme.BusField("Тип Wiegand", wiegand485), 2, 0)
+
+        Dim devices As New TableLayoutPanel
+        Theme.BusTable(devices)
+        Dim titles = New String() {"№", "Адрес", "Тип устройства", "Связь"}
+        For col = 0 To 3
+            devices.Controls.Add(Theme.BusCell(titles(col), True), col, 0)
+        Next
         For i = 0 To 7
-            address485(i) = New NumericUpDown With {.Minimum = 0, .Maximum = 255, .Width = Theme.Px(68)}
+            address485(i) = New NumericUpDown With {.Minimum = 0, .Maximum = 255}
             Theme.Address485(address485(i))
             AddHandler address485(i).ValueChanged, AddressOf Changed485
             type485(i) = Combo485("types")
-            state485(i) = Hint("не отвечает")
-            Dim line As New FlowLayoutPanel With {.AutoSize = True, .WrapContents = False, .Margin = New Padding(0)}
-            line.Controls.AddRange(New Control() {address485(i), type485(i), state485(i)})
-            rows.Add(Row("Устройство " & (i + 1) & " · адрес / тип", line))
+            state485(i) = Theme.BusCell("Не отвечает", False)
+            Theme.BusEditor(address485(i))
+            Theme.BusEditor(type485(i))
+            devices.Controls.Add(Theme.BusCell((i + 1).ToString(), False), 0, i + 1)
+            devices.Controls.Add(address485(i), 1, i + 1)
+            devices.Controls.Add(type485(i), 2, i + 1)
+            devices.Controls.Add(state485(i), 3, i + 1)
         Next
-        rows.Add(Row("Тип Wiegand", wiegand485))
-        warning485 = Hint("JPEG-камера C328 должна быть на шине одна")
-        Theme.Note(warning485, True)
-        rows.Add(Note(warning485))
-        Theme.Compact485(rows)
-        Return CardBlock("Наладка 485", rows.ToArray())
+        warning485 = Theme.BusNotice("JPEG-камера C328 должна быть на шине одна", True)
+        Dim serverNote = Theme.BusNotice("При подключении к серверу эти настройки заменятся серверными", False)
+        Return CardBlock("Наладка 485", serverNote, options, warning485, devices)
+
     End Function
     Private Sub Changed485(sender As Object, e As EventArgs)
         If updatingFields OrElse warning485 Is Nothing Then Return
@@ -123,6 +132,7 @@ Partial Public Class Form2
             type485(i).Enabled = address485(i).Enabled
         Next
         warning485.Visible = camera AndAlso count > 1
+        Status485()
     End Sub
     Private Function Peripherals(c As clOpros.s_config) As clOpros.s_periphery()
         Return {c.periph1, c.periph2, c.periph3, c.periph4, c.periph5, c.periph6, c.periph7, c.periph8}
@@ -173,7 +183,7 @@ Partial Public Class Form2
     Private Sub Status485()
         For i = 0 To 7
             Dim responds = status.peripheryState IsNot Nothing AndAlso status.peripheryState.Length > i AndAlso status.peripheryState(i) <> 0
-            Theme.SetText(state485(i), If(responds, "отвечает", "не отвечает"))
+            Theme.BusStatus(state485(i), responds, Value485(type485(i), 0) <> 0)
         Next
     End Sub
 End Class

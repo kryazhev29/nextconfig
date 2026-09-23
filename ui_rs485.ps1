@@ -21,7 +21,7 @@ public class DemoSize {
     [void][DemoSize]::SetWindowPos($w,[IntPtr]::Zero,300,150,1197,1120,4)
 } else {
     . "$stand\ui_combo.ps1" -List
-    $indexes=@{mode=2;baud=3;types=4;wiegand=12}
+    $indexes=@{mode=2;baud=3;types=5;wiegand=4}
     $w=[Combos]::Find([uint32]$demo[0].ProcessId)[$indexes[$Action]]
     [void][Combos]::SendMessage($w,0x14F,[IntPtr]1,[IntPtr]::Zero)
 }
