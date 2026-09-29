@@ -66,14 +66,23 @@ Public Module FirmwareFiles
         End Try
     End Sub
 
+    ' Папка сборок для старой платы MODEM (IP v3). У неё номер тот же, что у v5 (139),
+    ' поэтому v5 и старую плату различаем по папке: старой - только из неё, v5 - никогда.
+    Public Const OldModemFolder As String = "старая_MODEM"
+
+    Private Function FitsBoard(file As String, oldModem As Boolean) As Boolean
+        Return String.Equals(ProfileName(file), OldModemFolder, StringComparison.OrdinalIgnoreCase) = oldModem
+    End Function
+
     ' Самая свежая сборка для платы boardHw (0 - плата неизвестна, подходит любая).
     ' Nothing - подходящего файла рядом нет, тогда оператор выбирает сам.
-    Public Function FindFirmware(boardHw As Byte) As String
+    Public Function FindFirmware(boardHw As Byte, Optional oldModem As Boolean = False) As String
         Dim best As String = Nothing
         Dim bestBuild As UInteger = 0
         For Each f In Candidates("*.bin")
             Dim app As clBoot.s_appfile
             Dim err As String = ""
+            If Not FitsBoard(f, oldModem) Then Continue For
             If Not clBoot.CheckAppFile(f, app, err) Then Continue For
             If boardHw <> 0 AndAlso app.hard <> boardHw Then Continue For
             If best Is Nothing OrElse app.build > bestBuild Then
@@ -86,10 +95,13 @@ Public Module FirmwareFiles
 
     ' Загрузчики, подходящие к плате: разные по содержимому файлы.
     ' У v5 и MODEM плата одна (139) - тогда файлов два и выбирает оператор.
-    Public Function FindBootloaders(boardHw As Byte) As List(Of String)
+    Public Function FindBootloaders(boardHw As Byte, Optional oldModem As Boolean = False) As List(Of String)
         Dim result As New List(Of String)
         Dim seen As New HashSet(Of UInteger)
+        ' загрузчик 140 ставился 29.09.2026 одной старой плате; с него возврат на 139
+        If boardHw = 140 Then boardHw = 139
         For Each f In Candidates("DomovoiBoot*.bin")
+            If Not FitsBoard(f, oldModem) Then Continue For
             Try
                 Dim image = File.ReadAllBytes(f)
                 Dim hw As Byte, err As String = ""
@@ -107,10 +119,9 @@ Public Module FirmwareFiles
         Return Path.GetFileName(Path.GetDirectoryName(file))
     End Function
 
-    ' Номер платы в новой системе для старой платы. Старые загрузчики v5 и MODEM
-    ' оба сообщают 139, различаем по версии старой прошивки: 48 - v5 (139),
-    ' 45/47 - старая MODEM, у неё в новой системе свой номер 140. MINI (11) -
-    ' новой прошивки для неё нет, 0.
+    ' Какая сборка нужна старой плате: 139 - v5, 140 - старая MODEM (признак папки
+    ' сборок, номер платы у неё тоже 139), 0 - MINI, новой прошивки нет. Старые
+    ' загрузчики обеих сообщают 139, различаем по версии старой прошивки: 48 - v5.
     Public Function MigrationTarget(oldFw As Byte, oldLoaderHw As Byte) As Byte
         If oldFw = 48 Then Return 139
         If oldLoaderHw = &H8B Then Return 140

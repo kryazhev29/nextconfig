@@ -289,14 +289,24 @@ Public Class Form2
     Private ReadOnly Property BoardHw As Byte
         Get
             If status.hw_version <> 0 Then Return status.hw_version
-            Return FirmwareFiles.SavedTarget(lblIMEI.Text.Trim())
+            Return If(FirmwareFiles.SavedTarget(lblIMEI.Text.Trim()) <> 0, CByte(139), CByte(0))
+        End Get
+    End Property
+
+    ' Старая плата MODEM (IP v3): номер тот же 139, сборки - из своей папки. Запомнено
+    ' при переводе; иначе по модулю связи: на v5 стоит SLM336, на старых - Quectel.
+    Private ReadOnly Property OldModem As Boolean
+        Get
+            Dim saved = FirmwareFiles.SavedTarget(lblIMEI.Text.Trim())
+            If saved <> 0 Then Return saved = 140
+            Return status.moduleType = clOpros.eModuleType.M_M66 OrElse status.moduleType = clOpros.eModuleType.M_OTHER
         End Get
     End Property
 
     ' Файл берём сами (самая свежая сборка для этой платы рядом с программой);
     ' нет такого - оператор выбирает, папка запоминается.
     Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
-        Dim file As String = FirmwareFiles.FindFirmware(BoardHw)
+        Dim file As String = FirmwareFiles.FindFirmware(BoardHw, OldModem)
         If file Is Nothing Then
             Using f As New frmInfo("Обновление прошивки", "Рядом с программой нет файла прошивки для этой платы." & vbCrLf &
                                    "Укажите файл вида 139.71.1790667089.bin — его присылает производитель.")
@@ -337,7 +347,7 @@ Public Class Form2
     ' Загрузчик для этой платы рядом с программой. У v5 и MODEM плата одна (139),
     ' поэтому файлов может быть несколько - тогда оператор выбирает по плате.
     Private Function AskBootFile() As String
-        Dim found = FirmwareFiles.FindBootloaders(BoardHw)
+        Dim found = FirmwareFiles.FindBootloaders(BoardHw, OldModem)
         If found.Count = 1 Then Return found(0)
 
         OpenFileDialog1.Filter = "Файлы загрузчика (DomovoiBoot*.bin)|DomovoiBoot*.bin|Все файлы (*.*)|*.*"

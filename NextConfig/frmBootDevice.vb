@@ -7,7 +7,7 @@
     Private target As Byte
     Public Sub New(comport As ClComPort, portName As String, bootVersion As Byte, board As Byte, Optional targetHw As Byte = 0)
         port = comport : version = bootVersion : hardware = board
-        target = If(targetHw <> 0, targetHw, If(bootVersion >= clBoot.OLD_BOOT_BELOW, board, CByte(0)))
+        target = targetHw
         AutoScaleMode = AutoScaleMode.None : Theme.StyleForm(Me)
         Text = "Домовой · загрузчик" & If(Demo.IsOn, " · ДЕМО", "")
         StartPosition = FormStartPosition.CenterScreen
@@ -46,7 +46,7 @@
         If target = 0 AndAlso hardware = &H8B Then
             ' старый загрузчик сообщает 139 и на v5, и на старой плате MODEM
             Using ask As New frmInfo("Какая это плата?",
-                "Старый загрузчик не говорит, какая это плата." & vbCrLf &
+                "Загрузчик не говорит, какая это плата." & vbCrLf &
                 "Если на плате написано NEXT v5 — нажмите «Плата v5»." & vbCrLf &
                 "Если это старая плата (ДОМОВОЙ IP, v1–v3) — нажмите «Старая плата».", , True)
                 ask.Button1.Text = "Плата v5"
@@ -54,8 +54,10 @@
                 target = If(ask.ShowDialog(Me) = DialogResult.OK, CByte(139), CByte(140))
             End Using
         End If
-        If target = 0 Then target = hardware
-        Dim file = FirmwareFiles.FindFirmware(target)
+        ' 140 - признак старой платы MODEM: номер платы у неё тоже 139, сборка - из её папки
+        Dim oldModem = target = 140
+        If target = 0 OrElse target = 140 Then target = hardware
+        Dim file = FirmwareFiles.FindFirmware(target, oldModem)
         If file Is Nothing Then
             Using dialog As New OpenFileDialog With {.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*",
                 .InitialDirectory = AppDomain.CurrentDomain.BaseDirectory}

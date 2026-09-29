@@ -186,7 +186,8 @@ Public Class frmFW
 
                 ' Плата под старым загрузчиком свою версию не знает и сообщает 0 —
                 ' тогда сверять не с чем, файл выбирается по плате.
-                If boardHw <> 0 AndAlso boardHw <> fileHw Then
+                ' загрузчик 140 ставился 29.09.2026 одной старой плате - с него переход на 139
+                If boardHw <> 0 AndAlso boardHw <> fileHw AndAlso Not (boardHw = 140 AndAlso fileHw = 139) Then
                     FileRejected("Этот загрузчик для платы " & fileHw & ", а подключена плата " & boardHw & ". Выберите файл для своей платы.")
                     Exit Sub
                 End If
