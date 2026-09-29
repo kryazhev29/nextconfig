@@ -91,15 +91,15 @@ Public Class frmOldFirmware
         signalBar.Height = Theme.Px(8) : signalBar.Dock = DockStyle.Top : connection.Controls.Add(signalBar)
         Dim version As New Label With {.Text = device.Identification(5).ToString(), .AutoSize = True}
         Theme.Value(version)
-        ' Перевод проверен только на v5 (прошивка 48); на v1–v3 и v3.1 кнопки нет.
-        Dim canMigrate = device.Identification(5) = 48
-        migrate.Visible = canMigrate
+        ' Переход в загрузчик одинаков у v1–v3 и v5 (user_fun.c, case 0x04), но на железе
+        ' перевод проверен только на v5 (прошивка 48) - на остальных об этом сказано.
+        Dim testedMigration = device.Identification(5) = 48
         Dim fwCard = Theme.Card("Устройство",
             Theme.ValueRow("Версия прошивки", version),
             StateRow("Время устройства", "time"),
             StateRow("Память номеров", "memory"), migrate,
-            New Label With {.Text = If(canMigrate, "Перевод: новая прошивка, затем замена загрузчика. Настройки старой системы автоматически не переносятся.",
-                "Перевод этой платы на новую систему пока не поддерживается."),
+            New Label With {.Text = "Перевод: новая прошивка, затем замена загрузчика; программа проведёт по шагам. Настройки и база старой системы не переносятся — сначала сохраните базу CSV." &
+                If(testedMigration, "", vbCrLf & "Для этой платы перевод ещё не проверялся на железе."),
                 .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted})
         SetupButton(testOutput, "Проверить выход", 225)
         writeButtons.Add(testOutput) : testOutput.Enabled = device.CanWrite
