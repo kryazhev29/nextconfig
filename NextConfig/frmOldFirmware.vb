@@ -153,6 +153,7 @@ Public Class frmOldFirmware
         SetupButton(allSettings, "Все настройки платы", 230)
         AddHandler allSettings.Click, Sub() tabs.SelectedTab = tabSettings
         tabService.Controls.Add(Theme.CardPage(Theme.PageHeading("Сервис", "Данные платы для проверки и диагностики"),
+            BuildServiceActions(),
             Theme.Card("Мониторинг · все поля", monitorTitle, statusGrid),
             Theme.Card("Настройки платы", allSettings,
                 New Label With {.Text = "Для настроек нужен администратор, для базы — управляющий или администратор. " &
@@ -252,9 +253,12 @@ Public Class frmOldFirmware
                 If message <> "" Then feedback.Text = message
             End If
         Catch ex As Exception
-            feedback.Text = ex.Message & " Можно переподключиться к этой плате в разделе Устройство."
-            reconnect.Visible = True
-            If Not authenticate Then
+            feedback.Text = ex.Message
+            If Not TypeOf ex Is NotSupportedException Then
+                feedback.Text &= " Можно переподключиться к этой плате в разделе Устройство."
+                reconnect.Visible = True
+            End If
+            If Not authenticate AndAlso Not TypeOf ex Is NotSupportedException Then
                 monitorTitle.Text = "Состояние · нет свежих данных"
                 poll.Stop()
             End If

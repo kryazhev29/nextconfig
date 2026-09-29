@@ -233,6 +233,29 @@ Public Class clBoot
         Return reply
     End Function
 
+    Private Shared Function ReadOptionalOldService(comport As ClComPort, cmd As Byte, payload As Byte()) As Byte()
+        Dim errorText As String = ""
+        Dim reply = Exchange(comport, cmd, payload, 3000, errorText, True, True)
+        If reply Is Nothing AndAlso Not errorText.Contains("не ответил") Then Throw New IOException(errorText)
+        Return reply
+    End Function
+    Friend Shared Function ReadOldChronology(comport As ClComPort, payload As Byte()) As Byte()
+        If payload Is Nothing OrElse payload.Length <> 20 OrElse payload(0) <> 0 Then Throw New InvalidDataException("Разрешён только запрос количества хронологии.")
+        Return ReadOptionalOldService(comport, &H2E, payload)
+    End Function
+    Friend Shared Function ReadOldWorkLog(comport As ClComPort) As Byte()
+        Return ReadOptionalOldService(comport, &H29, Nothing)
+    End Function
+    Friend Shared Sub TestOldOutput(comport As ClComPort)
+        SendOldWithoutReply(comport, &H26, Nothing)
+    End Sub
+    Friend Shared Sub SetOldAutoregistration(comport As ClComPort, enabled As Boolean)
+        SendOldWithoutReply(comport, &H27, New Byte() {If(enabled, CByte(1), CByte(0))})
+    End Sub
+    Friend Shared Function ResetOldFactory(comport As ClComPort) As Byte()
+        Return OldWriteExchange(comport, &H2F, Nothing, 60000)
+    End Function
+
     Friend Shared Function AddOldNumber(comport As ClComPort, record As Byte()) As Byte()
         OldNumbers.Validate(record)
         Return OldWriteExchange(comport, &H2A, record)

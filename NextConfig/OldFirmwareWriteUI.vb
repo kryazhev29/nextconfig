@@ -83,7 +83,7 @@ Partial Public Class frmOldFirmware
         End Using
     End Sub
 
-    Private Async Function RunWrite(title As String, changes As String, action As Action, Optional done As Action = Nothing) As Task
+    Private Async Function RunWrite(title As String, changes As String, action As Action, Optional done As Action = Nothing, Optional successMessage As String = "Операция выполнена и проверена.") As Task
         If busy OrElse closePending Then Return
         If Not device.CanWrite Then feedback.Text = device.WriteSupportText : Return
         If String.IsNullOrWhiteSpace(changes) Then feedback.Text = "Изменений нет." : Return
@@ -105,7 +105,7 @@ Partial Public Class frmOldFirmware
                 portGate.Release()
             End Try
             If done IsNot Nothing Then done()
-            feedback.Text = "Операция выполнена и проверена."
+            feedback.Text = successMessage
         Catch ex As Exception
             feedback.Text = ex.Message
             reconnect.Visible = True

@@ -149,10 +149,10 @@ Public Module AgentLog
         End Select
 
         ' База номеров - телефоны и имена жильцов: только заголовок кадра и длина.
-        Dim baseCmd = cmd >= &H2A AndAlso cmd <= &H2D
+        Dim baseCmd = (cmd >= &H2A AndAlso cmd <= &H2E) OrElse cmd = &H29
         Write("usb", "port", port, "proto", "SLGT", "cmd", CInt(cmd),
-              "tx", If(baseCmd, HexHead(tx, 12), Hex(tx, txMasked)),
-              "rx", If(rx Is Nothing, Nothing, If(baseCmd, HexHead(rx, 7), Hex(rx, rxMasked))),
+              "tx", If(baseCmd, HexHead(tx, If(cmd = &H2E, 9, If(cmd = &H29, 8, 12))), Hex(tx, txMasked)),
+              "rx", If(rx Is Nothing, Nothing, If(baseCmd, HexHead(rx, If(cmd = &H29, 3, 7)), Hex(rx, rxMasked))),
               "ok", rx IsNot Nothing, "err", If(String.IsNullOrEmpty(err), Nothing, err), "ms", ms)
     End Sub
 

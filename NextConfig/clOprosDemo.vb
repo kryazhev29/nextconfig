@@ -44,6 +44,8 @@ Public Module Demo
     Private oldSettingsBlock As Byte()
     Private oldNumbersState As List(Of Byte())
     Private oldReportedCount As Integer
+    Private oldAutoregistration As Boolean
+    Private oldOutput As Boolean
 
     Public Function OldFirmwareReply(cmd As Byte, data As Byte()) As Byte()
         Select Case cmd
@@ -53,6 +55,16 @@ Public Module Demo
                 b(5) = If(Mode = eDemoMode.OldFw45, CByte(45), CByte(48)) : b(6) = &H8B
                 PutText(b, 10, "000000000000048")
                 Return b
+            Case &H26
+                oldOutput = Not oldOutput : Return Nothing
+            Case &H27
+                oldAutoregistration = data(0) <> 0 : Return Nothing
+            Case &H29, &H2E
+                Return Nothing
+            Case &H2F
+                oldSettingsBlock = OldFirmware.FactorySettings(If(Mode = eDemoMode.OldFw45, CByte(45), CByte(48)), &H8B)
+                oldNumbersState = New List(Of Byte())
+                Return New Byte() {&H55, cmd, 0}
             Case &H30
                 Return New Byte() {&H55, &H30, 250}
             Case &H31, &H32
@@ -97,12 +109,12 @@ Public Module Demo
                 PutText(d, 0, "000000000000048")
                 d(16) = If(Mode = eDemoMode.OldFw45, CByte(45), CByte(48)) : d(17) = &H8B : d(23) = &H11 : d(24) = 24
                 Put16(d, 25, 2026) : d(27) = 9 : d(28) = 29
-                d(29) = 12 : d(32) = &H41
+                d(29) = 12 : d(32) = CByte(&H41 Or If(oldAutoregistration, 128, 0))
                 Put32(d, 49, 86400UI + CUInt((Environment.TickCount And &HFFFF) \ 1000))
                 d(53) = 1 : Put16(d, 54, If(oldNumbersState Is Nothing, 35, oldNumbersState.Count)) : d(60) = &H20 : d(61) = 27
                 Put16(d, 62, 3200) : Put16(d, 64, 25)
                 Put32(d, 66, CUInt(DateTimeToUnixTimestamp(DateTime.Now)))
-                d(70) = &H89 : Put16(d, 79, 127)
+                d(70) = CByte(&H89 Or If(oldOutput, 4, 0)) : Put16(d, 79, 127)
                 Put16(d, 160, 15000) : Put16(d, 166, 350)
                 d(237) = 2 : d(238) = 3 : d(269) = 4 : Put16(d, 270, 12150)
                 Dim b(d.Length + 4) As Byte
