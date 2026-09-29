@@ -27,6 +27,9 @@ foreach($mode in @('bad-jpeg','missing-prefix','updating')) {
   if($mode -eq 'updating') {Check (-not $w.Commands.Contains(21)) 'update blocks request';Reject {[NextConfig.PhotoSession]::new($w,$null).Capture(1,$token)} 'update blocks capture'; Check (-not $w.Commands.Contains(7)) 'no capture sent'}
   if($mode -eq 'bad-jpeg') {Check ($w.Acknowledgements.Count -eq 1) 'bad JPEG not acknowledged'}
 }
+$stale=[NextConfig.PhotoDemoWire]::new('stale-cursor')
+$recovered=[NextConfig.PhotoSession]::new($stale,$null).Download('71',(Join-Path $run 'stale-cursor'),$token)
+Check ($recovered.Saved.Count -eq 2) 'code 1 resets cursor and recovers'
 $noCamera=[NextConfig.PhotoDemoWire]::new('no-camera')
 Reject {[NextConfig.PhotoSession]::new($noCamera,$null).Capture(1,$token)} 'camera hint on refusal'
 $frame=[NextConfig.SldnStream]::Frame(21,[byte[]](0,0,0,0,0,0),5)

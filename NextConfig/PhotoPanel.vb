@@ -11,7 +11,7 @@ Public Class PhotoPanel
     Private ReadOnly hint As New Label With {.AutoSize = True}
     Private ReadOnly progress As New Label With {.AutoSize = True}
     Private ReadOnly preview As New PictureBox With {.SizeMode = PictureBoxSizeMode.Zoom}
-    Private ReadOnly meter As New ProgressBar()
+    Private ReadOnly meter As New Meter()
     Private ReadOnly opros As clOpros
     Private ReadOnly imei As String
     Private ReadOnly legacy As Boolean

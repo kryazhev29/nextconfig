@@ -1,4 +1,4 @@
-Imports System.IO
+﻿Imports System.IO
 Imports System.Drawing
 Imports System.Globalization
 
@@ -54,6 +54,7 @@ Public Class PhotoTransfer
                 Return StepKind.RequestAgain
             End If
             Message = If(Saved.Count = 0, "Очередь фотографий пуста.", "Готово. Сохранено фото: " & Saved.Count & ". Очередь пуста.")
+            If Retries > 0 OrElse Duplicates > 0 Then Message &= " Повторов запроса: " & Retries & "; повторных пакетов проверено: " & Duplicates & "."
             Return StepKind.Done
         End If
         If payload.Length < 12 Then Throw New InvalidDataException("Короткий пакет фотографии.")

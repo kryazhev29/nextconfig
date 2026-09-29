@@ -1,4 +1,4 @@
-Imports System.Drawing
+﻿Imports System.Drawing
 Imports System.Drawing.Imaging
 Imports System.IO
 Imports System.Threading
@@ -18,6 +18,7 @@ Public Class PhotoDemoWire
     Private ReadOnly mode As String
     Private lost As Boolean
     Private duplicated As Boolean
+    Private rejectedCursor As Boolean
     Private nextNumber As UInteger = 481
     Public ReadOnly Commands As New List(Of Byte)
     Public ReadOnly Acknowledgements As New List(Of Integer)
@@ -100,6 +101,9 @@ Public Class PhotoDemoWire
                     AddPhoto() : Answer(cmd, 0, sequence)
                 End If
             Case 21
+                If mode = "stale-cursor" AndAlso Not rejectedCursor Then
+                    rejectedCursor = True : Answer(cmd, 1, sequence) : Return
+                End If
                 Dim number = If(payload Is Nothing, 0UI, BitConverter.ToUInt32(payload, 0))
                 Dim offset = If(payload Is Nothing, 0, CInt(BitConverter.ToUInt16(payload, 4)))
                 Dim pending = photos.Where(Function(p) p.Confirmed < p.Bytes.Length).ToList()
