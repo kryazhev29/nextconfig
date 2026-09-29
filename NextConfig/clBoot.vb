@@ -100,7 +100,8 @@ Public Class clBoot
                                      ByVal data As Byte(),
                                      ByVal timeout As Integer,
                                      ByRef errText As String,
-                                     Optional ByVal legacy As Boolean = False) As Byte()
+                                     Optional ByVal legacy As Boolean = False,
+                                     Optional ByVal oldFirmware As Boolean = False) As Byte()
 
         ' иначе обработчик события приёма заберёт ответ загрузчика себе
         comport.EnableEventReceived = False
@@ -128,8 +129,8 @@ Public Class clBoot
 
                 If ready > 0 Then
                     Dim buf(ready - 1) As Byte
-                    port.Read(buf, 0, ready)
-                    pending.AddRange(buf)
+                    Dim received As Integer = port.Read(buf, 0, ready)
+                    pending.AddRange(buf.Take(received))
                 End If
             Catch ex As Exception
                 errText = ex.Message
@@ -146,7 +147,7 @@ Public Class clBoot
 
                 Dim size As Integer = pending(4) + (CInt(pending(5)) << 8)
 
-                If size < 2 OrElse size > 592 Then
+                If size < 2 OrElse size > If(oldFirmware, 4096, 592) Then
                     pending.RemoveAt(0)
                     Continue While
                 End If
@@ -161,9 +162,19 @@ Public Class clBoot
                 Dim got As Integer = pending(6 + size) + (CInt(pending(7 + size)) << 8)
                 pending.RemoveRange(0, size + 8)
 
-                If got <> Crc16(body) OrElse body(0) <> &H55 OrElse body(1) <> cmd Then
+                If got <> Crc16(body) OrElse body(0) <> &H55 Then
                     Continue While
                 End If
+
+                ' v5 User/user_fun.c:346-374: на защищённое чтение приходит 0x25,
+                ' а не исходная команда. Unit1.cpp:1060-1069 подтверждает раскладку.
+                If oldFirmware AndAlso body(1) = &H25 AndAlso cmd <> &H25 AndAlso
+                    body.Length >= 5 AndAlso body(2) = 4 Then
+                    errText = "Требуется пароль " & If(body(4) = 2, "администратора.", "управляющего или администратора.")
+                    Return Nothing
+                End If
+                If body(1) <> cmd Then Continue While
+                If oldFirmware Then Return body
 
                 If body.Length < 3 OrElse (Not legacy AndAlso body.Length <> 10) Then
                     errText = "Загрузчик ответил кадром неизвестного вида."
@@ -186,8 +197,23 @@ Public Class clBoot
             Thread.Sleep(5)
         End While
 
-        errText = "Загрузчик не ответил на команду 0x" & cmd.ToString("X2") & "."
+        errText = If(oldFirmware, "Плата", "Загрузчик") & " не ответил на команду 0x" & cmd.ToString("X2") & "."
         Return Nothing
+    End Function
+
+    ' Единственный вход для этапа чтения v5. Сборка кадра и CRC остаются общими.
+    Friend Shared Function ReadOldFirmware(comport As ClComPort, cmd As Byte, data As Byte(), ByRef errorText As String) As Byte()
+        Select Case cmd
+            Case &H0, &H20, &H22, &H25, &H2C
+                Return Exchange(comport, cmd, data, 3000, errorText, True, True)
+            Case Else
+                Throw New InvalidOperationException("Команда не разрешена в режиме чтения старой прошивки.")
+        End Select
+    End Function
+
+    Friend Shared Function IdentifyLegacy(comport As ClComPort) As Byte()
+        Dim errorText As String = ""
+        Return Exchange(comport, CMD_INFO, Nothing, 700, errorText, True, True)
     End Function
 
     ' Есть ли на порту загрузчик. Версия и номер платы берутся из ответа.
