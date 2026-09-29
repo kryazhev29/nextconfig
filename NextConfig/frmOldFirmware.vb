@@ -36,6 +36,10 @@ Public Class frmOldFirmware
     Private settings As DataTable
     Private numbers As DataTable
     Private busy As Boolean
+    ' фоновый опрос состояния: кнопки при нём не гаснут, но порт он занимает
+    Private polling As Boolean
+    ' порт один: опрос и действие оператора обращаются к плате по очереди
+    Private ReadOnly portGate As New Threading.SemaphoreSlim(1, 1)
     Private closePending As Boolean
 
     Public Sub New(reader As OldFirmware, portName As String)
@@ -159,7 +163,7 @@ Public Class frmOldFirmware
         AddHandler readConfig.Click, Async Sub(s, e) Await ReadConfiguration()
         AddHandler readBase.Click, Async Sub(s, e) Await ReadDatabase()
         AddHandler refreshButton.Click, Async Sub(s, e) Await RefreshStatus()
-        AddHandler poll.Tick, Async Sub(s, e) Await RefreshStatus()
+        AddHandler poll.Tick, Async Sub(s, e) Await RefreshStatus(True)
         AddHandler export.Click, AddressOf ExportBase
         AddHandler closeButton.Click, Sub(s, e) Close()
         AddHandler search.TextChanged, Sub(s, e) FilterSettings()
@@ -206,16 +210,24 @@ Public Class frmOldFirmware
         Return n
     End Function
 
+    ' background = фоновый опрос по таймеру: кнопки не трогает и пропускает ход,
+    ' если плата занята. Действие оператора дожидается конца опроса, а не теряется.
     Private Async Function RunRead(action As Func(Of DataTable), apply As Action(Of DataTable),
                                    message As String, Optional authenticate As Boolean = False,
-                                   Optional requiredAccess As Byte = 0) As Task
-        If busy OrElse IsDisposed OrElse closePending Then Return
+                                   Optional requiredAccess As Byte = 0,
+                                   Optional background As Boolean = False) As Task
+        If IsDisposed OrElse closePending Then Return
+        If background AndAlso (busy OrElse polling) Then Return
+        If Not background AndAlso busy Then Return
         Dim pin As UShort? = Nothing
         Try
             If authenticate Then pin = GetPassword()
-            SetBusy(True)
+            If background Then polling = True Else SetBusy(True)
             If authenticate Then feedback.Text = "Чтение…"
-            Dim result = Await Task.Run(Function()
+            Await portGate.WaitAsync()
+            Dim result As DataTable
+            Try
+                result = Await Task.Run(Function()
                                             If pin.HasValue Then
                                                 Dim access = device.Authenticate(pin.Value)
                                                 If access <> &H20 AndAlso (requiredAccess = &H20 OrElse access <> &H10) Then
@@ -224,6 +236,9 @@ Public Class frmOldFirmware
                                             End If
                                             Return action()
                                         End Function)
+            Finally
+                portGate.Release()
+            End Try
             If Not closePending Then
                 apply(result)
                 If message <> "" Then feedback.Text = message
@@ -236,12 +251,12 @@ Public Class frmOldFirmware
             End If
         Finally
             pin = Nothing
-            SetBusy(False)
-            If closePending Then Close()
+            If background Then polling = False Else SetBusy(False)
+            If closePending AndAlso Not (busy OrElse polling) Then Close()
         End Try
     End Function
 
-    Private Async Function RefreshStatus() As Task
+    Private Async Function RefreshStatus(Optional background As Boolean = False) As Task
         Await RunRead(Function() device.ReadStatus(),
             Sub(t)
                 Dim top = If(statusGrid.Rows.Count > 0, Math.Max(0, statusGrid.FirstDisplayedScrollingRowIndex), 0)
@@ -250,7 +265,7 @@ Public Class frmOldFirmware
                 If top < statusGrid.Rows.Count Then statusGrid.FirstDisplayedScrollingRowIndex = top
                 monitorTitle.Text = "Состояние · " & DateTime.Now.ToString("HH:mm:ss")
                 poll.Start()
-            End Sub, "")
+            End Sub, "", background:=background)
     End Function
 
     Private Async Function ReadConfiguration() As Task
@@ -338,7 +353,7 @@ Public Class frmOldFirmware
         poll.Stop()
         closePending = True
         device.CancelRead()
-        If busy Then
+        If busy OrElse polling Then
             e.Cancel = True
             feedback.Text = "Завершение текущего чтения перед закрытием…"
         End If

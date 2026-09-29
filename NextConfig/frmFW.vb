@@ -30,7 +30,6 @@ Public Class frmFW
     Private image As Byte()
     Private app As clBoot.s_appfile
     Private fileHw As Byte
-    Private break As Boolean = False
     Private running As Boolean = False
     Private applyRun As Boolean = False
     Private doneOk As Boolean = False
@@ -191,33 +190,23 @@ Public Class frmFW
     End Sub
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
-        break = True
-
-        While running
-            Threading.Thread.Sleep(100)
-        End While
-
         Me.DialogResult = If(doneOk, DialogResult.OK, DialogResult.Cancel)
         Me.Close()
     End Sub
 
-    ' Крестик окна работает как «Закрыть»: работу сначала прерываем.
+    ' Пока идёт запись, окно не закрывается: прерванная на середине операция
+    ' оставляет плату в неизвестном состоянии. Каждая операция кончается сама,
+    ' по ответу платы или по тайм-ауту.
     Private Sub frmFW_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
-        If Not running Then Exit Sub
-
-        break = True
-
-        While running
-            Threading.Thread.Sleep(100)
-        End While
+        If running Then e.Cancel = True
     End Sub
 
     Private Sub StartWork(ByVal apply As Boolean)
         applyRun = apply
         running = True
-        break = False
         Button1.Enabled = False
         btnCheck.Enabled = False
+        Button2.Enabled = False
         ProgressBar1.Value = 0
 
         Select Case mode
@@ -285,7 +274,7 @@ Public Class frmFW
 
         nBlock = 0
 
-        While Not break AndAlso nBlock < fwInfo.nBlocks
+        While nBlock < fwInfo.nBlocks
 
             ' Блок читается по своему смещению: после неудачи повторяется тот же блок.
             Dim code As clOpros.eCmdAnswer = opros.WriteFWBlock(CUShort(nBlock), BlockOf(image, nBlock), percent)
@@ -325,11 +314,6 @@ Public Class frmFW
 
             Threading.Thread.Sleep(10)
         End While
-
-        If break Then
-            errText = "Прервано."
-            Return False
-        End If
 
         ' Все блоки приняты: контроллер сам проверит контрольную сумму файла
         ' и перезагрузится на установку.
@@ -418,6 +402,7 @@ Public Class frmFW
 
     Private Sub refDone(ByVal ok As Boolean, ByVal text As String)
         running = False
+        Button2.Enabled = True
 
         If Not ok Then
             lblState.Text = "Не выполнено: " & text

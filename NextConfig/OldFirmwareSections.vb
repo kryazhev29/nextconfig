@@ -94,7 +94,13 @@ Partial Public Class frmOldFirmware
         End Using
         poll.Stop() : SetBusy(True)
         Try
-            Await Task.Run(Sub() device.EnterBootloader())
+            ' опрос мог уже начаться до остановки таймера: ждём, пока он отдаст порт
+            Await portGate.WaitAsync()
+            Try
+                Await Task.Run(Sub() device.EnterBootloader())
+            Finally
+                portGate.Release()
+            End Try
             EnteredBootloader = True
         Catch ex As Exception
             feedback.Text = ex.Message
