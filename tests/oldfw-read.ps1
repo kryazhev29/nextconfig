@@ -37,6 +37,15 @@ $bad = [byte[]]$id.Clone(); $bad[6] = 0x0B
 Check (-not [NextConfig.OldFirmware]::IsFirmware($bad)) 'other device family excluded'
 
 $reader = [NextConfig.OldFirmware]::new($null, $id, $true)
+Check ($reader.NumberLimit -eq 15000) 'default number limit'
+$limited = [byte[]]$id.Clone(); $limited[7] = 0x10
+Check ([NextConfig.OldFirmware]::new($null, $limited, $true).NumberLimit -eq 650) 'restricted number limit'
+Check ([NextConfig.OldFirmware]::SettingCode('operator', 3) -eq 'МТС (код 3)') 'operator dictionary'
+Check ([NextConfig.OldFirmware]::SettingCode('input2', 1) -like 'Сделать снимок*') 'input-specific mapping'
+Check ([NextConfig.OldFirmware]::SettingCode('photo', 5) -eq '320×240 (код 5)') 'photo resolution mapping'
+Check ([NextConfig.OldFirmware]::SettingCode('reader', 3) -eq 'Универсальный WG (код 3)') 'reader dictionary'
+Check ([NextConfig.OldFirmware]::SettingCode('output', 77) -eq 'Код 77') 'unknown code preserved'
+Check (-not $reader.IdentityText().Contains('55 00')) 'raw identity hidden'
 $cfg = [NextConfig.Demo]::OldFirmwareReply(0x20, [byte[]](0))
 # Независимые граничные значения по structures.h:343-345,360,376,404-406.
 $cfg[15] = 0x34; $cfg[16] = 0x12

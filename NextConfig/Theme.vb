@@ -122,7 +122,7 @@ Public Module Theme
         grid.BackgroundColor = Surface
         grid.GridColor = Border
         grid.BorderStyle = BorderStyle.FixedSingle
-        grid.Font = FontCaption
+        grid.Font = FontBody
         grid.DefaultCellStyle.BackColor = Surface
         grid.DefaultCellStyle.ForeColor = TextMain
         grid.DefaultCellStyle.SelectionBackColor = SurfaceHover
@@ -130,9 +130,11 @@ Public Module Theme
         grid.ColumnHeadersDefaultCellStyle.BackColor = WindowBack
         grid.ColumnHeadersDefaultCellStyle.ForeColor = TextMain
         grid.ColumnHeadersDefaultCellStyle.Font = FontCaption
+        grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = WindowBack
+        grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = TextMain
         grid.EnableHeadersVisualStyles = False
-        grid.RowTemplate.Height = Px(27)
-        grid.ColumnHeadersHeight = Px(30)
+        grid.RowTemplate.Height = Px(32)
+        grid.ColumnHeadersHeight = Px(34)
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect
         grid.MultiSelect = False
     End Sub

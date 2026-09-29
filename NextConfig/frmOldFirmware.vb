@@ -38,7 +38,7 @@ Public Class frmOldFirmware
 
         Dim root As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 5,
             .Padding = New Padding(Theme.Px(14))}
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(86)))
+        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(112)))
         root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(76)))
         root.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(51)))
@@ -46,7 +46,15 @@ Public Class frmOldFirmware
         Controls.Add(root)
         Dim identity As New Label With {.Dock = DockStyle.Fill, .Font = Theme.FontCaption,
             .Text = portName & " · " & device.IdentityText(), .AutoEllipsis = True}
-        root.Controls.Add(identity, 0, 0)
+        Dim header As New TableLayoutPanel With {.Dock = DockStyle.Fill, .RowCount = 2, .ColumnCount = 1}
+        header.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(46)))
+        header.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        Dim brand = Theme.BrandLine()
+        brand.Margin = New Padding(0)
+        brand.Dock = DockStyle.Fill
+        header.Controls.Add(brand, 0, 0)
+        header.Controls.Add(identity, 0, 1)
+        root.Controls.Add(header, 0, 0)
 
         Dim actions As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .WrapContents = True}
         actions.Controls.Add(New Label With {.Text = "Пароль (0–65535):", .AutoSize = True,
@@ -58,6 +66,7 @@ Public Class frmOldFirmware
         password.Margin = New Padding(0, Theme.Px(8), Theme.Px(12), 0)
         actions.Controls.Add(password)
         SetupButton(readConfig, "Прочитать настройки", 190)
+        Theme.Primary(readConfig)
         SetupButton(readBase, "Прочитать базу", 165)
         SetupButton(export, "Сохранить базу CSV", 185)
         SetupButton(refreshButton, "Обновить состояние", 190)

@@ -36,9 +36,46 @@ Public NotInheritable Class OldFirmware
         Dim b = Identification
         Return "Старая прошивка Domovoi · версия " & b(5) & " · плата загрузчика " & b(4) &
             " · тип устройства " & b(6) & " · загрузчик 0x" & b(3).ToString("X2") & vbCrLf &
-            "IMEI: " & Str(b, 10, 16) & " · ограничение: 0x" & b(7).ToString("X2") &
-            " · резерв: " & Hex(b, 8, 2) & " · отдельный серийный номер не передаётся" & vbCrLf &
-            "Ответ 0x00: " & Hex(b, 0, b.Length)
+            "IMEI: " & Str(b, 10, 16) & " · база до " & NumberLimit & " номеров"
+    End Function
+
+    Public ReadOnly Property Imei As String
+        Get
+            Return Str(Identification, 10, 16)
+        End Get
+    End Property
+
+    ' CFG/Unit1.cpp:844-847: именно BOOT_RESTRICT, не версия платы.
+    Public ReadOnly Property NumberLimit As Integer
+        Get
+            Return If(Identification(7) = &H10, 650, 15000)
+        End Get
+    End Property
+
+    ' CFG/Unit1.dfm:1499-1505,2310-2316,2331-2337,1898-1900,2402-2405,2661-2665;
+    ' привязка ItemIndex: Unit1.cpp:2059,2069,2116-2117,2137-2138,2148.
+    Public Shared Function SettingCode(field As String, code As Byte) As String
+        Dim names As String() = Nothing
+        Select Case field
+            Case "operator"
+                names = {"Автоматически, данные с SIM-карты", "Билайн", "Мегафон", "МТС", "Теле2", "Другой"}
+            Case "input1"
+                names = {"SMS: ошибка контроллера", "Состояние ворот", "Сделать снимок с камеры", "Контроль питающей сети", "Датчик присутствия транспорта", "Кнопка открытия"}
+            Case "input2"
+                names = {"SMS: вскрытие корпуса", "Сделать снимок с камеры", "---", "Контроль питающей сети", "Датчик присутствия транспорта", "Кнопка открытия"}
+            Case "output"
+                names = {"Инвертировать", "Импульс"}
+            Case "reader"
+                names = {"UHF RFID 868-5300", "UHF RFID 868-1610", "UHF RFID 868-PRIME", "Универсальный WG"}
+            Case "photo"
+                Select Case code
+                    Case 0, 3 : Return "160×120 (код " & code & ")"
+                    Case 5 : Return "320×240 (код 5)"
+                    Case 7 : Return "640×480 (код 7)"
+                End Select
+        End Select
+        If names IsNot Nothing AndAlso code < names.Length Then Return names(code) & " (код " & code & ")"
+        Return "Код " & code
     End Function
 
     Private Function Request(cmd As Byte, data As Byte()) As Byte()
@@ -152,7 +189,7 @@ Public NotInheritable Class OldFirmware
         Add(t, "Доступ", "Пароль администратора", U16(d, 9))
         Add(t, "Доступ", "Пароль управляющего / SMS", U16(d, 11))
         Bits(t, "Основные", d(13), {"Принимать все вызовы", "Синхронизация NTP", "Использовать вход 1", "Использовать вход 2", "Фотофиксация", "Запрашивать пароль", "Перезапуск по времени", "Выход по периоду"})
-        Add(t, "Связь", "Код оператора GSM", d(14))
+        Add(t, "Связь", "Оператор GSM", SettingCode("operator", d(14)))
         Add(t, "Связь", "Точка доступа APN", Str(d, 15, 40))
         Add(t, "Доступ", "PIN SIM-карты", Str(d, 55, 5))
         Add(t, "Сервер", "Подключение включено", YesNo(d(60) And 1))
@@ -167,7 +204,7 @@ Public NotInheritable Class OldFirmware
         Add(t, "Связь", "Номер SIM-карты", Str(d, 118, 16))
         Dim names = {"Тип срабатывания выхода", "Длительность импульса (исходное)", "Пауза (исходное)", "Количество повторов"}
         For i = 0 To 3
-            Add(t, "Выход", names(i), d(134 + i))
+            Add(t, "Выход", names(i), If(i = 0, SettingCode("output", d(134)), d(134 + i).ToString()))
         Next
         For i = 0 To 6
             Dim p = 138 + i * 3
@@ -175,7 +212,7 @@ Public NotInheritable Class OldFirmware
             Add(t, "Расписание " & (i + 1), "Расписание " & (i + 1) & " · начало (час)", d(p + 1))
             Add(t, "Расписание " & (i + 1), "Расписание " & (i + 1) & " · конец (час)", d(p + 2))
         Next
-        Add(t, "Фото", "Код разрешения", d(159))
+        Add(t, "Фото", "Разрешение фото", SettingCode("photo", d(159)))
         Add(t, "Время", "Часовой пояс", If(d(160) < 128, CInt(d(160)), CInt(d(160)) - 256))
         Add(t, "Время", "Час перезапуска", d(161))
         Add(t, "Выход по времени", "Начало (час)", d(162))
@@ -186,15 +223,15 @@ Public NotInheritable Class OldFirmware
         Add(t, "Выход по времени", "Конец (минута)", d(166))
         Add(t, "Выход по времени", "Дни недели (маска)", "0x" & d(167).ToString("X2"))
         Add(t, "Вызовы", "Количество гудков", d(168))
-        Add(t, "Входы", "Код функции входа 1", d(169))
-        Add(t, "Входы", "Код функции входа 2", d(170))
+        Add(t, "Входы", "Функция входа 1", SettingCode("input1", d(169)))
+        Add(t, "Входы", "Функция входа 2", SettingCode("input2", d(170)))
         Add(t, "Фото", "Задержка фото (исходное)", d(171))
         Add(t, "Баланс", "Порог (исходное)", U16(d, 172))
         Add(t, "Баланс", "Числовой код запроса", U16(d, 174))
         Add(t, "Баланс", "Строка запроса", Str(d, 176, 16))
         Add(t, "Вызовы", "Расписание приёма от всех", d(192))
         Add(t, "RFID", "Количество антенн", d(193))
-        Add(t, "RFID", "Тип считывателя", d(194))
+        Add(t, "RFID", "Тип считывателя", SettingCode("reader", d(194)))
         Add(t, "Служебные", "Резерв, байты 195–509", Hex(d, 195, 315))
         Add(t, "Служебные", "CRC конфигурации", "0x" & U16(d, 510).ToString("X4"))
         Return t

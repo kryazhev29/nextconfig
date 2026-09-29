@@ -2,7 +2,8 @@
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $scripts = Join-Path (Split-Path $repo -Parent) 'Стенд_Domovoi\Скрипты'
-$out = Join-Path $repo 'artifacts\oldfw48'
+$out = Join-Path (Split-Path $repo -Parent) 'Стенд_Domovoi\NextConfig_QA\oldfw48'
+New-Item -ItemType Directory -Force $out | Out-Null
 if (Get-Process NextConfig -ErrorAction SilentlyContinue) { throw 'NextConfig уже открыт. Окно владельца не трогаем.' }
 Add-Type @'
 using System;
