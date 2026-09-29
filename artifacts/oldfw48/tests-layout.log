@@ -1,0 +1,4 @@
+ConfStr 512 bytes; v5 / v1-v3 / old configurator offsets agree
+DevStr 513 bytes; v5 / v1-v3 / old configurator offsets agree
+phoneparams_t 64 bytes; v5 / v1-v3 / old configurator offsets agree
+PASS: 195 source offset/bitfield checks (not a firmware compatibility claim).

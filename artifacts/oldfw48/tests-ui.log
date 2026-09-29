@@ -1,0 +1,12 @@
+C:\Users\kryaz\Desktop\мк\NextConfig\artifacts\oldfw48\01-main-125pct.png 1616x1032
+C:\Users\kryaz\Desktop\мк\NextConfig\artifacts\oldfw48\04-schedules-125pct.png 1616x1032
+C:\Users\kryaz\Desktop\мк\NextConfig\artifacts\oldfw48\05-rfid-125pct.png 1616x1032
+C:\Users\kryaz\Desktop\мк\NextConfig\artifacts\oldfw48\06-last-field-125pct.png 1616x1032
+0: Прочитать настройки
+1: Прочитать базу
+2: Сохранить базу CSV
+3: Обновить состояние
+4: Закрыть
+5: Показать пароли и PIN в настройках
+clicked: Закрыть
+PASS: demo main, settings filters, final field, normal close.
