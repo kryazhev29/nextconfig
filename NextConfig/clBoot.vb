@@ -239,6 +239,15 @@ Public Class clBoot
         If reply Is Nothing AndAlso Not errorText.Contains("не ответил") Then Throw New IOException(errorText)
         Return reply
     End Function
+    Friend Shared Function ReadOldRfid(comport As ClComPort, address As Byte, parameter As Byte) As Byte()
+        Dim reply = ReadOptionalOldService(comport, &H50, New Byte() {address, parameter})
+        If reply Is Nothing Then Throw New IOException("RFID-считыватель не ответил. Проверьте тип, адрес и подключение.")
+        Return reply
+    End Function
+    Friend Shared Function WriteOldRfid(comport As ClComPort, address As Byte, parameter As Byte, value As Byte) As Byte()
+        Return OldWriteExchange(comport, &H51, New Byte() {address, parameter, value})
+    End Function
+
     Friend Shared Function ReadOldChronology(comport As ClComPort, payload As Byte()) As Byte()
         If payload Is Nothing OrElse payload.Length <> 20 OrElse payload(0) <> 0 Then Throw New InvalidDataException("Разрешён только запрос количества хронологии.")
         Return ReadOptionalOldService(comport, &H2E, payload)

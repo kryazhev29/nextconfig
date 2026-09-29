@@ -116,6 +116,8 @@
     <Compile Include="clBoot.vb" />
     <Compile Include="OldFirmware.vb" />
     <Compile Include="OldPhoto.vb" />
+    <Compile Include="OldRfid.vb" />
+    <Compile Include="OldFirmwareRfidUI.vb" />
     <Compile Include="OldFirmwareService.vb" />
     <Compile Include="OldFirmwareServiceUI.vb" />
     <Compile Include="OldNumbers.vb" />

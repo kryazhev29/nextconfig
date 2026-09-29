@@ -46,6 +46,7 @@ Public Module Demo
     Private oldReportedCount As Integer
     Private oldAutoregistration As Boolean
     Private oldOutput As Boolean
+    Private ReadOnly oldRfidValues As New Dictionary(Of String, Byte)
 
     Public Function OldFirmwareReply(cmd As Byte, data As Byte()) As Byte()
         Select Case cmd
@@ -55,6 +56,29 @@ Public Module Demo
                 b(5) = If(Mode = eDemoMode.OldFw45, CByte(45), CByte(48)) : b(6) = &H8B
                 PutText(b, 10, "000000000000048")
                 Return b
+            Case &H50
+                Dim key = data(0) & ":" & data(1)
+                Dim value As Byte
+                If Not oldRfidValues.TryGetValue(key, value) Then
+                    Select Case data(1)
+                        Case 3 : value = data(0)
+                        Case 5 : value = 20
+                        Case 7 : value = 4
+                        Case &HA : value = 2
+                        Case &H3F : value = 1
+                    End Select
+                End If
+                Return New Byte() {&H55, cmd, data(1), value}
+            Case &H51
+                If data(1) = 3 Then
+                    Dim prefix = data(0) & ":"
+                    For Each key In oldRfidValues.Keys.Where(Function(k) k.StartsWith(prefix)).ToList()
+                        oldRfidValues(data(2) & ":" & key.Substring(prefix.Length)) = oldRfidValues(key)
+                        oldRfidValues.Remove(key)
+                    Next
+                End If
+                oldRfidValues(If(data(1) = 3, data(2), data(0)) & ":" & data(1)) = data(2)
+                Return New Byte() {&H55, cmd, 1}
             Case &H26
                 oldOutput = Not oldOutput : Return Nothing
             Case &H27
@@ -97,7 +121,7 @@ Public Module Demo
                 d(164) = 24 : d(167) = &H7F : d(168) = 2
                 d(169) = 1 : d(170) = 2 : d(171) = 3
                 Put16(d, 172, 100) : PutText(d, 176, "*100#")
-                d(193) = 2 : d(194) = 1
+                d(193) = 2 : d(194) = 0
                 If oldSettingsBlock Is Nothing Then
                     OldSettings.UpdateCrc(d) : oldSettingsBlock = d
                 End If

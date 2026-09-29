@@ -153,7 +153,7 @@ Public Class frmOldFirmware
         SetupButton(allSettings, "Все настройки платы", 230)
         AddHandler allSettings.Click, Sub() tabs.SelectedTab = tabSettings
         tabService.Controls.Add(Theme.CardPage(Theme.PageHeading("Сервис", "Данные платы для проверки и диагностики"),
-            BuildServiceActions(),
+            BuildServiceActions(), BuildRfidCard(),
             Theme.Card("Мониторинг · все поля", monitorTitle, statusGrid),
             Theme.Card("Настройки платы", allSettings,
                 New Label With {.Text = "Для настроек нужен администратор, для базы — управляющий или администратор. " &
@@ -195,6 +195,9 @@ Public Class frmOldFirmware
 
     Private Sub SetBusy(value As Boolean)
         busy = value
+        rfidAddress.Enabled = Not value
+        rfidParameter.Enabled = Not value
+        rfidValue.Enabled = Not value
         oldShoot.Enabled = Not value AndAlso device.SupportsPhoto
         reconnect.Enabled = Not value
         For Each button In writeButtons
