@@ -9,6 +9,8 @@ Public NotInheritable Class OldFirmware
     Private ReadOnly port As ClComPort
     Private ReadOnly demoMode As Boolean
     Private photoEnabled As Boolean?
+    Private accessLevel As Byte
+    Private lastSettings As Byte()
     Private ReadOnly stopRead As New Threading.CancellationTokenSource()
     Public ReadOnly Identification As Byte()
     Private Shared ReadOnly Ansi As Encoding = Encoding.GetEncoding(1251)
@@ -55,6 +57,9 @@ Public NotInheritable Class OldFirmware
     Public Sub Reconnect()
         stopRead.Token.ThrowIfCancellationRequested()
         If demoMode Then Return
+        accessLevel = 0
+        lastSettings = Nothing
+        photoEnabled = Nothing
         port.EnableEventReceived = False
         port.Port.Close()
         Try
@@ -142,7 +147,9 @@ Public NotInheritable Class OldFirmware
     ' FW/User/user_fun.c:495-515; structures.h:18-20; Unit1.cpp:1060-1069.
     ' Пароль UInt16 LE, не строка ASCII. Никаких встроенных паролей.
     Public Function Authenticate(password As UShort) As Byte
-        Return ParseAuthentication(Request(&H25, BitConverter.GetBytes(password)))
+        accessLevel = 0
+        accessLevel = ParseAuthentication(Request(&H25, BitConverter.GetBytes(password)))
+        Return accessLevel
     End Function
 
     Public Shared Function ParseAuthentication(b As Byte()) As Byte
@@ -154,9 +161,52 @@ Public NotInheritable Class OldFirmware
     Public Function ReadSettings() As DataTable
         Dim reply = Request(&H20, New Byte() {0})
         Dim table = ParseSettings(reply)
+        lastSettings = reply.Skip(6).ToArray()
         photoEnabled = (reply(19) And 16) <> 0
         Return table
     End Function
+
+    Public ReadOnly Property CanWrite As Boolean
+        Get
+            Return New Byte() {45, 47, 48}.Contains(Identification(5))
+        End Get
+    End Property
+
+    Public ReadOnly Property WriteSupportText As String
+        Get
+            Return If(CanWrite, "Запись — только после подтверждения изменений.", "Протокол этой прошивки не подтверждён: запись недоступна.")
+        End Get
+    End Property
+
+    Public Sub RequireAdministrator()
+        If Not CanWrite Then Throw New InvalidOperationException(WriteSupportText)
+        If Not demoMode AndAlso accessLevel <> &H20 Then Throw New UnauthorizedAccessException("Введите пароль администратора и повторите операцию.")
+    End Sub
+
+    Public Function SettingsSnapshot() As Byte()
+        Return If(lastSettings Is Nothing, Nothing, CType(lastSettings.Clone(), Byte()))
+    End Function
+
+    Public Sub WriteSettings(before As Byte(), after As Byte(), backup As String)
+        RequireAdministrator()
+        OldSettings.Table(before) : OldSettings.Table(after)
+        ReadSettings()
+        If Not lastSettings.SequenceEqual(before) Then Throw New IOException("Настройки платы изменились после чтения. Прочитайте их заново и повторите изменения.")
+        If Not before.Skip(195).Take(315).SequenceEqual(after.Skip(195).Take(315)) Then Throw New InvalidDataException("Нельзя изменять резерв конфигурации.")
+        OldSettings.UpdateCrc(after)
+        Using file As New FileStream(backup, FileMode.CreateNew, FileAccess.Write)
+            file.Write(before, 0, before.Length) : file.Flush(True)
+        End Using
+        Dim reply As Byte()
+        If demoMode Then
+            reply = Demo.OldFirmwareReply(&H21, New Byte() {0, 0, 2}.Concat(after).ToArray())
+        Else
+            reply = clBoot.WriteOldSettings(port, after)
+        End If
+        If reply Is Nothing OrElse Not reply.SequenceEqual(New Byte() {&H55, &H21, 0, 0}) Then Throw New IOException("Плата не подтвердила запись настроек. Прочитайте настройки перед повтором.")
+        ReadSettings()
+        If Not lastSettings.SequenceEqual(after) Then Throw New IOException("Прочитанные настройки не совпали с записанными. Резерв сохранён.")
+    End Sub
 
     Public Function ReadStatus() As DataTable
         Return ParseStatus(Request(&H22, New Byte() {0}))

@@ -226,6 +226,14 @@ Public Class clBoot
 
     ' v5 User/user_fun.c:409-418; Unit1.cpp:2699 RebootinBootClick -> ResetDevice(1).
     ' Отдельно от допуска чтения: единственный вызов — после подтверждения в окне платы.
+    Friend Shared Function WriteOldSettings(comport As ClComPort, block As Byte()) As Byte()
+        If block Is Nothing OrElse block.Length <> 512 Then Throw New InvalidDataException("Требуется блок 512 байт.")
+        Dim errorText As String = ""
+        Dim reply = Exchange(comport, &H21, New Byte() {0, 0, 2}.Concat(block).ToArray(), 5000, errorText, True, True)
+        If reply Is Nothing Then Throw New IOException(errorText & " Результат записи неизвестен; сначала прочитайте настройки.")
+        Return reply
+    End Function
+
     Friend Shared Sub EnterOldBootloader(comport As ClComPort)
         Dim errorText As String = ""
         Dim reply = Exchange(comport, &H4, New Byte() {1}, 3000, errorText, True, True)

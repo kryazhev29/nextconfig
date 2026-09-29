@@ -41,6 +41,8 @@ Public Module Demo
     Public Property LegacyFwStarted As Boolean
     Public Property LegacyBootReplaced As Boolean
 
+    Private oldSettingsBlock As Byte()
+
     Public Function OldFirmwareReply(cmd As Byte, data As Byte()) As Byte()
         Select Case cmd
             Case 0
@@ -56,6 +58,10 @@ Public Module Demo
             Case &H25
                 ' В демо нет настоящего пароля; имитируем уже разрешённый доступ.
                 Return New Byte() {&H55, &H25, 0, &H20}
+            Case &H21
+                If data Is Nothing OrElse data.Length <> 515 Then Throw New ArgumentException("Блок настроек")
+                oldSettingsBlock = data.Skip(3).ToArray()
+                Return New Byte() {&H55, cmd, 0, 0}
             Case &H20
                 Dim b(517) As Byte
                 b(0) = &H55 : b(1) = cmd : Put16(b, 4, 512)
@@ -78,7 +84,10 @@ Public Module Demo
                 d(169) = 1 : d(170) = 2 : d(171) = 3
                 Put16(d, 172, 100) : PutText(d, 176, "*100#")
                 d(193) = 2 : d(194) = 1
-                Array.Copy(d, 0, b, 6, d.Length)
+                If oldSettingsBlock Is Nothing Then
+                    OldSettings.UpdateCrc(d) : oldSettingsBlock = d
+                End If
+                Array.Copy(oldSettingsBlock, 0, b, 6, d.Length)
                 Return b
             Case &H22
                 ' structures.h:79-262: packed DEVICE = 513, несмотря на комментарий 512.

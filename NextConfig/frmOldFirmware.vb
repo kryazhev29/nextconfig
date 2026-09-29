@@ -78,7 +78,7 @@ Public Class frmOldFirmware
         root.Controls.Add(Theme.MainNavigation(tabs), 0, 1)
         feedback.Dock = DockStyle.Fill : feedback.AutoSize = True : feedback.Font = Theme.FontCaption
         feedback.Margin = New Padding(Theme.GapSection, Theme.GapRelated, Theme.GapSection, Theme.GapRelated)
-        feedback.Text = "Только чтение. Переход в загрузчик — по отдельной кнопке с подтверждением."
+        feedback.Text = device.WriteSupportText
         AgentLog.WatchText(feedback, "oldfw.feedback")
         root.Controls.Add(feedback, 0, 2)
 
@@ -132,7 +132,8 @@ Public Class frmOldFirmware
         settingsActions.Controls.Add(readConfig)
         settingsActions.Controls.Add(New Label With {.Text = "Поиск:", .Font = Theme.FontCaption, .AutoSize = True, .Padding = New Padding(0, Theme.GapRelated, 0, 0)})
         settingsActions.Controls.Add(Theme.FieldBox(search, 260))
-        tabSettings.Controls.Add(GridPage("Настройки", "Все поля старой платы · только просмотр", settingsGrid, settingsActions, showSecrets))
+        SetupSettingsWrite(settingsActions)
+        tabSettings.Controls.Add(GridPage("Настройки", "Выберите параметр и измените черновик · запись после подтверждения", settingsGrid, settingsActions, showSecrets))
         numbersTitle.Text = "База номеров / ID · ещё не прочитана" : numbersTitle.AutoSize = True : Theme.Group(numbersTitle)
         Dim numberActions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
         numberActions.Controls.AddRange({readBase, export})
@@ -144,7 +145,7 @@ Public Class frmOldFirmware
         Dim readSchedules As New Button()
         SetupButton(readSchedules, "Прочитать расписания", 220)
         AddHandler readSchedules.Click, Async Sub() Await ReadConfiguration()
-        tabSchedules.Controls.Add(GridPage("Расписания", "Расписания, сохранённые в старой плате · только просмотр", schedulesGrid, readSchedules))
+        tabSchedules.Controls.Add(GridPage("Расписания", "Двойной щелчок — изменить · запись в разделе Настройки", schedulesGrid, readSchedules))
         monitorTitle.AutoSize = True : Theme.Group(monitorTitle)
         statusGrid.Height = Theme.Px(420) : statusGrid.Dock = DockStyle.Top
         Dim allSettings As New Button()
@@ -194,6 +195,9 @@ Public Class frmOldFirmware
         busy = value
         oldShoot.Enabled = Not value AndAlso device.SupportsPhoto
         reconnect.Enabled = Not value
+        For Each button In writeButtons
+            button.Enabled = Not value AndAlso device.CanWrite
+        Next
         migrate.Enabled = Not value
         readConfig.Enabled = Not value
         readBase.Enabled = Not value
@@ -275,15 +279,10 @@ Public Class frmOldFirmware
     Private Async Function ReadConfiguration() As Task
         Await RunRead(Function() device.ReadSettings(),
             Sub(t)
-                settings = t
-                BindFields(settingsGrid, settings)
-                FilterSettings()
-                Dim schedules = t.Clone()
-                For Each row As DataRow In t.Rows
-                    If CStr(row(0)).StartsWith("Расписание ") Then schedules.ImportRow(row)
-                Next
-                BindFields(schedulesGrid, schedules)
-            End Sub, "Настройки прочитаны. Поля доступны только для просмотра.", True, &H20)
+                originalSettings = device.SettingsSnapshot()
+                editedSettings = CType(originalSettings.Clone(), Byte())
+                ShowSettings(editedSettings)
+            End Sub, "Настройки прочитаны. Изменения сохраняются в черновике до подтверждения записи.", True, &H20)
     End Function
 
     Private Async Function ReadDatabase() As Task
