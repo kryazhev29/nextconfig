@@ -18,6 +18,7 @@ Public Enum eDemoMode
     Boot = 3
     OldBoot = 4
     OldFw = 5
+    OldFw48 = 6
 End Enum
 
 Public Module Demo
@@ -29,6 +30,96 @@ Public Module Demo
             Return Mode <> eDemoMode.Off
         End Get
     End Property
+
+    ' Синтетические ответы v5 проходят те же проверки длины и парсеры, что COM.
+    ' FW/User/user_fun.c:421,476,495,626,4806; structures.h:79,266,336.
+    ' Никакие SerialPort API в этой функции не вызываются.
+    Public Function OldFirmwareReply(cmd As Byte, data As Byte()) As Byte()
+        Select Case cmd
+            Case 0
+                Dim b(25) As Byte
+                b(0) = &H55 : b(2) = 1 : b(3) = &H21 : b(4) = 139
+                b(5) = 48 : b(6) = &H8B
+                PutText(b, 10, "000000000000048")
+                Return b
+            Case &H25
+                ' В демо нет настоящего пароля; имитируем уже разрешённый доступ.
+                Return New Byte() {&H55, &H25, 0, &H20}
+            Case &H20
+                Dim b(517) As Byte
+                b(0) = &H55 : b(1) = cmd : Put16(b, 4, 512)
+                Dim d(511) As Byte
+                d(0) = &HAD : d(1) = 1 : d(3) = 1 : d(4) = &H8B
+                Put32(d, 5, 1790640000UI)
+                d(13) = &H2E : d(14) = 1
+                PutText(d, 15, "internet")
+                d(60) = 1 : d(61) = 0 : Put16(d, 64, 60)
+                PutText(d, 66, "demo.example") : Put16(d, 90, 15010)
+                PutText(d, 92, "pool.ntp.org") : Put16(d, 116, 123)
+                PutText(d, 118, "79000000048")
+                d(134) = 1 : d(135) = 5 : d(136) = 2 : d(137) = 1
+                For i = 0 To 6
+                    d(138 + 3 * i) = CByte(1 << i)
+                    d(139 + 3 * i) = 8 : d(140 + 3 * i) = 20
+                Next
+                d(160) = 7 : d(161) = 4 : d(162) = 8 : d(163) = 20
+                d(164) = 24 : d(167) = &H7F : d(168) = 2
+                d(169) = 1 : d(170) = 2 : d(171) = 3
+                Put16(d, 172, 100) : PutText(d, 176, "*100#")
+                d(193) = 2 : d(194) = 1
+                Array.Copy(d, 0, b, 6, d.Length)
+                Return b
+            Case &H22
+                ' structures.h:79-262: packed DEVICE = 513, несмотря на комментарий 512.
+                Dim d(512) As Byte
+                PutText(d, 0, "000000000000048")
+                d(16) = 48 : d(17) = &H8B : d(23) = &H11 : d(24) = 24
+                Put16(d, 25, 2026) : d(27) = 9 : d(28) = 29
+                d(29) = 12 : d(32) = &H41
+                Put32(d, 49, 86400UI + CUInt((Environment.TickCount And &HFFFF) \ 1000))
+                d(53) = 1 : Put16(d, 54, 35) : d(60) = &H20 : d(61) = 27
+                Put16(d, 62, 3200) : Put16(d, 64, 25)
+                Put32(d, 66, CUInt(DateTimeToUnixTimestamp(DateTime.Now)))
+                d(70) = &H89 : Put16(d, 79, 127)
+                Put16(d, 160, 15000) : Put16(d, 166, 350)
+                d(237) = 2 : d(238) = 3 : d(269) = 4 : Put16(d, 270, 12150)
+                Dim b(d.Length + 4) As Byte
+                b(0) = &H55 : b(1) = cmd : Put16(b, 3, d.Length)
+                Array.Copy(d, 0, b, 5, d.Length)
+                Return b
+            Case &H2C
+                If data(0) = 0 Then Return New Byte() {&H55, cmd, 0, 35, 0}
+                Dim index = CInt(BitConverter.ToUInt16(data, 1))
+                Dim count = Math.Min(31, 35 - index) ' USB: до 2000 / 64 записей
+                Dim b(6 + count * 64) As Byte
+                b(0) = &H55 : b(1) = cmd : b(2) = 1
+                Put16(b, 3, index) : Put16(b, 5, count)
+                For n = 0 To count - 1
+                    Dim k = index + n
+                    Dim p = 7 + 64 * n
+                    b(p) = &HAA
+                    PutText(b, p + 1, If(k Mod 3 = 0, "900000" & k.ToString("0000"), "00" & k.ToString("X8")))
+                    PutText(b, p + 12, If(k = 0, "Администратор", "Житель " & (k + 1)))
+                    b(p + 32) = CByte(((k Mod 3) << 4) Or If(k = 0, 2, 0))
+                    Put32(b, p + 33, If(k Mod 2 = 0, 0UI, 1800000000UI))
+                    b(p + 37) = 20 : b(p + 38) = CByte(k Mod 7) : b(p + 39) = CByte(k Mod 10)
+                Next
+                Return b
+            Case Else
+                Throw New InvalidOperationException("Нет демо-ответа для этой команды чтения.")
+        End Select
+    End Function
+
+    Private Sub PutText(b As Byte(), offset As Integer, value As String)
+        Dim bytes = System.Text.Encoding.GetEncoding(1251).GetBytes(value)
+        Array.Copy(bytes, 0, b, offset, bytes.Length)
+    End Sub
+    Private Sub Put16(b As Byte(), offset As Integer, value As Integer)
+        Array.Copy(BitConverter.GetBytes(CUShort(value)), 0, b, offset, 2)
+    End Sub
+    Private Sub Put32(b As Byte(), offset As Integer, value As UInteger)
+        Array.Copy(BitConverter.GetBytes(value), 0, b, offset, 4)
+    End Sub
 
     Private Function ParseArgs() As eDemoMode
         For Each a As String In Environment.GetCommandLineArgs()
@@ -43,6 +134,8 @@ Public Module Demo
                     Return eDemoMode.OldBoot
                 Case "--demo:oldfw", "/demo:oldfw"
                     Return eDemoMode.OldFw
+                Case "--demo:oldfw48", "/demo:oldfw48"
+                    Return eDemoMode.OldFw48
             End Select
         Next
         Return eDemoMode.Off
@@ -76,6 +169,12 @@ Partial Public Class clOpros
 
             Case eDemoMode.NoPorts
                 RaiseEvent onFind("")
+
+            Case eDemoMode.OldFw48
+                RaiseEvent onFind("COM9")
+                Thread.Sleep(900)
+                rejim = eRejim.OldFirmware
+                RaiseEvent onOldFirmwareFound("COM9", Demo.OldFirmwareReply(0, Nothing))
 
             Case eDemoMode.Boot
                 RaiseEvent onFind("COM9")

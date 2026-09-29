@@ -112,6 +112,31 @@ Public Module Theme
         End Using
     End Sub
 
+    Public Sub ReadOnlyGrid(grid As DataGridView)
+        grid.Dock = DockStyle.Fill
+        grid.ReadOnly = True
+        grid.AllowUserToAddRows = False
+        grid.AllowUserToDeleteRows = False
+        grid.AllowUserToResizeRows = False
+        grid.RowHeadersVisible = False
+        grid.BackgroundColor = Surface
+        grid.GridColor = Border
+        grid.BorderStyle = BorderStyle.FixedSingle
+        grid.Font = FontCaption
+        grid.DefaultCellStyle.BackColor = Surface
+        grid.DefaultCellStyle.ForeColor = TextMain
+        grid.DefaultCellStyle.SelectionBackColor = SurfaceHover
+        grid.DefaultCellStyle.SelectionForeColor = TextMain
+        grid.ColumnHeadersDefaultCellStyle.BackColor = WindowBack
+        grid.ColumnHeadersDefaultCellStyle.ForeColor = TextMain
+        grid.ColumnHeadersDefaultCellStyle.Font = FontCaption
+        grid.EnableHeadersVisualStyles = False
+        grid.RowTemplate.Height = Px(27)
+        grid.ColumnHeadersHeight = Px(30)
+        grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+        grid.MultiSelect = False
+    End Sub
+
     ' Блок с белой поверхностью и тонкой границей.
     Public Function Card() As Panel
         Dim p As New Panel()

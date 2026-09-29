@@ -45,6 +45,7 @@ Public Class Form1
         AddHandler opros.isFinded, AddressOf opros_isFinded
         AddHandler opros.onFind, AddressOf opros_onFind
         AddHandler opros.onBootFound, AddressOf opros_onBootFound
+        AddHandler opros.onOldFirmwareFound, AddressOf opros_onOldFirmwareFound
 
         UpdateConnectState()
 
@@ -162,6 +163,21 @@ Public Class Form1
     End Sub
 
     Private Delegate Sub delegate_onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
+
+    Private Sub opros_onOldFirmwareFound(port As String, identity As Byte())
+        If IsDisposed OrElse Disposing Then Return
+        BeginInvoke(New Action(Sub()
+                                   isFinded = False
+                                   UpdateConnectState()
+                                   Hide()
+                                   Using f As New frmOldFirmware(New OldFirmware(opros.GetComPort, identity, Demo.IsOn), port)
+                                       f.ShowDialog(Me)
+                                   End Using
+                                   ' Закрытие просмотра завершает сеанс, без повторного сканирования портов.
+                                   If opros.GetComPort.Port.IsOpen Then opros.GetComPort.Port.Close()
+                                   Close()
+                               End Sub))
+    End Sub
 
     ' На порту ответил загрузчик: приложения на плате нет или его держат кнопкой.
     Private Sub opros_onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)

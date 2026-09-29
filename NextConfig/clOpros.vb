@@ -11,6 +11,7 @@ Partial Public Class clOpros
     Public Event onStatus(ByVal status As s_status)
     ' на порту отозвался загрузчик: приложения на плате нет или его держат кнопкой
     Public Event onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
+    Public Event onOldFirmwareFound(ByVal port As String, ByVal identity As Byte())
 
     Private parrent As Form
     Private WithEvents Comport As ClComPort
@@ -157,6 +158,7 @@ Partial Public Class clOpros
         WaitConnect
         Work
         Boot ' на порту загрузчик: опрос стоит, портом распоряжается окно записи
+        OldFirmware ' портом распоряжается только экран чтения v5
     End Enum
 
     Public Enum eCmd
@@ -310,19 +312,20 @@ Partial Public Class clOpros
                         End If
                     Else
                         ' прошивка не ответила — спросим загрузчик его протоколом
-                        Dim bootVer As Byte = 0
-                        Dim bootHw As Byte = 0
-
-                        If clBoot.Info(Comport, bootVer, bootHw) Then
+                        Dim identity = clBoot.IdentifyLegacy(Comport)
+                        If OldFirmware.IsFirmware(identity) Then
+                            rejim = eRejim.OldFirmware
+                            RaiseEvent onOldFirmwareFound(ports(portIndex), identity)
+                        ElseIf OldFirmware.IsBootloader(identity) Then
                             rejim = eRejim.Boot
-                            RaiseEvent onBootFound(ports(portIndex), bootVer, bootHw)
+                            RaiseEvent onBootFound(ports(portIndex), identity(3), identity(4))
                         Else
                             NextPort()
                         End If
                     End If
 
                 ' портом распоряжается окно записи прошивки
-                Case eRejim.Boot
+                Case eRejim.Boot, eRejim.OldFirmware
                     Thread.Sleep(200)
 
                 Case eRejim.WaitConnect, eRejim.Work

@@ -103,6 +103,8 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="clBoot.vb" />
+    <Compile Include="OldFirmware.vb" />
+    <Compile Include="frmOldFirmware.vb"><SubType>Form</SubType></Compile>
     <Compile Include="frmFW.Designer.vb">
       <DependentUpon>frmFW.vb</DependentUpon>
     </Compile>
