@@ -81,6 +81,7 @@ Public Class OldSettings
         Dim f = Fields(index)
         If Not f.Editable Then Throw New InvalidOperationException("Резерв сохраняется, CRC рассчитывается автоматически.")
         Dim result = CType(block.Clone(), Byte())
+        If RawValue(block, index) = value Then Return result
         If f.Kind = "text" Then
             Dim bytes = Ansi.GetBytes(value)
             If bytes.Length >= f.Width OrElse value.Contains(ChrW(0)) Then Throw New InvalidDataException(f.Hint)

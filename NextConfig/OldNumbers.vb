@@ -89,9 +89,14 @@ Public Class OldNumbers
             If nextRow Is Nothing Then
                 lines.Add(CStr(row(1)) & " · " & CStr(row(2)) & ": есть → удалить")
             Else
-                For c = 1 To 7
+                For c = 1 To 11
+                    If c = 8 Then Continue For
                     If CStr(row(c)) <> CStr(nextRow(c)) Then lines.Add(CStr(row(1)) & " · " & before.Columns(c).ColumnName & ": " & CStr(row(c)) & " → " & CStr(nextRow(c)))
                 Next
+                Dim aRaw = Record(row), bRaw = Record(nextRow)
+                If Not aRaw.Skip(40).SequenceEqual(bRaw.Skip(40)) Then
+                    lines.Add(CStr(row(1)) & " · Резерв записи: " & BitConverter.ToString(aRaw, 40) & " → " & BitConverter.ToString(bRaw, 40))
+                End If
             End If
         Next
         For Each row As DataRow In after.Rows

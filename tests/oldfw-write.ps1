@@ -8,6 +8,10 @@ function Check($condition,$name) {if(-not $condition){throw "FAIL: $name"};$scri
 function Reject([scriptblock]$action,$name){$failed=$false;try{& $action | Out-Null}catch{$failed=$true};Check $failed $name}
 $id=[NextConfig.Demo]::OldFirmwareReply(0,$null)
 $reader=[NextConfig.OldFirmware]::new($null,$id,$true)
+$locked=[NextConfig.OldFirmware]::new($null,$id,$false)
+$denied=$false
+try{$locked.RequireAdministrator()}catch{$denied=$_.Exception.InnerException -is [UnauthorizedAccessException]}
+Check $denied 'explicit administrator authentication required before port access'
 $table=$reader.ReadSettings()
 $before=$reader.SettingsSnapshot()
 $fields=[NextConfig.OldSettings]::Fields
@@ -20,6 +24,15 @@ for($i=0;$i -lt $fields.Count;$i++) {
  Check ([Linq.Enumerable]::SequenceEqual([byte[]]$before,[byte[]]$copy)) "roundtrip field $i"
 }
 function Index($name){for($i=0;$i -lt $table.Rows.Count;$i++){if($table.Rows[$i][1] -eq $name){return $i}};throw $name}
+$padded=$before.Clone();$padded[50]=167
+$unchanged=[NextConfig.OldSettings]::Change($padded,(Index 'Точка доступа APN'),'internet')
+Check ([Linq.Enumerable]::SequenceEqual([byte[]]$padded,[byte[]]$unchanged)) 'unchanged strings preserve padding'
+foreach($version in @(45,47,48)){
+ $known=$id.Clone();$known[5]=$version
+ Check ([NextConfig.OldFirmware]::new($null,$known,$true).CanWrite) "known firmware $version"
+}
+$next=$id.Clone();$next[5]=49
+Check (-not [NextConfig.OldFirmware]::IsFirmware($next)) 'NEXT 49 excluded'
 $after=[NextConfig.OldSettings]::Change($before,(Index 'Пароль администратора'),'45678')
 $after=[NextConfig.OldSettings]::Change($after,(Index 'Фотофиксация'),'1')
 Check ([BitConverter]::ToUInt16($after,9) -eq 45678) 'password LE'

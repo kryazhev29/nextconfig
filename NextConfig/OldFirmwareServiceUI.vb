@@ -3,6 +3,7 @@ Imports System.Threading.Tasks
 
 Partial Public Class frmOldFirmware
     Private ReadOnly serviceGrid As New DataGridView()
+    Private serviceCard As TableLayoutPanel
     Private Function BuildServiceActions() As Control
         Dim actions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
         Dim names = {"oldTestOutput", "oldAutoregistration", "oldFactoryReset", "oldChronology", "oldWorkLog"}
@@ -14,16 +15,25 @@ Partial Public Class frmOldFirmware
             Dim operation = i
             AddHandler button.Click, Async Sub() Await ServiceAction(operation)
         Next
-        Theme.ReadOnlyGrid(serviceGrid) : serviceGrid.Height = Theme.Px(180) : serviceGrid.Dock = DockStyle.Top
-        Return Theme.Card("Обслуживание старой платы", actions,
-                          New Label With {.AutoSize = True, .Text = device.WriteSupportText}, serviceGrid)
+        Theme.ReadOnlyGrid(serviceGrid) : serviceGrid.Visible = False
+        serviceGrid.MaximumSize = New Size(0, Theme.Px(180))
+        serviceGrid.Height = Theme.Px(180) : serviceGrid.Dock = DockStyle.Top
+        serviceCard = Theme.Card("Обслуживание старой платы", actions,
+                                 New Label With {.AutoSize = True, .Text = device.WriteSupportText})
+        Return serviceCard
     End Function
+    Private Sub ShowServiceResult(table As DataTable)
+        BindFields(serviceGrid, table)
+        serviceGrid.Visible = True
+        If serviceGrid.Parent Is Nothing Then serviceCard.Controls.Add(serviceGrid)
+    End Sub
+
     Private Async Function ServiceAction(operation As Integer) As Task
         If busy OrElse closePending Then Return
         Select Case operation
             Case 0
                 Await RunWrite("Проверка выхода", "Выход: текущее состояние → срабатывание по настройкам импульса/инверсии платы.",
-                               Sub() device.TestOutput(), successMessage:="Команда выхода отправлена без ответа. Фактическое срабатывание проверьте на выходе; состояние видно в мониторинге.")
+                               Sub() device.TestOutput(), successMessage:="Команда выхода отправлена без ответа. Фактическое срабатывание проверьте на выходе; состояние видно в мониторинге.", requiredAccess:=&H10)
             Case 1
                 Dim current As Boolean
                 Dim read As Boolean
@@ -60,9 +70,9 @@ Partial Public Class frmOldFirmware
                                    numbers = Nothing : numbersGrid.DataSource = Nothing : settingsGrid.DataSource = Nothing : schedulesGrid.DataSource = Nothing
                                End Sub, "Сброс подтверждён платой, настройки и пустая база прочитаны. Перед дальнейшей записью введите пароль заново.")
             Case 3
-                Await RunRead(Function() device.ReadChronology(), Sub(t) BindFields(serviceGrid, t), "Получен ответ запроса хронологии.", True, &H10)
+                Await RunRead(Function() device.ReadChronology(), AddressOf ShowServiceResult, "Получен ответ запроса хронологии.", True, &H10)
             Case 4
-                Await RunRead(Function() device.ReadWorkLog(), Sub(t) BindFields(serviceGrid, t), "Получен ответ лога работы.")
+                Await RunRead(Function() device.ReadWorkLog(), AddressOf ShowServiceResult, "Получен ответ лога работы.")
         End Select
     End Function
 End Class

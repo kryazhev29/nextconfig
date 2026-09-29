@@ -1,15 +1,19 @@
 ﻿Imports System.IO
 
 Partial Public Class OldFirmware
-    Private Sub CheckBase(before As DataTable)
-        RequireAdministrator()
+    Private Sub CheckBase(before As DataTable, Optional required As Byte = &H20)
+        RequireAccess(required)
         If Not OldNumbers.Same(OldNumbers.Records(before), OldNumbers.Records(ReadNumbers())) Then Throw New IOException("База изменилась после чтения. Прочитайте её заново перед записью.")
     End Sub
     Private Sub CheckNumberReply(reply As Byte(), cmd As Byte)
         If reply Is Nothing OrElse Not reply.SequenceEqual(New Byte() {&H55, cmd, 0}) Then Throw New IOException("Плата не подтвердила изменение номера. Прочитайте базу перед повтором.")
     End Sub
     Public Sub ChangeNumber(before As DataTable, original As Byte(), replacement As Byte(), backup As String)
-        CheckBase(before)
+        CheckBase(before, &H10)
+        If Not demoMode AndAlso accessLevel = &H10 AndAlso
+            ((original IsNot Nothing AndAlso (original(32) And 3) = 2) OrElse (replacement IsNot Nothing AndAlso (replacement(32) And 3) = 2)) Then
+            Throw New UnauthorizedAccessException("Управляющий не может добавлять, менять или удалять администратора.")
+        End If
         Dim expected = OldNumbers.Records(before)
         If original IsNot Nothing Then
             If expected.Where(Function(r) OldNumbers.Id(r) = OldNumbers.Id(original)).Count() <> 1 Then Throw New InvalidDataException("Номер отсутствует или неоднозначен.")

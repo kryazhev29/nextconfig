@@ -19,6 +19,8 @@ Partial Public Class frmOldFirmware
         Dim result As Byte() = Nothing
         Using dialog As New Form With {.Text = If(source Is Nothing, "Добавление номера", "Изменение номера"), .StartPosition = FormStartPosition.CenterParent, .Size = New Size(Theme.Px(670), Theme.Px(620))}
             Theme.StyleForm(dialog)
+            dialog.AutoScroll = True
+            AddHandler dialog.Shown, Sub() Theme.FitBoardWindow(dialog)
             Dim fields As New TableLayoutPanel With {.Dock = DockStyle.Top, .AutoSize = True, .ColumnCount = 2, .Padding = New Padding(Theme.GapSection)}
             fields.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 48)) : fields.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 52))
             Dim idBox As New TextBox With {.MaxLength = 10}
@@ -120,7 +122,7 @@ Partial Public Class frmOldFirmware
                                    device.CompressNumbers(before)
                                Case Else : device.ChangeNumber(before, original, replacement, backup)
                            End Select
-                       End Sub)
+                       End Sub, requiredAccess:=If(operation <= 2, CByte(&H10), CByte(&H20)))
         ' Даже при ошибке перечитываем частично изменённую базу; старый экспорт очищается.
         If Not closePending Then
             Dim operationResult = feedback.Text

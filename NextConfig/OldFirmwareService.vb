@@ -39,7 +39,7 @@ Partial Public Class OldFirmware
         If AutoregistrationState() <> enabled Then Throw New IOException("Авторегистрация не подтверждена чтением состояния.")
     End Sub
     Public Sub TestOutput()
-        RequireAdministrator()
+        RequireAccess(&H10)
         If demoMode Then
             Demo.OldFirmwareReply(&H26, Nothing)
         Else
@@ -79,6 +79,7 @@ Partial Public Class OldFirmware
         End Using
         BackupNumbers(baseBefore, prefix & ".csv")
         Dim reply = If(demoMode, Demo.OldFirmwareReply(&H2F, Nothing), clBoot.ResetOldFactory(port))
+        accessLevel = 0
         If reply Is Nothing OrElse Not reply.SequenceEqual(New Byte() {&H55, &H2F, 0}) Then Throw New IOException("Плата не подтвердила сброс. Прочитайте настройки и базу; резерв сохранён.")
         Try
             ReadSettings()

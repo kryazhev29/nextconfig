@@ -97,7 +97,7 @@ Public Module AgentChannel
         If parts.Length < 2 OrElse parts(0) <> token Then Return Fail("неверный токен")
         Dim cmd = parts(1).Trim().ToLowerInvariant()
         Dim args = parts.Skip(2).ToArray()
-        If cmd <> "log" Then AgentLog.Write("agent", "cmd", cmd, "args", String.Join(" | ", args))
+        If cmd <> "log" Then AgentLog.Write("agent", "cmd", cmd, "args", If(cmd = "type", Arg(args, 0) & " | **", String.Join(" | ", args)))
 
         Try
             Select Case cmd

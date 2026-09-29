@@ -40,13 +40,18 @@ Partial Public Class frmOldFirmware
             folder = dialog.SelectedPath
         End Using
         Dim resolution = New Byte() {1, 3, 5, 7}(photoResolution.SelectedIndex)
+        Dim pin As UShort? = Nothing
         SetBusy(True)
         photoMessage.Text = "Приём фото…"
         Try
+            pin = GetPassword()
             Await portGate.WaitAsync()
             Dim path As String
             Try
-                path = Await Task.Run(Function() device.CapturePhoto(folder, resolution))
+                path = Await Task.Run(Function()
+                                          If pin.HasValue Then device.Authenticate(pin.Value)
+                                          Return device.CapturePhoto(folder, resolution)
+                                      End Function)
             Finally
                 portGate.Release()
             End Try
@@ -60,6 +65,7 @@ Partial Public Class frmOldFirmware
             photoMessage.Text = ex.Message
             reconnect.Visible = True
         Finally
+            pin = Nothing
             SetBusy(False)
             If closePending AndAlso Not polling Then Close()
         End Try

@@ -19,6 +19,7 @@ Public Class OldChangeDialog
         buttons.Controls.AddRange({cancel, confirm})
         root.Controls.Add(text, 0, 0) : root.Controls.Add(buttons, 0, 1) : Controls.Add(root)
         CancelButton = cancel
+        AddHandler Shown, Sub() Theme.FitBoardWindow(Me)
     End Sub
 End Class
 
@@ -63,6 +64,8 @@ Partial Public Class frmOldFirmware
         End If
         Using dialog As New Form With {.Text = CStr(row(1)), .StartPosition = FormStartPosition.CenterParent, .Size = New Size(Theme.Px(650), Theme.Px(300))}
             Theme.StyleForm(dialog)
+            dialog.AutoScroll = True
+            AddHandler dialog.Shown, Sub() Theme.FitBoardWindow(dialog)
             Dim input As New TextBox With {.Text = OldSettings.RawValue(editedSettings, index), .UseSystemPasswordChar = field.Secret, .Dock = DockStyle.Top}
             Dim hint As New Label With {.Text = field.Hint, .AutoSize = True, .MaximumSize = New Size(Theme.Px(570), 0)}
             Dim apply As New Button With {.Text = "Применить к черновику", .AutoSize = True}
@@ -83,7 +86,7 @@ Partial Public Class frmOldFirmware
         End Using
     End Sub
 
-    Private Async Function RunWrite(title As String, changes As String, action As Action, Optional done As Action = Nothing, Optional successMessage As String = "Операция выполнена и проверена.") As Task
+    Private Async Function RunWrite(title As String, changes As String, action As Action, Optional done As Action = Nothing, Optional successMessage As String = "Операция выполнена и проверена.", Optional requiredAccess As Byte = &H20) As Task
         If busy OrElse closePending Then Return
         If Not device.CanWrite Then feedback.Text = device.WriteSupportText : Return
         If String.IsNullOrWhiteSpace(changes) Then feedback.Text = "Изменений нет." : Return
@@ -98,7 +101,7 @@ Partial Public Class frmOldFirmware
             Try
                 Await Task.Run(Sub()
                                    If pin.HasValue Then device.Authenticate(pin.Value)
-                                   device.RequireAdministrator()
+                                   device.RequireAccess(requiredAccess)
                                    action()
                                End Sub)
             Finally

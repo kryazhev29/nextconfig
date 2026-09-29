@@ -179,8 +179,21 @@ Public NotInheritable Class OldFirmware
     End Property
 
     Public Sub RequireAdministrator()
+        RequireAccess(&H20)
+    End Sub
+
+    Public Sub RequireAccess(required As Byte)
         If Not CanWrite Then Throw New InvalidOperationException(WriteSupportText)
-        If Not demoMode AndAlso accessLevel <> &H20 Then Throw New UnauthorizedAccessException("Введите пароль администратора и повторите операцию.")
+        If demoMode Then Return
+        Dim message = If(required = &H20, "Введите пароль администратора.", "Введите пароль управляющего или администратора.")
+        If accessLevel <> &H20 AndAlso (required = &H20 OrElse accessLevel <> &H10) Then Throw New UnauthorizedAccessException(message)
+        Dim status = Request(&H22, New Byte() {0})
+        ParseStatus(status)
+        Dim actualAccess = status(65)
+        If actualAccess <> &H20 AndAlso (required = &H20 OrElse actualAccess <> &H10) Then
+            accessLevel = 0
+            Throw New UnauthorizedAccessException(message)
+        End If
     End Sub
 
     Public Function SettingsSnapshot() As Byte()

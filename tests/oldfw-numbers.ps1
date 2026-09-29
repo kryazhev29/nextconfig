@@ -13,6 +13,12 @@ Check ($before.Rows.Count -eq 35) 'v1 stale count is refreshed'
 $folder=Join-Path $env:TEMP ('oldnumbers-'+[guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($folder)|Out-Null
 try {
+ $metadata=$before.Copy()
+ $row=[NextConfig.OldNumbers]::Record($metadata.Rows[0]);$row[40]=167;$row[32]=$row[32] -bor 4
+ $records=[NextConfig.OldNumbers]::Records($metadata);$records[0]=$row
+ $metadata=[NextConfig.OldNumbers]::ToTable($records)
+ $diff=[NextConfig.OldNumbers]::Changes($before,$metadata)
+ Check ($diff.Contains('Резерв записи:') -and $diff.Contains('Изменён:')) 'all changed metadata shown'
  $csv=Join-Path $folder 'export.csv'
  [NextConfig.OldFirmware]::SaveCsv($before,$csv)
  $loaded=[NextConfig.OldNumbers]::LoadCsv($csv,15000)

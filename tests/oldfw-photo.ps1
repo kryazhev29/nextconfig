@@ -51,7 +51,7 @@ try {
  $b[-1]=$b[-1] -bxor 1
  $failed=$false; try{[NextConfig.OldPhotoWire]::Decode($pending,$b)|Out-Null}catch{$failed=$true}
  if(-not $failed){throw 'CRC'}
- 'PASS: JPEG, stream fragmentation/coalescing, CRC, errors 1вЂ“5/250, truncation, order, timeout, v5'
+ 'PASS: JPEG, stream fragmentation/coalescing, CRC, errors 1-5/250, truncation, order, timeout, v5'
 } finally {
  # Delete only files produced by this test in its unique directory.
  Get-ChildItem -LiteralPath $folder -File | Remove-Item
