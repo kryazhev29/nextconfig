@@ -92,6 +92,12 @@ Public NotInheritable Class OldFirmware
         Return b
     End Function
 
+    Public Sub EnterBootloader()
+        stopRead.Token.ThrowIfCancellationRequested()
+        If demoMode Then Return
+        clBoot.EnterOldBootloader(port)
+    End Sub
+
     Public Sub CancelRead()
         stopRead.Cancel()
     End Sub

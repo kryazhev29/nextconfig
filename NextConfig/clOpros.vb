@@ -386,6 +386,18 @@ Partial Public Class clOpros
 
     End Sub
 
+    Public Sub FindAfterLegacyReset()
+        If Demo.IsOn Then
+            demoLegacyBoot = True
+            rejim = eRejim.Search
+        Else
+            SyncLock Me
+                If Comport.Port.IsOpen Then Comport.Port.Close()
+                StartFind()
+            End SyncLock
+        End If
+    End Sub
+
     Private Sub StartFind()
         ports = System.IO.Ports.SerialPort.GetPortNames
         portIndex = 0

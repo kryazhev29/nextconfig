@@ -211,6 +211,15 @@ Public Class clBoot
         End Select
     End Function
 
+    ' v5 User/user_fun.c:409-418; Unit1.cpp:2699 RebootinBootClick -> ResetDevice(1).
+    ' Отдельно от допуска чтения: единственный вызов — после подтверждения в окне платы.
+    Friend Shared Sub EnterOldBootloader(comport As ClComPort)
+        Dim errorText As String = ""
+        Dim reply = Exchange(comport, &H4, New Byte() {1}, 3000, errorText, True, True)
+        If reply Is Nothing Then Throw New IO.IOException(errorText & " Если плата уже перезапустилась, подключитесь заново.")
+        If reply.Length <> 2 Then Throw New IO.InvalidDataException("Неожиданный ответ на переход в загрузчик.")
+    End Sub
+
     Friend Shared Function IdentifyLegacy(comport As ClComPort) As Byte()
         Dim errorText As String = ""
         Return Exchange(comport, CMD_INFO, Nothing, 700, errorText, True, True)

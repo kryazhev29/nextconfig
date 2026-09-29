@@ -34,6 +34,9 @@ Public Module Demo
     ' Синтетические ответы v5 проходят те же проверки длины и парсеры, что COM.
     ' FW/User/user_fun.c:421,476,495,626,4806; structures.h:79,266,336.
     ' Никакие SerialPort API в этой функции не вызываются.
+    Public Property LegacyFwStarted As Boolean
+    Public Property LegacyBootReplaced As Boolean
+
     Public Function OldFirmwareReply(cmd As Byte, data As Byte()) As Byte()
         Select Case cmd
             Case 0
@@ -148,6 +151,7 @@ Public Module Demo
 End Module
 
 Partial Public Class clOpros
+    Private demoLegacyBoot As Boolean
 
     Private demoTick As Integer = 0
 
@@ -203,6 +207,15 @@ Partial Public Class clOpros
         While _continue
             Thread.Sleep(500)
 
+            If rejim = eRejim.Search Then
+                If demoLegacyBoot Then
+                    demoLegacyBoot = False : rejim = eRejim.Boot
+                    RaiseEvent onBootFound("COM9", &H21, 139)
+                Else
+                    rejim = eRejim.WaitConnect
+                    RaiseEvent isFinded("COM9", "867442070217472", 1)
+                End If
+            End If
             If rejim = eRejim.Work AndAlso Not _stopGetStatus Then
                 demoTick += 1
                 RaiseEvent onStatus(DemoStatus())
@@ -232,7 +245,7 @@ Partial Public Class clOpros
         s.hw_version = 139
 
         ' под старым загрузчиком прошивка знает его версию, а плату - нет
-        If Demo.Mode = eDemoMode.OldFw Then
+        If (Demo.Mode = eDemoMode.OldFw OrElse Demo.LegacyFwStarted) AndAlso Not Demo.LegacyBootReplaced Then
             s.boot_version = &H21
             s.hw_version = 0
         End If
@@ -299,6 +312,7 @@ Partial Public Class clOpros
                 demoBootReceived = BitConverter.ToUInt32(payload, 0) + CUInt(payload.Length - 4)
             Case eBootOp.OP_COMMIT
                 armed = 1
+                Demo.LegacyBootReplaced = True
         End Select
 
         received = demoBootReceived
@@ -334,6 +348,7 @@ Partial Public Class clOpros
         c.useServer1 = 1
         c.useserver2 = 0
 
+        c.rawConfig = EncodeConfig(c)
         Return c
     End Function
 

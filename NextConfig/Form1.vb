@@ -172,6 +172,12 @@ Public Class Form1
                                    Hide()
                                    Using f As New frmOldFirmware(New OldFirmware(opros.GetComPort, identity, Demo.IsOn), port)
                                        f.ShowDialog(Me)
+                                       If f.EnteredBootloader Then
+                                           Show()
+                                           SetStatus(Theme.eDot.Waiting, "Поиск загрузчика после перезапуска…")
+                                           opros.FindAfterLegacyReset()
+                                           Return
+                                       End If
                                    End Using
                                    ' Закрытие просмотра завершает сеанс, без повторного сканирования портов.
                                    If opros.GetComPort.Port.IsOpen Then opros.GetComPort.Port.Close()
@@ -192,45 +198,13 @@ Public Class Form1
         SetStatus(Theme.eDot.Waiting, "Загрузчик 0x" & bootVer.ToString("X2") & " · плата " & hw & " · " & port)
         UpdateConnectState()
 
-        Dim oldBoot As Boolean = bootVer < clBoot.OLD_BOOT_BELOW
-        Dim text As String
-
-        If oldBoot Then
-            ' Плата старой системы: перевод в два шага, оба делает эта программа.
-            text = "На порту " & port & " старый загрузчик 0x" & bootVer.ToString("X2") & ", плата " & hw & "." & vbCrLf &
-                   "Перевод на новую систему - два шага:" & vbCrLf &
-                   "1. Новая прошивка через этот загрузчик (файл " & hw & ".FW.БИЛД.bin, шифровать не нужно)." & vbCrLf &
-                   "2. После перезапуска - замена загрузчика на 0x32." & vbCrLf &
-                   "Записать прошивку?"
-        Else
-            text = "На порту " & port & " отвечает загрузчик 0x" & bootVer.ToString("X2") &
-                   ", плата " & hw & "." & vbCrLf &
-                   "Прошивки на плате нет или её держат кнопкой." & vbCrLf &
-                   "Записать прошивку?"
-        End If
-
-        Using f As New frmInfo("Загрузчик", text, , True)
-            f.Button1.Text = "Записать прошивку"
-            f.Button2.Text = "Отмена"
-
-            If f.ShowDialog() <> DialogResult.OK Then
-                opros.SetRegim(clOpros.eRejim.Search)
-                Exit Sub
+        Hide()
+        Using device As New frmBootDevice(opros.GetComPort, port, bootVer, hw)
+            If device.ShowDialog(Me) <> DialogResult.OK Then
+                Close() : Return
             End If
         End Using
-
-        Using ofd As New OpenFileDialog()
-            ofd.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
-            ofd.FileName = hw & ".FW.БИЛД.bin"
-            ofd.InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
-
-            If ofd.ShowDialog() = DialogResult.OK Then
-                Using f As New frmFW(ofd.FileName, opros.GetComPort, bootVer)
-                    f.ShowDialog()
-                End Using
-            End If
-        End Using
-
+        Show()
         opros.SetRegim(clOpros.eRejim.Search)
     End Sub
 

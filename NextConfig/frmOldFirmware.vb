@@ -20,6 +20,19 @@ Public Class frmOldFirmware
     Private ReadOnly refreshButton As New Button()
     Private ReadOnly closeButton As New Button()
     Private ReadOnly poll As New Timer() With {.Interval = 2000}
+    Private ReadOnly tabs As New TabControl()
+    Private ReadOnly tabDevice As New TabPage("Устройство")
+    Private ReadOnly tabUsers As New TabPage("Пользователи")
+    Private ReadOnly tabSettings As New TabPage("Настройки")
+    Private ReadOnly tabSchedules As New TabPage("Расписания")
+    Private ReadOnly tabService As New TabPage("Сервис")
+    Private ReadOnly schedulesGrid As New DataGridView()
+    Private ReadOnly numberDetails As New TextBox With {.Multiline = True, .ReadOnly = True}
+    Private ReadOnly stateValues As New Dictionary(Of String, Label)
+    Private ReadOnly stateDots As New Dictionary(Of String, Label)
+    Private ReadOnly signalBar As New Meter With {.Maximum = 31}
+    Private ReadOnly migrate As New Button With {.Text = "Перевести на новую систему"}
+    Public Property EnteredBootloader As Boolean
     Private settings As DataTable
     Private numbers As DataTable
     Private busy As Boolean
@@ -27,114 +40,122 @@ Public Class frmOldFirmware
 
     Public Sub New(reader As OldFirmware, portName As String)
         device = reader
-        Text = "Домовой · старая прошивка · только чтение" & If(Demo.IsOn, " · ДЕМО", "")
-        AutoScaleMode = AutoScaleMode.None
-        Theme.StyleForm(Me)
+        Text = "Домовой · старая прошивка" & If(Demo.IsOn, " · ДЕМО", "")
+        AutoScaleMode = AutoScaleMode.None : Theme.StyleForm(Me)
         StartPosition = FormStartPosition.CenterScreen
-        ClientSize = New Size(Theme.Px(1280), Theme.Px(840))
-        MinimumSize = New Size(Theme.Px(960), Theme.Px(680))
+        ClientSize = New Size(Theme.Px(1280), Theme.Px(800))
         Dim area = Screen.FromControl(Me).WorkingArea
+        MinimumSize = New Size(Math.Min(Theme.Px(1000), area.Width), Math.Min(Theme.Px(650), area.Height))
         Size = New Size(Math.Min(Width, area.Width), Math.Min(Height, area.Height))
-
-        Dim root As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 6,
-            .Padding = New Padding(Theme.Px(14))}
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(112)))
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(76)))
+        Dim root As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 3, .Margin = New Padding(0)}
+        root.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        root.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         root.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(190)))
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(51)))
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(30)))
+        root.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         Controls.Add(root)
-        Dim identity As New Label With {.Dock = DockStyle.Fill, .Font = Theme.FontCaption,
-            .Text = portName & " · " & device.IdentityText(), .AutoEllipsis = True}
-        Dim header As New TableLayoutPanel With {.Dock = DockStyle.Fill, .RowCount = 2, .ColumnCount = 1}
-        header.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(46)))
-        header.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-        Dim brand = Theme.BrandLine()
-        brand.Margin = New Padding(0)
-        brand.Dock = DockStyle.Fill
-        header.Controls.Add(brand, 0, 0)
-        header.Controls.Add(identity, 0, 1)
-        root.Controls.Add(header, 0, 0)
-
-        Dim actions As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .WrapContents = True}
-        actions.Controls.Add(New Label With {.Text = "Пароль (0–65535):", .AutoSize = True,
-            .Margin = New Padding(Theme.Px(3), Theme.Px(12), Theme.Px(5), 0)})
-        password.Name = "oldPassword"
-        password.UseSystemPasswordChar = True
-        password.MaxLength = 5
-        password.Width = Theme.Px(85)
-        password.Margin = New Padding(0, Theme.Px(8), Theme.Px(12), 0)
-        actions.Controls.Add(password)
-        SetupButton(readConfig, "Прочитать настройки", 190)
-        Theme.Primary(readConfig)
-        SetupButton(readBase, "Прочитать базу", 165)
-        SetupButton(export, "Сохранить базу CSV", 185)
+        Dim actions As New FlowLayoutPanel With {.AutoSize = False, .WrapContents = False, .Size = New Size(Theme.Px(370), Theme.Px(40)), .Margin = New Padding(0)}
+        actions.Controls.Add(New Label With {.Text = "Пароль (0–65535):", .Font = Theme.FontCaption, .AutoSize = True,
+            .Margin = New Padding(0, Theme.GapRelated, Theme.GapRelated, 0)})
+        password.Name = "oldPassword" : password.UseSystemPasswordChar = True : password.MaxLength = 5
+        actions.Controls.Add(Theme.FieldBox(password, 100))
+        SetupButton(closeButton, "Закрыть", 100) : actions.Controls.Add(closeButton)
+        root.Controls.Add(Theme.BoardHeader("Устройство " & device.Imei,
+            portName & " · старая прошивка " & device.Identification(5) & " · плата " & device.Identification(4), actions), 0, 0)
+        SetupButton(readConfig, "Прочитать настройки", 200) : Theme.Primary(readConfig)
+        SetupButton(readBase, "Прочитать базу", 170)
+        SetupButton(export, "Сохранить базу CSV", 190)
         SetupButton(refreshButton, "Обновить состояние", 190)
-        SetupButton(closeButton, "Закрыть", 100)
+        SetupButton(migrate, "Перевести на новую систему", 280) : Theme.Primary(migrate)
         export.Enabled = False
-        actions.Controls.AddRange({readConfig, readBase, export, refreshButton, closeButton})
-        root.Controls.Add(actions, 0, 1)
+        For Each page In {tabDevice, tabUsers, tabSettings, tabSchedules, tabService}
+            page.BackColor = Theme.WindowBack : page.AutoScroll = True
+        Next
+        tabs.TabPages.AddRange({tabDevice, tabUsers, tabSettings, tabSchedules, tabService})
+        root.Controls.Add(Theme.MainNavigation(tabs), 0, 1)
+        feedback.Dock = DockStyle.Fill : feedback.AutoSize = True : feedback.Font = Theme.FontCaption
+        feedback.Margin = New Padding(Theme.GapSection, Theme.GapRelated, Theme.GapSection, Theme.GapRelated)
+        feedback.Text = "Только чтение. Переход в загрузчик — по отдельной кнопке с подтверждением."
+        root.Controls.Add(feedback, 0, 2)
 
-        Dim columns As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 2, .RowCount = 1}
-        columns.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 54))
-        columns.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 46))
-        root.Controls.Add(columns, 0, 2)
-        Dim left As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 4}
-        left.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(30)))
-        left.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(34)))
-        left.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-        left.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(28)))
-        left.Controls.Add(New Label With {.Text = "Все настройки · только просмотр", .Font = Theme.FontGroup, .Dock = DockStyle.Fill}, 0, 0)
-        Dim findPanel As New FlowLayoutPanel With {.Dock = DockStyle.Fill}
-        findPanel.Controls.Add(New Label With {.Text = "Поиск:", .AutoSize = True})
-        search.Width = Theme.Px(280)
-        search.Name = "oldSettingsSearch"
-        findPanel.Controls.Add(search)
-        left.Controls.Add(findPanel, 0, 1)
-        Theme.ReadOnlyGrid(settingsGrid)
-        left.Controls.Add(settingsGrid, 0, 2)
-        showSecrets.Text = "Показать пароли и PIN в настройках"
-        showSecrets.AutoSize = True
-        left.Controls.Add(showSecrets, 0, 3)
-        columns.Controls.Add(left, 0, 0)
+        Dim connection = Theme.Card("Связь",
+            StateRow("Мобильная сеть", "gsm", True), StateRow("Интернет", "gprs", True),
+            StateRow("Соединение с сервером", "server", True), StateRow("Технология сейчас", "net"),
+            StateRow("Уровень сигнала", "signal"))
+        signalBar.Height = Theme.Px(8) : signalBar.Dock = DockStyle.Top : connection.Controls.Add(signalBar)
+        Dim version As New Label With {.Text = device.Identification(5).ToString(), .AutoSize = True}
+        Theme.Value(version)
+        Dim boot As New Label With {.Text = "0x" & device.Identification(3).ToString("X2"), .AutoSize = True}
+        Theme.Value(boot)
+        Dim fwCard = Theme.Card("Устройство",
+            Theme.ValueRow("Версия прошивки", version), Theme.ValueRow("Версия загрузчика", boot),
+            StateRow("Сборка (коды платы)", "build"), StateRow("Время устройства", "time"),
+            StateRow("Память номеров", "memory"), migrate,
+            New Label With {.Text = "Перевод: новая прошивка, затем замена загрузчика. Настройки старой системы автоматически не переносятся.",
+                .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted})
+        Dim inputs = Theme.Card("Входы и выходы", Theme.SignalGrid(
+            {StateIndicator("in1"), StateIndicator("in2"), StateIndicator("out")}, {Nothing, Nothing, Nothing}))
+        Dim overview = DirectCast(Theme.Overview({connection, fwCard, inputs}), TableLayoutPanel)
+        Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
+        grid.RowCount = 5 : grid.RowStyles(0).SizeType = SizeType.AutoSize
+        For i = 2 To 4
+            grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Next
+        Dim photos As New PhotoPanel(Nothing, device.Imei, True)
+        grid.Controls.Add(photos, 0, 2) : grid.SetColumnSpan(photos, 2)
+        Dim quickExport As New Button()
+        SetupButton(quickExport, "Сохранить базу CSV", 190)
+        AddHandler quickExport.Click, Async Sub()
+            If numbers Is Nothing Then Await ReadDatabase()
+            If numbers IsNot Nothing Then ExportBase(Nothing, EventArgs.Empty)
+        End Sub
+        Dim quick As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
+        quick.Controls.AddRange({refreshButton, quickExport})
+        grid.Controls.Add(quick, 0, 3) : grid.SetColumnSpan(quick, 2)
+        Dim journal As New Label With {.Text = "Чтение журнала не поддерживается этой прошивкой.",
+            .AutoSize = True, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted, .Dock = DockStyle.Fill}
+        grid.Controls.Add(journal, 0, 4) : grid.SetColumnSpan(journal, 2)
+        grid.AutoSize = True : grid.Dock = DockStyle.Top
+        overview.RowStyles(1).SizeType = SizeType.AutoSize : overview.AutoScrollMinSize = Size.Empty
+        tabDevice.Controls.Add(overview)
+        AddHandler overview.SizeChanged, Sub() Theme.ReflowOverview(overview)
 
-        Dim right As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 4}
-        right.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(30)))
-        right.RowStyles.Add(New RowStyle(SizeType.Percent, 52))
-        right.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(34)))
-        right.RowStyles.Add(New RowStyle(SizeType.Percent, 48))
-        monitorTitle.Text = "Состояние · ожидание данных"
-        monitorTitle.Font = Theme.FontGroup
-        monitorTitle.Dock = DockStyle.Fill
-        right.Controls.Add(monitorTitle, 0, 0)
-        Theme.ReadOnlyGrid(statusGrid)
-        right.Controls.Add(statusGrid, 0, 1)
-        numbersTitle.Text = "База номеров / ID · ещё не прочитана"
-        numbersTitle.Font = Theme.FontGroup
-        numbersTitle.Dock = DockStyle.Fill
-        numbersTitle.Padding = New Padding(0, Theme.Px(6), 0, 0)
-        right.Controls.Add(numbersTitle, 0, 2)
-        Theme.ReadOnlyGrid(numbersGrid)
-        right.Controls.Add(numbersGrid, 0, 3)
-        columns.Controls.Add(right, 1, 0)
-
-        ' FW/User/user_fun.c:741-742: 0x2e пуст; :764-821: 0x40 — SMS/модем;
-        ' :824-826: 0x41 подтверждает серверный лог. Unit1.cpp:3854-3865,
-        ' :3911-3918 использует 0x2e; :3901-3907 и :5396-5414 — журнал сервера.
-        Dim journal As New Label With {.Dock = DockStyle.Fill, .Font = Theme.FontCaption,
-            .Padding = New Padding(0, Theme.Px(7), 0, 0),
-            .Text = "Журнал: чтение журнала не поддерживается этой прошивкой." & vbCrLf &
-                "Для настроек нужен администратор, для базы — управляющий или администратор. " &
-                If(Demo.IsOn, "ДЕМО: доступ разрешён, пароль не требуется.", "Пароль вводится только владельцем.")}
-        root.Controls.Add(New PhotoPanel(Nothing, device.Imei, True), 0, 3)
-        root.Controls.Add(journal, 0, 4)
-        feedback.Dock = DockStyle.Fill
-        feedback.AutoEllipsis = True
-        feedback.Font = Theme.FontCaption
-        feedback.Text = "Порт занят только этим сеансом чтения."
-        root.Controls.Add(feedback, 0, 5)
-        AddHandler Shown, Async Sub(s, e) Await LoadInitial()
+        Theme.ReadOnlyGrid(settingsGrid) : Theme.ReadOnlyGrid(statusGrid)
+        Theme.ReadOnlyGrid(numbersGrid) : Theme.ReadOnlyGrid(schedulesGrid)
+        showSecrets.Text = "Показать пароли и PIN в настройках" : showSecrets.AutoSize = True : showSecrets.Font = Theme.FontCaption
+        search.Width = Theme.Px(260)
+        Dim settingsActions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
+        settingsActions.Controls.Add(readConfig)
+        settingsActions.Controls.Add(New Label With {.Text = "Поиск:", .Font = Theme.FontCaption, .AutoSize = True, .Padding = New Padding(0, Theme.GapRelated, 0, 0)})
+        settingsActions.Controls.Add(Theme.FieldBox(search, 260))
+        tabSettings.Controls.Add(GridPage("Настройки", "Все поля старой платы · только просмотр", settingsGrid, settingsActions, showSecrets))
+        numbersTitle.Text = "База номеров / ID · ещё не прочитана" : numbersTitle.AutoSize = True : Theme.Group(numbersTitle)
+        Dim numberActions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
+        numberActions.Controls.AddRange({readBase, export})
+        numberDetails.Dock = DockStyle.Fill : numberDetails.Height = Theme.Px(112)
+        numberDetails.ScrollBars = ScrollBars.Vertical : numberDetails.BorderStyle = BorderStyle.None
+        numberDetails.Font = Theme.FontCaption : numberDetails.BackColor = Theme.Surface
+        tabUsers.Controls.Add(GridPage("Пользователи", "База номеров / ID · чтение и сохранение CSV", numbersGrid, numberActions, numberDetails))
+        AddHandler numbersGrid.SelectionChanged, AddressOf ShowNumberDetails
+        Dim readSchedules As New Button()
+        SetupButton(readSchedules, "Прочитать расписания", 220)
+        AddHandler readSchedules.Click, Async Sub() Await ReadConfiguration()
+        tabSchedules.Controls.Add(GridPage("Расписания", "Расписания, сохранённые в старой плате · только просмотр", schedulesGrid, readSchedules))
+        monitorTitle.AutoSize = True : Theme.Group(monitorTitle)
+        statusGrid.Height = Theme.Px(420) : statusGrid.Dock = DockStyle.Top
+        Dim allSettings As New Button()
+        SetupButton(allSettings, "Все настройки платы", 230)
+        AddHandler allSettings.Click, Sub() tabs.SelectedTab = tabSettings
+        tabService.Controls.Add(Theme.CardPage(Theme.PageHeading("Сервис", "Данные платы для проверки и диагностики"),
+            Theme.Card("Мониторинг · все поля", monitorTitle, statusGrid),
+            Theme.Card("Настройки платы", allSettings,
+                New Label With {.Text = "Для настроек нужен администратор, для базы — управляющий или администратор. " &
+                    If(Demo.IsOn, "ДЕМО: пароль не требуется.", "Пароль вводится только владельцем."),
+                    .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted})))
+        AddHandler migrate.Click, AddressOf EnterBootloader
+        AddHandler Shown, Async Sub(s, e)
+            Theme.FitBoardWindow(Me)
+            Await LoadInitial()
+        End Sub
         AddHandler readConfig.Click, Async Sub(s, e) Await ReadConfiguration()
         AddHandler readBase.Click, Async Sub(s, e) Await ReadDatabase()
         AddHandler refreshButton.Click, Async Sub(s, e) Await RefreshStatus()
@@ -166,6 +187,7 @@ Public Class frmOldFirmware
 
     Private Sub SetBusy(value As Boolean)
         busy = value
+        migrate.Enabled = Not value
         readConfig.Enabled = Not value
         readBase.Enabled = Not value
         refreshButton.Enabled = Not value
@@ -224,6 +246,7 @@ Public Class frmOldFirmware
             Sub(t)
                 Dim top = If(statusGrid.Rows.Count > 0, Math.Max(0, statusGrid.FirstDisplayedScrollingRowIndex), 0)
                 BindFields(statusGrid, t)
+                UpdateStatusCards(t)
                 If top < statusGrid.Rows.Count Then statusGrid.FirstDisplayedScrollingRowIndex = top
                 monitorTitle.Text = "Состояние · " & DateTime.Now.ToString("HH:mm:ss")
                 poll.Start()
@@ -236,6 +259,11 @@ Public Class frmOldFirmware
                 settings = t
                 BindFields(settingsGrid, settings)
                 FilterSettings()
+                Dim schedules = t.Clone()
+                For Each row As DataRow In t.Rows
+                    If CStr(row(0)).StartsWith("Расписание ") Then schedules.ImportRow(row)
+                Next
+                BindFields(schedulesGrid, schedules)
             End Sub, "Настройки прочитаны. Поля доступны только для просмотра.", True, &H20)
     End Function
 
@@ -249,12 +277,13 @@ Public Class frmOldFirmware
             Sub(t)
                 numbers = t
                 numbersGrid.DataSource = t
-                For Each c As DataGridViewColumn In numbersGrid.Columns
-                    c.Width = Theme.Px(130)
+                numbersGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                numbersGrid.ScrollBars = ScrollBars.Vertical
+                For Each column As DataGridViewColumn In numbersGrid.Columns
+                    column.Visible = column.Index <= 4 OrElse column.Index = 7
+                    column.FillWeight = If(column.Index = 0, 8, If(column.Index = 2, 28, 16))
                 Next
-                numbersGrid.Columns(0).Width = Theme.Px(45)
-                numbersGrid.Columns(2).Width = Theme.Px(170)
-                numbersGrid.Columns(12).Visible = False
+                ShowNumberDetails(Nothing, EventArgs.Empty)
                 numbersTitle.Text = "База номеров / ID · записей: " & t.Rows.Count
             End Sub, "База прочитана полностью. Можно сохранить CSV.", True, &H10)
         If numbers Is Nothing Then numbersTitle.Text = "База номеров / ID · не прочитана"
@@ -262,6 +291,9 @@ Public Class frmOldFirmware
 
     Private Sub BindFields(grid As DataGridView, table As DataTable)
         grid.DataSource = table
+        grid.ScrollBars = ScrollBars.Vertical
+        grid.DefaultCellStyle.WrapMode = DataGridViewTriState.True
+        grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
         grid.Columns(0).Visible = False
         grid.Columns(1).AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
         grid.Columns(1).FillWeight = 62

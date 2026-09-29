@@ -55,6 +55,8 @@ Public Class Form2
         overview.RowStyles(1).SizeType = SizeType.AutoSize
         overview.AutoScrollMinSize = Size.Empty
         AddHandler photoCard.BusyChanged, AddressOf PhotoBusyChanged
+        AddHandler overview.SizeChanged, Sub() ReflowOverview()
+        AddHandler Shown, Sub() ReflowOverview()
 
         If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
     End Sub
@@ -91,12 +93,7 @@ Public Class Form2
     ' На маленьком экране или при крупном масштабе Windows окно нужного размера
     ' может не поместиться: ужимаем его до рабочей области, содержимое прокручивается.
     Private Sub FitToScreen()
-        Dim area As Rectangle = Screen.FromControl(Me).WorkingArea
-        Dim w As Integer = Math.Min(Me.Width, area.Width - Theme.GapSection)
-        Dim h As Integer = Math.Min(Me.Height, area.Height - Theme.GapSection)
-
-        Me.MinimumSize = New Size(Math.Min(Me.MinimumSize.Width, w), Math.Min(Me.MinimumSize.Height, h))
-        Me.Size = New Size(w, h)
+        Theme.FitBoardWindow(Me)
     End Sub
 
     ' Раз в секунду смотрим, давно ли приходил статус. Если связь пропала,
@@ -866,6 +863,8 @@ Public Class Form2
     Private Sub ReadConfig(ByVal silent As Boolean)
         If opros.GetConfig(config) Then
             onBoard = config
+            snapshotConfig = config
+            RefreshSnapshot()
             UpdateConfigFields()
             lblSaveState.Text = "Настройки считаны в " & DateTime.Now.ToString("HH:mm:ss")
             lblSaveState.ForeColor = Theme.TextMuted

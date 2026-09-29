@@ -45,6 +45,7 @@ Public Module Theme
 
     Private Function DemoScale() As Single
         If Demo.IsOn AndAlso Environment.GetCommandLineArgs().Contains("--demo-dpi=120") Then Return 1.25F
+        If Demo.IsOn AndAlso Environment.GetCommandLineArgs().Contains("--demo-dpi=96") Then Return 1.0F
         Return 0
     End Function
 
@@ -106,11 +107,51 @@ Public Module Theme
 
     Public Sub StyleForm(ByVal f As Form)
         f.BackColor = WindowBack
+        f.ForeColor = TextMain
         f.Font = FontBody
         Using stream = GetType(Form1).Assembly.GetManifestResourceStream("NextConfig.naviset.ico")
             f.Icon = New Icon(stream)
         End Using
     End Sub
+
+    Public Sub FitBoardWindow(form As Form)
+        Dim area = Screen.FromControl(form).WorkingArea.Size
+        If Demo.IsOn AndAlso Environment.GetCommandLineArgs().Contains("--demo-laptop") Then
+            area = New Size(Math.Min(area.Width, 1366), Math.Min(area.Height, 728))
+        End If
+        Dim width = Math.Min(form.Width, area.Width)
+        Dim height = Math.Min(form.Height, area.Height)
+        form.MinimumSize = New Size(Math.Min(form.MinimumSize.Width, width), Math.Min(form.MinimumSize.Height, height))
+        form.Size = New Size(width, height)
+    End Sub
+
+    Public Function BoardHeader(title As String, detail As String, Optional actions As Control = Nothing) As Control
+        Dim header As New TableLayoutPanel With {.Dock = DockStyle.Fill, .AutoSize = True, .ColumnCount = 3,
+            .BackColor = Surface, .Padding = New Padding(GapSection, GapBlock, GapSection, GapBlock), .Margin = New Padding(0)}
+        header.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(112)))
+        header.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        header.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, If(actions Is Nothing, 0, actions.Width)))
+        Dim resource As New System.ComponentModel.ComponentResourceManager(GetType(Form1))
+        Dim logo As New PictureBox With {.Image = LogoHorizontal(DirectCast(resource.GetObject("PictureBox1.Image"), Image)),
+            .Size = New Size(Px(96), Px(30)), .SizeMode = PictureBoxSizeMode.Zoom, .Anchor = AnchorStyles.Left}
+        AddHandler logo.Disposed, Sub() logo.Image.Dispose()
+        header.Controls.Add(logo, 0, 0)
+        Dim identity As New TableLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill, .ColumnCount = 1}
+        identity.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        identity.Controls.Add(New Label With {.Text = title, .AutoSize = True, .Font = FontBodyBold, .Dock = DockStyle.Fill})
+        identity.Controls.Add(New Label With {.Text = detail, .AutoSize = True, .Font = FontCaption, .ForeColor = TextMuted, .Dock = DockStyle.Fill})
+        header.Controls.Add(identity, 1, 0)
+        If actions IsNot Nothing Then
+            actions.Anchor = AnchorStyles.Right
+            header.Controls.Add(actions, 2, 0)
+        End If
+        AddHandler header.Paint, Sub(sender, e)
+            Using pen As New Pen(Border)
+                e.Graphics.DrawLine(pen, GapSection, header.Height - 1, header.Width - GapSection, header.Height - 1)
+            End Using
+        End Sub
+        Return header
+    End Function
 
     Public Sub ReadOnlyGrid(grid As DataGridView)
         grid.Dock = DockStyle.Fill
@@ -121,7 +162,7 @@ Public Module Theme
         grid.RowHeadersVisible = False
         grid.BackgroundColor = Surface
         grid.GridColor = Border
-        grid.BorderStyle = BorderStyle.FixedSingle
+        grid.BorderStyle = BorderStyle.None
         grid.Font = FontBody
         grid.DefaultCellStyle.BackColor = Surface
         grid.DefaultCellStyle.ForeColor = TextMain
@@ -134,12 +175,40 @@ Public Module Theme
         grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = TextMain
         grid.EnableHeadersVisualStyles = False
         grid.RowTemplate.Height = Px(32)
+        grid.RowTemplate.MinimumHeight = Px(32)
         grid.ColumnHeadersHeight = Px(34)
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect
         grid.MultiSelect = False
     End Sub
 
     ' Блок с белой поверхностью и тонкой границей.
+    Public Sub ReflowOverview(overview As TableLayoutPanel)
+        Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
+        Dim cards = grid.Controls.Cast(Of Control)().ToArray()
+        Dim narrow = overview.ClientSize.Width < Theme.Px(940)
+        Dim wanted = If(narrow, 1, 2)
+        If grid.ColumnCount = wanted AndAlso CInt(If(grid.Tag, -1)) = cards.Length Then Return
+        grid.SuspendLayout()
+        grid.Controls.Clear() : grid.ColumnStyles.Clear() : grid.RowStyles.Clear()
+        grid.ColumnCount = wanted : grid.RowCount = If(narrow, cards.Length, cards.Length - 1)
+        For i = 1 To wanted
+            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / wanted))
+        Next
+        For i = 0 To grid.RowCount - 1
+            grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Next
+        For i = 0 To cards.Length - 1
+            Dim column = If(narrow OrElse i >= 2, 0, i)
+            Dim row = If(narrow, i, If(i < 2, 0, i - 1))
+            grid.Controls.Add(cards(i), column, row)
+            grid.SetColumnSpan(cards(i), If(Not narrow AndAlso i >= 2, 2, 1))
+            cards(i).Dock = DockStyle.Fill
+            cards(i).Margin = New Padding(If(Not narrow AndAlso i = 1, Theme.GapRelated, 0), 0,
+                If(Not narrow AndAlso i = 0, Theme.GapRelated, 0), Theme.GapRelated)
+        Next
+        grid.Tag = cards.Length : grid.ResumeLayout(True)
+    End Sub
+
     Public Function Card() As Panel
         Dim p As New Panel()
         p.BackColor = Surface
@@ -432,17 +501,17 @@ Public Module Theme
 
     ' Доработка: Кряжев А., 2026. Общие стили панели наладки.
     ' Доработка: Кряжев А., 2026. Разделы сохраняют свои поля при переключении.
-    Public Function SettingsWorkspace(pages As Control(), save As Button, revert As Button, state As Label) As Control
+    Public Function SettingsWorkspace(pages As Control(), save As Button, revert As Button, state As Label, Optional defaults As Button = Nothing) As Control
         Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .ColumnCount = 1, .RowCount = 2, .BackColor = Surface}
         shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         shell.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        Dim body As New TableLayoutPanel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .ColumnCount = 2, .RowCount = 1}
-        body.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(174)))
+        Dim body As New TableLayoutPanel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .ColumnCount = 1, .RowCount = 2}
         body.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        body.RowStyles.Add(New RowStyle(SizeType.Absolute, Px(64)))
         body.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.TopDown, .WrapContents = False,
-            .Margin = New Padding(0), .Padding = New Padding(Px(12), Px(24), Px(12), 0), .BackColor = WindowBack}
+        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .WrapContents = False,
+            .Margin = New Padding(0), .Padding = New Padding(Px(12), Px(12), Px(12), 0), .BackColor = WindowBack}
         Dim hosts As New List(Of Panel)
         Dim links As New List(Of Button)
         Dim content As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
@@ -470,7 +539,7 @@ Public Module Theme
             End Sub
         Next
         body.Controls.Add(nav, 0, 0)
-        body.Controls.Add(content, 1, 0)
+        body.Controls.Add(content, 0, 1)
         Dim footer As New TableLayoutPanel With {.Dock = DockStyle.Fill, .AutoSize = True, .ColumnCount = 2, .Margin = New Padding(0), .Padding = New Padding(GapSection, GapRelated, GapSection, GapRelated)}
         footer.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         footer.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
@@ -491,6 +560,11 @@ Public Module Theme
         revert.Width = Px(120)
         save.Width = Px(210)
         save.Margin = New Padding(0)
+        If defaults IsNot Nothing Then
+            defaults.Text = "По умолчанию" : defaults.Width = Px(150)
+            defaults.Margin = New Padding(0, 0, GapRelated, 0)
+            actions.Controls.Add(defaults)
+        End If
         actions.Controls.Add(revert)
         actions.Controls.Add(save)
         footer.Controls.Add(summary, 0, 0)
@@ -613,6 +687,37 @@ Public Module Theme
                 e.Graphics.DrawLine(pen, 0, 0, actions.Width, 0)
             End Using
         End Sub
+        ' Карточки остаются прежними; длинный текст прокручивается, кнопки видны всегда.
+        content.Controls.Remove(actions)
+        content.RowCount = Math.Max(1, content.RowCount - 1)
+        content.Dock = DockStyle.Top
+        actions.Dock = DockStyle.Fill : actions.Margin = New Padding(Px(28), 0, Px(28), Px(20))
+        Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
+        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        shell.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Dim viewport As New Panel With {.Dock = DockStyle.Fill, .AutoScroll = True, .Margin = New Padding(0)}
+        form.Controls.Remove(content)
+        viewport.Controls.Add(content)
+        shell.Controls.Add(viewport, 0, 0) : shell.Controls.Add(actions, 0, 1)
+        form.AutoSize = False : form.Controls.Add(shell)
+        AddHandler form.Shown, Sub()
+            Dim area = Screen.FromControl(form).WorkingArea.Size
+            If Demo.IsOn AndAlso Environment.GetCommandLineArgs().Contains("--demo-laptop") Then
+                area = New Size(Math.Min(area.Width, 1366), Math.Min(area.Height, 728))
+            End If
+            Dim chrome = form.Size - form.ClientSize
+            Dim width = Math.Min(area.Width - chrome.Width, Math.Max(form.ClientSize.Width,
+                Math.Max(content.PreferredSize.Width, actions.PreferredSize.Width + Px(56))))
+            form.ClientSize = New Size(width, form.ClientSize.Height)
+            content.PerformLayout()
+            Dim height = content.GetPreferredSize(New Size(width, 0)).Height + actions.PreferredSize.Height + Px(20)
+            form.MinimumSize = New Size(Math.Min(form.MinimumSize.Width, area.Width), Math.Min(form.MinimumSize.Height, area.Height))
+            form.ClientSize = New Size(width, Math.Min(area.Height - chrome.Height, height))
+            Dim bounds = Screen.FromControl(form).WorkingArea
+            form.Location = New Point(bounds.Left + (bounds.Width - form.Width) \ 2, bounds.Top + (bounds.Height - form.Height) \ 2)
+            form.BeginInvoke(New Action(Sub() viewport.AutoScrollPosition = Point.Empty))
+        End Sub
     End Sub
 
     Public Sub SurfaceCard(panel As TableLayoutPanel)
@@ -625,6 +730,44 @@ Public Module Theme
             End Using
         End Sub
     End Sub
+
+    Public Function Card(title As String, ParamArray rows As Control()) As TableLayoutPanel
+        Dim block As New TableLayoutPanel With {.ColumnCount = 1, .AutoSize = True,
+            .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right}
+        block.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        SurfaceCard(block) : block.Padding = New Padding(GapSection)
+        block.Margin = New Padding(0, 0, 0, GapSection)
+        If title <> "" Then
+            Dim heading As New Label With {.Text = title, .AutoSize = True, .Margin = New Padding(0, 0, 0, GapBlock)}
+            Group(heading) : block.Controls.Add(heading)
+        End If
+        For Each row In rows
+            block.Controls.Add(row)
+        Next
+        Return block
+    End Function
+
+    Public Function CardPage(ParamArray cards As Control()) As TableLayoutPanel
+        Dim page As New TableLayoutPanel With {.ColumnCount = 1, .AutoSize = True,
+            .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Dock = DockStyle.Top, .Padding = New Padding(GapSection)}
+        page.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        For Each block As Control In cards
+            page.Controls.Add(block)
+        Next
+        Return page
+    End Function
+
+    Public Function ValueRow(title As String, value As Control) As Control
+        Dim row As New TableLayoutPanel With {.ColumnCount = 2, .AutoSize = True,
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, GapRow)}
+        row.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 42))
+        row.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 58))
+        row.Controls.Add(New Label With {.Text = title, .Font = FontCaption, .ForeColor = TextMuted,
+            .AutoSize = True, .Dock = DockStyle.Fill, .Margin = New Padding(0, 0, GapRelated, 0)}, 0, 0)
+        value.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        row.Controls.Add(value, 1, 0)
+        Return row
+    End Function
 
     Public Function PageHeading(title As String, subtitle As String) As Control
         Dim panel As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .Margin = New Padding(0, 0, 0, Px(22)), .Anchor = AnchorStyles.Left Or AnchorStyles.Right}
@@ -657,8 +800,8 @@ Public Module Theme
     Public Function SignalGrid(states As Control(), actions As Button()) As Control
         Dim grid As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 4, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
         Dim captions = New String() {"Вход 1", "Вход 2", "Выход 1", "Выход 2"}
-        For i = 0 To 3
-            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 25))
+        For i = 0 To states.Length - 1
+            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / states.Length))
             Dim tile As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right,
                 .Margin = New Padding(0, 0, GapRelated, 0)}
             tile.Controls.Add(New Label With {.Text = captions(i), .AutoSize = True, .Font = FontCaption, .ForeColor = TextMuted, .Margin = New Padding(0, 0, 0, GapRelated)})
@@ -670,52 +813,51 @@ Public Module Theme
         Return grid
     End Function
 
+    ' Одно меню для NEXT, старой прошивки и загрузчика. Карточки остаются на своих TabPage.
     Public Function MainNavigation(tabs As TabControl) As Control
-        Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 2, .Margin = New Padding(0)}
+        Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 2, .RowCount = 1, .Margin = New Padding(0)}
+        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(144)))
         shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        shell.RowStyles.Add(New RowStyle(SizeType.Absolute, Px(48)))
         shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .WrapContents = False, .BackColor = Surface,
-            .Padding = New Padding(GapSection, 0, 0, 0), .Margin = New Padding(0)}
+        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.TopDown,
+            .WrapContents = False, .BackColor = Surface, .AutoScroll = True,
+            .Padding = New Padding(Px(8), GapSection, Px(8), 0), .Margin = New Padding(0)}
         Dim links As New List(Of Button)
         For i = 0 To tabs.TabPages.Count - 1
             Dim index = i
             Dim link As New Button With {.Text = tabs.TabPages(i).Text, .Name = "mainSection" & i, .FlatStyle = FlatStyle.Flat,
-                .Font = FontBody, .Height = Px(48), .Width = TextRenderer.MeasureText(tabs.TabPages(i).Text, FontBody).Width + Px(34),
-                .Margin = New Padding(0), .BackColor = Surface, .ForeColor = TextMuted, .Cursor = Cursors.Hand}
+                .Font = FontBody, .Height = Px(48), .Width = Px(128), .TextAlign = ContentAlignment.MiddleLeft,
+                .Padding = New Padding(Px(12), 0, 0, 0), .Margin = New Padding(0, 0, 0, Px(4)),
+                .BackColor = Surface, .ForeColor = TextMuted, .Cursor = Cursors.Hand}
             link.FlatAppearance.BorderSize = 0
             link.FlatAppearance.MouseOverBackColor = SurfaceHover
             AddHandler link.Click, Sub(sender, e) tabs.SelectedIndex = index
             AddHandler link.Paint, Sub(sender, e)
                 If tabs.SelectedIndex = index Then
                     Using brush As New SolidBrush(Accent)
-                        e.Graphics.FillRectangle(brush, Px(12), link.Height - Px(3), link.Width - Px(24), Px(3))
+                        e.Graphics.FillRectangle(brush, 0, Px(8), Px(3), link.Height - Px(16))
                     End Using
                 End If
             End Sub
-            links.Add(link)
-            nav.Controls.Add(link)
+            links.Add(link) : nav.Controls.Add(link)
         Next
         AddHandler tabs.SelectedIndexChanged, Sub(sender, e)
             For i = 0 To links.Count - 1
                 links(i).ForeColor = If(i = tabs.SelectedIndex, Accent, TextMuted)
+                links(i).BackColor = If(i = tabs.SelectedIndex, WindowBack, Surface)
                 links(i).Invalidate()
             Next
         End Sub
-        links(0).ForeColor = Accent
-        ' Родной TabControl остаётся доступен с клавиатуры; его заголовки скрыты контейнером.
+        If links.Count > 0 Then links(0).ForeColor = Accent : links(0).BackColor = WindowBack
         tabs.Appearance = TabAppearance.FlatButtons
-        tabs.SizeMode = TabSizeMode.Fixed
-        tabs.ItemSize = New Size(1, 1)
-        tabs.Padding = New Point(0, 0)
-        tabs.Dock = DockStyle.None
+        tabs.SizeMode = TabSizeMode.Fixed : tabs.ItemSize = New Size(1, 1)
+        tabs.Padding = New Point(0, 0) : tabs.Dock = DockStyle.None
         Dim host As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
         host.Controls.Add(tabs)
         AddHandler host.Resize, Sub(sender, e)
             tabs.SetBounds(-Px(4), -Px(8), host.Width + Px(8), host.Height + Px(12))
         End Sub
-        shell.Controls.Add(nav, 0, 0)
-        shell.Controls.Add(host, 0, 1)
+        shell.Controls.Add(nav, 0, 0) : shell.Controls.Add(host, 1, 0)
         Return shell
     End Function
 

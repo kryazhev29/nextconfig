@@ -537,8 +537,8 @@ Partial Class Form2
         Theme.ServiceActions(Me.serviceRow, Me.Button1)
         Dim servicePage = Page(Theme.SettingsSection("Сервис", "Чтение настроек и обслуживание контроллера", Me.serviceRow))
         Me.tabSettings.Controls.Add(Theme.SettingsWorkspace(
-            New Control() {connectionPage, busPage, accessPage, servicePage},
-            Me.btnSave, Me.btnRevert, Me.lblSaveState))
+            New Control() {connectionPage, busPage, accessPage},
+            Me.btnSave, Me.btnRevert, Me.lblSaveState, Me.btnDefault))
 
         ' ---- вкладка «Идентификаторы» ----
         Me.lblUsedMem.AutoSize = True
@@ -736,8 +736,8 @@ Partial Class Form2
         Me.RichTextBox1.BackColor = Theme.Surface
         Me.RichTextBox1.BorderStyle = System.Windows.Forms.BorderStyle.None
         Me.RichTextBox1.[ReadOnly] = True
-        Me.RichTextBox1.WordWrap = False
-        Me.RichTextBox1.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Both
+        Me.RichTextBox1.WordWrap = True
+        Me.RichTextBox1.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical
         Me.RichTextBox1.Margin = New System.Windows.Forms.Padding(0)
 
         Me.Button2.Name = "Button2"
@@ -793,6 +793,7 @@ Partial Class Form2
         Me.tabs.Controls.Add(Me.tabObject)
         Me.tabs.Controls.Add(Me.tabFW)
         Me.tabs.Controls.Add(Me.tabLog)
+        ConfigureSections()
 
         ' ---- строка итога ----
         Me.lblLastUpdate.AutoSize = True
@@ -841,7 +842,7 @@ Partial Class Form2
         Me.root.Controls.Add(Me.pnlStatusBar, 0, 2)
 
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
-        Me.ClientSize = New System.Drawing.Size(Theme.Px(1060), Theme.Px(800))
+        Me.ClientSize = New System.Drawing.Size(Theme.Px(1280), Theme.Px(800))
         Me.MinimumSize = New System.Drawing.Size(Theme.Px(1000), Theme.Px(700))
         Me.Controls.Add(Me.root)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable
@@ -880,31 +881,7 @@ Partial Class Form2
 
     ' Смысловой блок: белая поверхность, заголовок группы, дальше строки.
     Private Function CardBlock(ByVal title As String, ByVal ParamArray rows As Control()) As TableLayoutPanel
-        Dim c As New TableLayoutPanel()
-        c.ColumnCount = 1
-        c.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0!))
-        c.AutoSize = True
-        c.AutoSizeMode = AutoSizeMode.GrowAndShrink
-        c.BackColor = Theme.Surface
-        Theme.SurfaceCard(c)
-        c.Padding = New Padding(Theme.GapSection)
-        c.Margin = New Padding(0, 0, 0, Theme.GapSection)
-        c.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
-
-        If title <> "" Then
-            Dim h As New Label()
-            h.AutoSize = True
-            h.Text = title
-            h.Margin = New Padding(0, 0, 0, Theme.GapBlock)
-            Theme.Group(h)
-            c.Controls.Add(h)
-        End If
-
-        For Each r As Control In rows
-            c.Controls.Add(r)
-        Next
-
-        Return c
+        Return Theme.Card(title, rows)
     End Function
 
     ' Блок действий без заголовка и без рамки: кнопки сохранения под настройками.
