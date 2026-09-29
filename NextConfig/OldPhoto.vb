@@ -19,6 +19,7 @@ Public Class OldPhotoWire
         If cmd <> &H30 Then Throw New InvalidOperationException("Канал предназначен только для фото.")
         Dim frame = clBoot.Frame(cmd, payload)
         port.Port.Write(frame, 0, frame.Length)
+        AgentLog.OldPhotoFrame(port.Port.PortName, True, frame)
     End Sub
 
     Public Shared Function Decode(pending As List(Of Byte), bytes As Byte()) As List(Of Byte())
@@ -52,6 +53,7 @@ Public Class OldPhotoWire
                 Dim bytes(count - 1) As Byte
                 Dim got = port.Port.Read(bytes, 0, bytes.Length)
                 For Each frame In Decode(pending, bytes.Take(got).ToArray())
+                    AgentLog.OldPhotoFrame(port.Port.PortName, False, frame)
                     frames.Enqueue(frame)
                 Next
             Else
@@ -63,6 +65,14 @@ Public Class OldPhotoWire
 End Class
 
 Public Class OldPhotoSession
+    ' Код 250: прошивка v1–v3 так отвечает при выключенной фотофиксации,
+    ' прошивка v5 - всегда (фото по USB в ней нет).
+    Public Shared Function Refused250(enabled As Boolean?) As String
+        If Not enabled.HasValue Then Return "Плата отказала в съёмке (код 250): фотофиксация выключена в настройках платы или фото по USB нет в этой прошивке."
+        If enabled.Value Then Return "Плата отказала в съёмке (код 250), хотя фотофиксация включена: фото по USB нет в этой прошивке."
+        Return "Фотофиксация выключена в настройках платы (код 250). Включите её и повторите снимок."
+    End Function
+
     Public Shared Function ErrorText(code As Byte, started As Boolean) As String
         Select Case code
             Case 250 : Return "Фотофиксация выключена в настройках платы."
@@ -74,10 +84,14 @@ Public Class OldPhotoSession
         End Select
     End Function
 
-    Public Shared Function Capture(wire As IPhotoWire, folder As String, imei As String, camera As Byte,
-                                   resolution As Byte, cancel As CancellationToken, Optional enabled As Boolean = True) As String
+    ' Снимок целиком в памяти: сохраняет его оператор, если снимок нужен.
+    ' enabled - бит фотофиксации из прочитанных настроек, Nothing - настройки не читались
+    ' (для съёмки пароль не нужен, и читать их ради неё нельзя).
+    ' progress - принято байт, всего байт.
+    Public Shared Function Capture(wire As IPhotoWire, camera As Byte, resolution As Byte, cancel As CancellationToken,
+                                   Optional enabled As Boolean? = Nothing,
+                                   Optional progress As Action(Of Long, Long) = Nothing) As Byte()
         If camera <> 0 OrElse Not New Byte() {1, 3, 5, 7}.Contains(resolution) Then Throw New InvalidDataException("Выберите камеру и разрешение.")
-        If Not Directory.Exists(folder) Then Throw New DirectoryNotFoundException("Выберите существующую папку для фото.")
         wire.Send(&H30, New Byte() {0, camera, resolution}, 0)
         Using data As New MemoryStream()
             Dim total As Long = -1
@@ -88,7 +102,7 @@ Public Class OldPhotoSession
                 Dim frame = wire.Receive(15000, cancel)
                 If frame Is Nothing Then Throw New TimeoutException("Плата перестала передавать фото. Проверьте подключение и повторите снимок.")
                 If frame.Length = 1 Then
-                    If frame(0) = 250 Then Throw New IOException(If(enabled, "Фото по USB нет в этой прошивке.", "Фотофиксация выключена. Включите фотофиксацию в настройках платы."))
+                    If frame(0) = 250 Then Throw New IOException(Refused250(enabled))
                     If frame(0) <> 10 Then Throw New IOException(ErrorText(frame(0), total >= 0))
                     If total < 0 OrElse data.Length <> total Then Throw New InvalidDataException("Фото получено не полностью. Файл не сохранён.")
                     Dim jpeg = data.ToArray()
@@ -97,20 +111,17 @@ Public Class OldPhotoSession
                     Using decoded = Image.FromStream(data, False, True)
                         If decoded.Width < 1 Then Throw New InvalidDataException("Неверное изображение JPEG.")
                     End Using
-                    Dim safeId = New String(imei.Where(Function(c) Char.IsDigit(c)).ToArray())
-                    Dim path = IO.Path.Combine(folder, safeId & "_" & DateTime.Now.ToString("yyyyMMdd_HHmmss_fff") & "_" & Guid.NewGuid().ToString("N").Substring(0, 8) & ".jpg")
-                    Using file As New FileStream(path, FileMode.CreateNew, FileAccess.Write)
-                        file.Write(jpeg, 0, jpeg.Length) : file.Flush(True)
-                    End Using
-                    Return path
+                    Return jpeg
                 ElseIf frame.Length = 5 AndAlso frame(0) = 0 Then
                     If total >= 0 Then Throw New InvalidDataException("Повторный заголовок фото.")
                     total = BitConverter.ToUInt32(frame, 1)
                     If total < 4 OrElse total > 8 * 1024 * 1024 Then Throw New InvalidDataException("Недопустимый размер фото.")
+                    If progress IsNot Nothing Then progress(0, total)
                 ElseIf frame.Length >= 3 AndAlso frame(0) = 1 Then
                     Dim count = CInt(BitConverter.ToUInt16(frame, 1))
                     If total < 0 OrElse count = 0 OrElse count <> frame.Length - 3 OrElse data.Length + count > total Then Throw New InvalidDataException("Нарушена длина или последовательность фото.")
                     data.Write(frame, 3, count)
+                    If progress IsNot Nothing Then progress(data.Length, total)
                 Else
                     Throw New InvalidDataException("Неизвестный ответ камеры.")
                 End If

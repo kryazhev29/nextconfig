@@ -18,18 +18,22 @@ public class OldPhotoTestWire : IPhotoWire {
 }
 '@
 Remove-Item -LiteralPath $ref
-$folder = Join-Path ([IO.Path]::GetTempPath()) ('oldphoto-' + [guid]::NewGuid().ToString('N'))
-[IO.Directory]::CreateDirectory($folder) | Out-Null
 $token = [Threading.CancellationToken]::None
-function Reject($wire, $label, $enabled=$true) {
+$noState = $null  # фотофиксация неизвестна: настройки не читались
+function Reject($wire, $label) {
     $failed = $false
-    try { [NextConfig.OldPhotoSession]::Capture($wire,$folder,'demo',0,5,$token,$enabled) | Out-Null } catch { $failed=$true }
+    try { [NextConfig.OldPhotoSession]::Capture($wire,0,5,$token,$noState,$null) | Out-Null } catch { $failed=$true }
     if (-not $failed) { throw "FAIL $label" }
 }
-try {
- $file = [NextConfig.OldPhotoSession]::Capture([NextConfig.OldPhotoDemoWire]::new(),$folder,'00045',0,5,$token)
- $jpeg = [IO.File]::ReadAllBytes($file)
- if ($jpeg[0] -ne 255 -or $jpeg[1] -ne 216 -or $jpeg[-1] -ne 217) { throw 'JPEG' }
+# Снимок возвращается в памяти, файл не пишется; ход приёма доходит до конца.
+$script:last = @(0,0)
+$progress = [Action[long,long]]{ param($got,$total) $script:last = @($got,$total) }
+$jpeg = [NextConfig.OldPhotoSession]::Capture([NextConfig.OldPhotoDemoWire]::new(),0,5,$token,$noState,$progress)
+if ($jpeg[0] -ne 255 -or $jpeg[1] -ne 216 -or $jpeg[-1] -ne 217) { throw 'JPEG' }
+if ($script:last[0] -ne $jpeg.Length -or $script:last[1] -ne $jpeg.Length) { throw 'progress' }
+# Код 250: три разных объяснения по тому, что известно о фотофиксации.
+$texts = @([NextConfig.OldPhotoSession]::Refused250($noState), [NextConfig.OldPhotoSession]::Refused250($true), [NextConfig.OldPhotoSession]::Refused250($false))
+if (($texts | Select-Object -Unique).Count -ne 3) { throw '250 texts' }
  foreach($code in 1,2,3,4,5,250) {
   $wire=[OldPhotoTestWire]::new(); $wire.Frames.Enqueue([byte[]]@($code)); Reject $wire "one-byte $code"
  }
@@ -51,9 +55,4 @@ try {
  $b[-1]=$b[-1] -bxor 1
  $failed=$false; try{[NextConfig.OldPhotoWire]::Decode($pending,$b)|Out-Null}catch{$failed=$true}
  if(-not $failed){throw 'CRC'}
- 'PASS: JPEG, stream fragmentation/coalescing, CRC, errors 1-5/250, truncation, order, timeout, v5'
-} finally {
- # Delete only files produced by this test in its unique directory.
- Get-ChildItem -LiteralPath $folder -File | Remove-Item
- Remove-Item -LiteralPath $folder
-}
+ 'PASS: JPEG in memory, progress, 250 texts, stream fragmentation/coalescing, CRC, errors 1-5/250, truncation, order, timeout, v5'

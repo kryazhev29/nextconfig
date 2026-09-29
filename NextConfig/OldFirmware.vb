@@ -43,15 +43,16 @@ Public NotInheritable Class OldFirmware
 
     Public ReadOnly Property PhotoSupportText As String
         Get
-            Return "Камера 0 · выберите разрешение и папку для JPEG. Поддержка проверяется ответом платы."
+            Return "Пароль для снимка не нужен. Снимок откроется в окне, сохранить его можно оттуда."
         End Get
     End Property
 
-    Public Function CapturePhoto(folder As String, resolution As Byte) As String
-        If Not SupportsPhoto Then Throw New InvalidOperationException(PhotoSupportText)
-        If Not photoEnabled.HasValue Then ReadSettings()
+    ' Команда 0x30 пароля не требует (user_fun.c v1–v3, case 0x30), поэтому настройки
+    ' перед съёмкой не читаются: их чтение просит пароль администратора.
+    Public Function CapturePhoto(resolution As Byte, Optional progress As Action(Of Long, Long) = Nothing) As Byte()
+        If Not SupportsPhoto Then Throw New InvalidOperationException("Эта прошивка не снимает фото по USB.")
         Dim wire As IPhotoWire = If(demoMode, DirectCast(New OldPhotoDemoWire(Identification(5) = 45), IPhotoWire), New OldPhotoWire(port))
-        Return OldPhotoSession.Capture(wire, folder, Imei, 0, resolution, stopRead.Token, photoEnabled.Value)
+        Return OldPhotoSession.Capture(wire, 0, resolution, stopRead.Token, photoEnabled, progress)
     End Function
 
     Public Sub Reconnect()

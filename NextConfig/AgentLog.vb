@@ -169,6 +169,27 @@ Public Module AgentLog
         Return Hex(b.Take(count).ToArray(), Nothing) & " … (" & b.Length & " байт, номера не пишутся)"
     End Function
 
+    ' Кадры фото старой прошивки (SLGT): запрос целиком, из ответов - вид и длина,
+    ' сами данные JPEG в журнал не идут.
+    Public Sub OldPhotoFrame(port As String, outgoing As Boolean, frame As Byte())
+        If frame Is Nothing Then Return
+        If outgoing Then
+            Write("photo", "port", port, "dir", "tx", "proto", "SLGT", "hex", Hex(frame, Nothing))
+            Return
+        End If
+        Dim kind As String
+        If frame.Length = 1 Then
+            kind = If(frame(0) = 10, "готово (10)", "код " & frame(0))
+        ElseIf frame.Length = 5 AndAlso frame(0) = 0 Then
+            kind = "размер " & BitConverter.ToUInt32(frame, 1)
+        ElseIf frame.Length >= 3 AndAlso frame(0) = 1 Then
+            kind = "данные " & BitConverter.ToUInt16(frame, 1)
+        Else
+            kind = "неизвестно: " & Hex(frame.Take(8).ToArray(), Nothing)
+        End If
+        Write("photo", "port", port, "dir", "rx", "proto", "SLGT", "frame", kind)
+    End Sub
+
     ' Кадры потока фото: пишутся без прореживания, их немного.
     Public Sub PhotoFrame(port As String, outgoing As Boolean, frame As Byte())
         Write("photo", "port", port, "dir", If(outgoing, "tx", "rx"),
