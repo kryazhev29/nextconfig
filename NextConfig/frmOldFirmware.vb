@@ -76,6 +76,8 @@ Public Class frmOldFirmware
         Next
         tabs.TabPages.AddRange({tabDevice, tabUsers, tabSettings, tabSchedules, tabService})
         root.Controls.Add(Theme.MainNavigation(tabs), 0, 1)
+        ' На странице Устройство есть карточка фото со своей кнопкой - в шапке не дублируем.
+        AddHandler tabs.SelectedIndexChanged, Sub() headerShoot.Visible = device.SupportsPhoto AndAlso tabs.SelectedTab IsNot tabDevice
         feedback.Dock = DockStyle.Fill : feedback.AutoSize = True : feedback.Font = Theme.FontCaption
         feedback.Margin = New Padding(Theme.GapSection, Theme.GapRelated, Theme.GapSection, Theme.GapRelated)
         feedback.Text = device.WriteSupportText
@@ -84,16 +86,20 @@ Public Class frmOldFirmware
 
         Dim connection = Theme.Card("Связь",
             StateRow("Мобильная сеть", "gsm", True), StateRow("Интернет", "gprs", True),
-            StateRow("Соединение с сервером", "server", True), StateRow("Технология сейчас", "net"),
+            StateRow("Соединение с сервером", "server", True), StateRow("Тип сети", "net"),
             StateRow("Уровень сигнала", "signal"))
         signalBar.Height = Theme.Px(8) : signalBar.Dock = DockStyle.Top : connection.Controls.Add(signalBar)
         Dim version As New Label With {.Text = device.Identification(5).ToString(), .AutoSize = True}
         Theme.Value(version)
+        ' Перевод проверен только на v5 (прошивка 48); на v1–v3 и v3.1 кнопки нет.
+        Dim canMigrate = device.Identification(5) = 48
+        migrate.Visible = canMigrate
         Dim fwCard = Theme.Card("Устройство",
             Theme.ValueRow("Версия прошивки", version),
             StateRow("Время устройства", "time"),
             StateRow("Память номеров", "memory"), migrate,
-            New Label With {.Text = "Перевод: новая прошивка, затем замена загрузчика. Настройки старой системы автоматически не переносятся.",
+            New Label With {.Text = If(canMigrate, "Перевод: новая прошивка, затем замена загрузчика. Настройки старой системы автоматически не переносятся.",
+                "Перевод этой платы на новую систему пока не поддерживается."),
                 .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted})
         SetupButton(testOutput, "Проверить выход", 225)
         writeButtons.Add(testOutput) : testOutput.Enabled = device.CanWrite

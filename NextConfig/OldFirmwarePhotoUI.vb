@@ -62,7 +62,8 @@ Partial Public Class frmOldFirmware
         SetupButton(headerShoot, "Сделать снимок", 190)
         Theme.Primary(headerShoot)
         headerShoot.Margin = New Padding(0, 0, Theme.GapSection, 0)
-        headerShoot.Visible = device.SupportsPhoto
+        ' окно открывается на странице Устройство, там снимок - в карточке
+        headerShoot.Visible = False
         AddHandler headerShoot.Click, Async Sub() Await TakeOldPhoto()
         AddHandler oldShoot.Click, Async Sub() Await TakeOldPhoto()
         AddHandler photoSave.Click, Sub() OldPhotoFiles.Save(Me, lastPhoto, device.Imei, lastPhotoTime, AddressOf ShowSaved)

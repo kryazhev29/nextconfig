@@ -113,11 +113,12 @@ Partial Public Class frmOldFirmware
                 Dim caption As New Label With {.Text = OldSettingsPresentation.Title(f, CStr(row(1))), .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontBody}
                 editor.Dock = DockStyle.Top
                 fieldRow.Controls.Add(caption, 0, 0) : fieldRow.Controls.Add(editor, 1, 0)
-                Dim hint As New Label With {.Text = OldSettingsPresentation.Hint(f), .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted}
+                Dim hint As New Label With {.Text = OldSettingsPresentation.Hint(f, device.Identification(5) = 48),.AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted}
                 fieldRow.Controls.Add(hint, 0, 1) : fieldRow.SetColumnSpan(hint, 2)
                 settingRows.Add(i, fieldRow)
                 settingGroups(group).Controls.Add(fieldRow)
             Next
+            MergeMinutesIntoHours()
             BindFields(diagnosticSettings, diagnostic)
             settingsGroup.Items.Clear()
             settingsGroup.Items.AddRange(settingGroups.Keys.Where(Function(g) Not g.StartsWith("Расписание ")).Cast(Of Object)().ToArray())
@@ -131,6 +132,31 @@ Partial Public Class frmOldFirmware
             renderingSettings = False : settingCards.ResumeLayout()
         End Try
         UpdateSettingDependencies() : FilterSettingCards()
+    End Sub
+
+    ' Выход по времени: час и минута - разные байты (162/165, 163/166), но на экране
+    ' одна строка «Начало периода [07 ч] [30 мин]». Байты и черновик не меняются.
+    Private Sub MergeMinutesIntoHours()
+        For Each pair In {New Integer() {162, 165}, New Integer() {163, 166}}
+            Dim hourIndex = OldSettings.Fields.FindIndex(Function(x) x.Offset = pair(0))
+            Dim minuteIndex = OldSettings.Fields.FindIndex(Function(x) x.Offset = pair(1))
+            If Not settingRows.ContainsKey(hourIndex) OrElse Not settingRows.ContainsKey(minuteIndex) Then Continue For
+            Dim hourRow = DirectCast(settingRows(hourIndex), TableLayoutPanel)
+            Dim minuteRow = settingRows(minuteIndex)
+            Dim hourEditor = settingEditors(hourIndex), minuteEditor = settingEditors(minuteIndex)
+            hourRow.Controls.Remove(hourEditor)
+            minuteRow.Controls.Remove(minuteEditor)
+            Dim time As New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .WrapContents = False, .Dock = DockStyle.Top, .Margin = New Padding(0)}
+            For Each editor In {hourEditor, minuteEditor}
+                editor.Dock = DockStyle.None : editor.Width = Theme.Px(130)
+                editor.Margin = New Padding(0, 0, Theme.GapRelated, 0)
+                time.Controls.Add(editor)
+            Next
+            hourRow.Controls.Add(time, 1, 0)
+            minuteRow.Parent.Controls.Remove(minuteRow)
+            minuteRow.Dispose()
+            settingRows.Remove(minuteIndex)
+        Next
     End Sub
 
     Private Function SettingEditor(index As Integer) As Control
@@ -155,7 +181,9 @@ Partial Public Class frmOldFirmware
         End If
         If f.Offset = 167 OrElse (f.Offset >= 138 AndAlso f.Offset <= 158 AndAlso (f.Offset - 138) Mod 3 = 0) Then Return DayEditor(index)
         If f.Kind = "text" OrElse f.Secret Then
-            Dim text As New TextBox With {.Name = name, .Text = raw, .UseSystemPasswordChar = f.Secret AndAlso Not showSecrets.Checked, .MaxLength = If(f.Kind = "text", f.Width - 1, 5)}
+            ' пустой APN плата хранит как ",," - показываем пустым полем, байты не меняются
+            If f.Offset = 15 AndAlso raw.Trim(","c) = "" Then raw = ""
+            Dim text As New TextBox With {.Name = name, .Text = raw,.UseSystemPasswordChar = f.Secret AndAlso Not showSecrets.Checked, .MaxLength = If(f.Kind = "text", f.Width - 1, 5)}
             AddHandler text.TextChanged, Sub() ChangeSettingDraft(index, text.Text)
             Return text
         End If
@@ -205,7 +233,7 @@ Partial Public Class frmOldFirmware
         Dim query = search.Text.Trim()
         For Each entry In settingRows
             Dim f = OldSettings.Fields(entry.Key), row = settings.Rows(entry.Key)
-            entry.Value.Visible = CStr(row(0)).StartsWith("Расписание ") OrElse query = "" OrElse (OldSettingsPresentation.Title(f, CStr(row(1))) & " " & OldSettingsPresentation.Hint(f)).IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0
+            entry.Value.Visible = CStr(row(0)).StartsWith("Расписание ") OrElse query = "" OrElse (OldSettingsPresentation.Title(f, CStr(row(1))) & " " & OldSettingsPresentation.Hint(f, device.Identification(5) = 48)).IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0
         Next
         For Each entry In settingGroups
             entry.Value.Visible = entry.Key = settingsGroup.Text OrElse entry.Key = scheduleGroup.Text

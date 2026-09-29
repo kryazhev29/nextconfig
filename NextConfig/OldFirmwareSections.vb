@@ -73,7 +73,11 @@ Partial Public Class frmOldFirmware
 
     Private Sub ShowNumberDetails(sender As Object, e As EventArgs)
         Dim row = TryCast(numbersGrid.CurrentRow?.DataBoundItem, DataRowView)
-        If row Is Nothing Then numberDetails.Clear() : Return
+        If row Is Nothing Then
+            numberDetails.Text = If(numbers IsNot Nothing AndAlso numbers.Rows.Count = 0,
+                "В базе нет номеров. Добавьте номер или загрузите базу из CSV.", "")
+            Return
+        End If
         Dim expiry = CStr(row(5))
         expiry = If(expiry.Contains("не задано"), "Бессрочно", System.Text.RegularExpressions.Regex.Replace(expiry, " \(\d+\)$", ""))
         numberDetails.Text = "Действует до (время платы): " & expiry & vbCrLf &
