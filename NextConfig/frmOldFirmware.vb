@@ -57,7 +57,9 @@ Public Class frmOldFirmware
         root.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         root.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         Controls.Add(root)
-        Dim actions As New FlowLayoutPanel With {.AutoSize = False, .WrapContents = False, .Size = New Size(Theme.Px(370), Theme.Px(40)), .Margin = New Padding(0)}
+        Dim actions As New FlowLayoutPanel With {.AutoSize = False, .WrapContents = False, .Size = New Size(Theme.Px(580), Theme.Px(40)), .Margin = New Padding(0)}
+        ' снимок - из шапки, её видно на любой вкладке и без прокрутки
+        actions.Controls.Add(headerShoot)
         actions.Controls.Add(New Label With {.Text = "Пароль (0–65535):", .Font = Theme.FontCaption, .AutoSize = True,
             .Margin = New Padding(0, Theme.GapRelated, Theme.GapRelated, 0)})
         password.Name = "oldPassword" : password.UseSystemPasswordChar = True : password.MaxLength = 5
@@ -99,14 +101,14 @@ Public Class frmOldFirmware
                 .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted})
         Dim inputs = Theme.Card("Входы и выходы", Theme.SignalGrid(
             {StateIndicator("in1"), StateIndicator("in2"), StateIndicator("out")}, {Nothing, Nothing, Nothing}))
-        Dim overview = DirectCast(Theme.Overview({connection, fwCard, inputs}), TableLayoutPanel)
+        ' фото сразу под верхними карточками, входы и выходы - ниже
+        Dim photos = BuildOldPhotos()
+        Dim overview = DirectCast(Theme.Overview({connection, fwCard, photos, inputs}), TableLayoutPanel)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         grid.RowCount = 5 : grid.RowStyles(0).SizeType = SizeType.AutoSize
         For i = 2 To 4
             grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         Next
-        Dim photos = BuildOldPhotos()
-        grid.Controls.Add(photos, 0, 2) : grid.SetColumnSpan(photos, 2)
         Dim quickExport As New Button()
         SetupButton(quickExport, "Сохранить базу CSV", 190)
         AddHandler quickExport.Click, Async Sub()
@@ -199,6 +201,7 @@ Public Class frmOldFirmware
         rfidParameter.Enabled = Not value
         rfidValue.Enabled = Not value
         oldShoot.Enabled = Not value AndAlso device.SupportsPhoto
+        headerShoot.Enabled = oldShoot.Enabled
         reconnect.Enabled = Not value
         For Each button In writeButtons
             button.Enabled = Not value AndAlso device.CanWrite

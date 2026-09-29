@@ -3,6 +3,7 @@ Imports System.Threading.Tasks
 
 Partial Public Class frmOldFirmware
     Private ReadOnly oldShoot As New Button With {.Name = "oldPhoto", .Text = "Сделать снимок"}
+    Private ReadOnly headerShoot As New Button With {.Name = "oldPhotoHeader", .Text = "Сделать снимок"}
     Private ReadOnly reconnect As New Button With {.Name = "oldReconnect"}
     Private ReadOnly photoResolution As New ComboBox With {.Name = "oldResolution", .DropDownStyle = ComboBoxStyle.DropDownList}
     Private ReadOnly photoPreview As New PictureBox With {.SizeMode = PictureBoxSizeMode.Zoom, .Cursor = Cursors.Hand}
@@ -31,6 +32,11 @@ Partial Public Class frmOldFirmware
         Dim actions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
         actions.Controls.AddRange({oldShoot, photoResolution, reconnect})
         oldShoot.Enabled = device.SupportsPhoto
+        SetupButton(headerShoot, "Сделать снимок", 190)
+        Theme.Primary(headerShoot)
+        headerShoot.Margin = New Padding(0, 0, Theme.GapSection, 0)
+        headerShoot.Visible = device.SupportsPhoto
+        AddHandler headerShoot.Click, Async Sub() Await TakeOldPhoto()
         photoResolution.Visible = device.SupportsPhoto
         AddHandler oldShoot.Click, Async Sub() Await TakeOldPhoto()
         AddHandler reconnect.Click, Async Sub() Await ReconnectOld()
