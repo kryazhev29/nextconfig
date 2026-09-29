@@ -102,6 +102,19 @@ Public Class clBoot
                                      ByRef errText As String,
                                      Optional ByVal legacy As Boolean = False,
                                      Optional ByVal oldFirmware As Boolean = False) As Byte()
+        Dim started = Environment.TickCount
+        Dim body = ExchangeCore(comport, cmd, data, timeout, errText, legacy, oldFirmware)
+        AgentLog.SlgtExchange(comport.Port.PortName, cmd, Frame(cmd, data), body, Environment.TickCount - started, errText)
+        Return body
+    End Function
+
+    Private Shared Function ExchangeCore(ByVal comport As ClComPort,
+                                         ByVal cmd As Byte,
+                                         ByVal data As Byte(),
+                                         ByVal timeout As Integer,
+                                         ByRef errText As String,
+                                         ByVal legacy As Boolean,
+                                         ByVal oldFirmware As Boolean) As Byte()
 
         ' иначе обработчик события приёма заберёт ответ загрузчика себе
         comport.EnableEventReceived = False

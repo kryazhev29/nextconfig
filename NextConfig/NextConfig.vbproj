@@ -80,6 +80,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Theme.vb" />
+    <Compile Include="AgentLog.vb" />
+    <Compile Include="AgentChannel.vb" />
+    <Compile Include="ApplicationEvents.vb" />
     <EmbeddedResource Include="naviset.ico"><LogicalName>NextConfig.naviset.ico</LogicalName></EmbeddedResource>
     <Compile Include="Rs485.vb" />
     <EmbeddedResource Include="periphery.ini"><LogicalName>NextConfig.periphery.ini</LogicalName><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></EmbeddedResource>

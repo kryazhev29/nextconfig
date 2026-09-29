@@ -21,6 +21,7 @@ Public Class PhotoSerialWire
     Public Sub Send(cmd As Byte, payload As Byte(), sequence As Byte) Implements IPhotoWire.Send
         Dim b = SldnStream.Frame(cmd, payload, sequence)
         comport.Port.Write(b, 0, b.Length)
+        AgentLog.PhotoFrame(comport.Port.PortName, True, b)
     End Sub
     Public Function Receive(timeout As Integer, cancel As CancellationToken) As Byte() Implements IPhotoWire.Receive
         Dim watch = Stopwatch.StartNew()
@@ -32,6 +33,7 @@ Public Class PhotoSerialWire
                 Dim b(count - 1) As Byte
                 Dim got = comport.Port.Read(b, 0, b.Length)
                 For Each frame In decoder.Feed(b.Take(got).ToArray())
+                    AgentLog.PhotoFrame(comport.Port.PortName, False, frame)
                     ready.Enqueue(frame)
                 Next
             Else

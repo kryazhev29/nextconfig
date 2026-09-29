@@ -10,6 +10,7 @@
         lblTitle.Text = title
         info.Text = txt
         info.TextAlign = align
+        AgentLog.Message(title, txt, isDialog)
 
         If isDialog Then
             Button2.Visible = True

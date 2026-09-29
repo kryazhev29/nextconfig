@@ -29,6 +29,7 @@ Public Class PhotoPanel
 
     Public Sub New(reader As clOpros, serial As String, Optional oldFirmware As Boolean = False)
         opros = reader : imei = serial : legacy = oldFirmware
+        AgentLog.WatchText(progress, "photo")
         If Demo.IsOn Then
             Dim arg = Environment.GetCommandLineArgs().FirstOrDefault(Function(a) a.StartsWith("--demo-photo-folder="))
             If arg IsNot Nothing AndAlso Directory.Exists(arg.Substring(20)) Then lastFolder = arg.Substring(20)

@@ -65,6 +65,8 @@ Public Class Form2
         FitToScreen()
         Theme.EnableDoubleBuffer(Me)
 
+        AgentLog.WatchText(lblSaveState, "form2.save")
+        AgentLog.WatchText(lblConnState, "form2.connection")
         AddHandler opros.onStatus, AddressOf opros_onStatus
         AddHandler tmr1.Tick, AddressOf TmrTick
         tmr1.Interval = 1000

@@ -78,6 +78,8 @@ Public Class frmFW
     Private Sub frmFW_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Dim errText As String = ""
 
+        AgentLog.WatchText(lblState, "frmFW.state")
+        AgentLog.Write("fwfile", "mode", mode.ToString(), "file", fName)
         Label5.Text = fName
         Label1.Text = "0/0"
         btnCheck.Visible = (mode = eMode.BOOT_REPLACE)

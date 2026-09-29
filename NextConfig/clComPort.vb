@@ -446,11 +446,25 @@ Public Class ClComPort
         Return False
     End Function
 
+    ' Обмен кадром SLDN с записью в журнал работы (AgentLog).
     Public Overloads Function SendRecCmd(ByRef data_rec As Byte(),
                                          ByVal command As Byte(),
                                          ByVal timeout As Integer,
                                          Optional ByVal swap_crc As Boolean = False,
                                          Optional ByVal withSleep As Boolean = True) As Boolean
+        Dim started = Environment.TickCount
+        Dim ok = SendRecCmdCore(data_rec, command, timeout, swap_crc, withSleep)
+        If _port IsNot Nothing AndAlso Not Demo.IsOn Then
+            AgentLog.SldnExchange(_port.PortName, command, If(ok, data_rec, Nothing), Environment.TickCount - started)
+        End If
+        Return ok
+    End Function
+
+    Private Function SendRecCmdCore(ByRef data_rec As Byte(),
+                                    ByVal command As Byte(),
+                                    ByVal timeout As Integer,
+                                    ByVal swap_crc As Boolean,
+                                    ByVal withSleep As Boolean) As Boolean
 
         If _port IsNot Nothing AndAlso _port.IsOpen Then
 
@@ -602,6 +616,7 @@ Public Class ClComPort
                 ch = oEnc.GetString(Buffer, iPnt, 1)
 
                 If ch = vbCr Then
+                    If sCommand.Trim() <> "" Then AgentLog.Write("boardtext", "port", _port.PortName, "line", sCommand.Trim())
                     RaiseEvent ReceiveComand(sCommand)
                     sCommand = vbNullString
                 Else

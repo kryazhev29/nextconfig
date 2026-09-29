@@ -467,6 +467,7 @@ Partial Public Class clOpros
                 status.usedMem = BitConverter.ToUInt16(rec, 37)
                 status.moduleType = CType(rec(39), eModuleType)
 
+                AgentLog.Status(status)
                 RaiseEvent onStatus(status)
                 Return True
 

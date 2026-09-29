@@ -40,6 +40,8 @@ Public Class Form1
 
         If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
 
+        AgentLog.WatchText(lblStatus, "form1.status")
+        AgentLog.WatchText(lblReason, "form1.reason")
         opros = New clOpros(Me)
 
         AddHandler opros.isFinded, AddressOf opros_isFinded
@@ -127,6 +129,7 @@ Public Class Form1
     Private Sub refIsFinded(ByVal port As String, ByVal imei As String, ByVal isDefPIN As Byte)
         curPort = port
         isFinded = True
+        AgentLog.Write("device", "kind", "next", "port", port, "imei", imei, "defaultPin", isDefPIN > 0)
         SetStatus(Theme.eDot.Good, "Устройство найдено · " & port)
         txtIMEI.Text = imei
         If isDefPIN > 0 Then
@@ -166,6 +169,7 @@ Public Class Form1
 
     Private Sub opros_onOldFirmwareFound(port As String, identity As Byte())
         If IsDisposed OrElse Disposing Then Return
+        AgentLog.Write("device", "kind", "oldfw", "port", port, "fw", CInt(identity(5)), "boot", "0x" & identity(3).ToString("X2"), "hw", CInt(identity(4)))
         BeginInvoke(New Action(Sub()
                                    isFinded = False
                                    UpdateConnectState()
@@ -195,6 +199,7 @@ Public Class Form1
         txtIMEI.Text = ""
         isFinded = False
         curPort = port
+        AgentLog.Write("device", "kind", "bootloader", "port", port, "boot", "0x" & bootVer.ToString("X2"), "hw", CInt(hw))
         SetStatus(Theme.eDot.Waiting, "Загрузчик 0x" & bootVer.ToString("X2") & " · плата " & hw & " · " & port)
         UpdateConnectState()
 

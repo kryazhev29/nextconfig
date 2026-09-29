@@ -79,6 +79,7 @@ Public Class frmOldFirmware
         feedback.Dock = DockStyle.Fill : feedback.AutoSize = True : feedback.Font = Theme.FontCaption
         feedback.Margin = New Padding(Theme.GapSection, Theme.GapRelated, Theme.GapSection, Theme.GapRelated)
         feedback.Text = "Только чтение. Переход в загрузчик — по отдельной кнопке с подтверждением."
+        AgentLog.WatchText(feedback, "oldfw.feedback")
         root.Controls.Add(feedback, 0, 2)
 
         Dim connection = Theme.Card("Связь",

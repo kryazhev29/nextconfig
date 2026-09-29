@@ -112,6 +112,8 @@ Public Module Theme
         Using stream = GetType(Form1).Assembly.GetManifestResourceStream("NextConfig.naviset.ico")
             f.Icon = New Icon(stream)
         End Using
+        ' все окна программы проходят здесь: журнал работы видит каждое
+        AgentLog.WatchForm(f)
     End Sub
 
     Public Sub FitBoardWindow(form As Form)
