@@ -187,7 +187,7 @@ Public Class Form2
         Status485()
 
         Theme.SetText(lblTime, DeviceTimeText(status.time))
-        Theme.SetText(lblFW, status.fw_version & ", сборка " & status.fw_build)
+        Theme.SetText(lblFW, status.fw_version & ", сборка " & BuildText(CUInt(status.fw_build)))
         Theme.SetText(lblBoot, "0x" & status.boot_version.ToString("X2"))
         Theme.SetText(lblHW, status.hw_version.ToString())
         Theme.SetText(lblModuleType, ModuleName(status.moduleType))

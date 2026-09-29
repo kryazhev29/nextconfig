@@ -12,6 +12,13 @@ Module Module1
         Return (New DateTime(1970, 1, 1, 0, 0, 0)).AddSeconds(_UnixTimeStamp)
     End Function
 
+    ' Билд прошивки - время сборки в секундах от 1970 (UTC), как в имени файла HW.FW.БИЛД.bin.
+    ' Показываем дату и время по часам компьютера, число - в скобках для сверки с именем файла.
+    Public Function BuildText(ByVal build As Long) As String
+        Dim t As DateTime = DateTime.SpecifyKind(UnixTimestampToDateTime(build), DateTimeKind.Utc).ToLocalTime()
+        Return t.ToString("dd.MM.yyyy HH:mm") & " (" & build & ")"
+    End Function
+
     Public Function DateTimeToUnixTimestamp(ByVal _DateTime As DateTime) As Long
         Dim _UnixTimeSpan As TimeSpan = (_DateTime.Subtract(New DateTime(1970, 1, 1, 0, 0, 0)))
         Return CLng(Fix(_UnixTimeSpan.TotalSeconds))

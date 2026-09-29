@@ -470,7 +470,8 @@ Public Class frmFW
             marked = (mark And &HFFFFFF00UI) = HW_MARKER_TAG
         End If
 
-        Dim t As String = "Прошивка " & app.version & " для платы " & app.hard & ", " & fSize & " байт," & vbCrLf &
+        Dim t As String = "Прошивка " & app.version & ", сборка " & BuildText(app.build) & "," & vbCrLf &
+                          "для платы " & app.hard & ", " & fSize & " байт," & vbCrLf &
                           "контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8") & "." & vbCrLf
 
         If marked Then
