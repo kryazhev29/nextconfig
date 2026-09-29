@@ -1,11 +1,12 @@
-﻿Imports System.Globalization
+Imports System.Globalization
 Imports System.IO
 Imports System.IO.Ports
 
-' Один экран хода для всех долгих операций с платой:
+' Один экран для всех долгих операций с платой:
 '  - обновление прошивки через работающую прошивку (команды 19 и 20);
 '  - замена загрузчика через работающую прошивку (команда 110);
 '  - запись прошивки в плату, которая стоит в загрузчике (протокол загрузчика).
+' Оператор видит шаги, что нужно до начала, ход в процентах и что будет дальше.
 Public Class frmFW
 
     Public Enum eMode
@@ -19,11 +20,21 @@ Public Class frmFW
     Private Const HW_MARKER_TAG As UInt32 = &H48570000UI
     Private Const MAX_BLOCK_TRIES As Integer = 5
 
-    Private ReadOnly fName As String
+    Private fName As String
     Private ReadOnly mode As eMode
     Private ReadOnly opros As clOpros
     Private ReadOnly bootPort As ClComPort
     Private ReadOnly boardHw As Byte
+
+    ' сборка, которая сейчас на плате (0 - неизвестна): для «было / станет»
+    Public Property BoardBuild As UInteger
+
+    ' сборка из выбранного файла - её ждём на плате после перезапуска
+    Public ReadOnly Property FileBuild As UInteger
+        Get
+            Return app.build
+        End Get
+    End Property
 
     Private fSize As Integer
     Private fReaded As Integer
@@ -31,10 +42,13 @@ Public Class frmFW
     Private app As clBoot.s_appfile
     Private fileHw As Byte
     Private running As Boolean = False
-    Private applyRun As Boolean = False
     Private doneOk As Boolean = False
     Private nBlock As Integer
     Private thread_work As Threading.Thread
+    Private ReadOnly clock As New Stopwatch()
+    Private ReadOnly lblSteps As New Label With {.Name = "lblSteps", .AutoSize = True}
+    Private steps As String()
+    Private stepNow As Integer
 
     Private Delegate Sub delegate_onReaded(ByVal readed As Integer, ByVal percent As Byte)
     Private Delegate Sub delegate_onDone(ByVal ok As Boolean, ByVal text As String)
@@ -76,57 +90,85 @@ Public Class frmFW
     Private ReadOnly oldBoot As Boolean
 
     Private Sub frmFW_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        Dim errText As String = ""
-
         AgentLog.WatchText(lblState, "frmFW.state")
-        AgentLog.Write("fwfile", "mode", mode.ToString(), "file", fName)
-        Label5.Text = fName
-        Label1.Text = "0/0"
-        btnCheck.Visible = (mode = eMode.BOOT_REPLACE)
-        Button1.Enabled = False
+
+        ' шаги - сразу под заголовком: где оператор сейчас и что осталось
+        Theme.Caption(lblSteps)
+        lblSteps.ForeColor = Theme.TextMain
+        lblSteps.Margin = New Padding(0, 0, 0, Theme.GapSection)
+        root.Controls.Add(lblSteps)
+        root.Controls.SetChildIndex(lblSteps, 1)
 
         Select Case mode
             Case eMode.FW_UPDATE
                 lblTitle.Text = "Обновление прошивки"
-                Button1.Text = "Обновить"
-
-                If Not clBoot.CheckAppFile(fName, app, errText) Then
-                    FileRejected(errText)
-                    Exit Sub
-                End If
-
-                image = app.image
-                fSize = image.Length
-                lblInfo.Text = FileInfoText()
-                lblState.Text = "Файл проверен, можно начинать"
-                Label1.Text = "0 из " & fSize & " байт"
-
+                steps = {"Подготовка", "Передача файла", "Установка на плате", "Проверка после перезапуска"}
+                Button1.Text = "Начать обновление"
             Case eMode.FW_VIA_BOOT
-                lblTitle.Text = If(oldBoot, "Перевод на новую систему: шаг 1 из 2, прошивка",
-                                   "Запись прошивки через загрузчик")
-                Button1.Text = "Прошить"
+                lblTitle.Text = If(oldBoot, "Перевод на новую систему: шаг 1 из 2", "Запись прошивки")
+                steps = If(oldBoot, {"Подготовка", "Запись новой прошивки", "Перезапуск питания", "Шаг 2: замена загрузчика"},
+                           {"Подготовка", "Запись прошивки", "Запуск прошивки"})
+                Button1.Text = "Начать запись"
+            Case eMode.BOOT_REPLACE
+                lblTitle.Text = If(boardHw = 0, "Перевод на новую систему: шаг 2 из 2", "Замена загрузчика")
+                steps = {"Подготовка", "Проверка файла на плате", "Замена загрузчика", "Проверка после перезапуска"}
+                Button1.Text = "Заменить загрузчик"
+        End Select
 
+        btnCheck.Text = "Выбрать другой файл"
+        Theme.Secondary(btnCheck)
+        lblStageCap.Text = "Что сейчас"
+        lblFileCap.Text = "Что будет записано"
+        ShowStep(0)
+        LoadFile()
+    End Sub
+
+    ' Шаги списком: ✓ пройден, ● сейчас, ○ впереди.
+    Private Sub ShowStep(ByVal n As Integer)
+        stepNow = n
+        Dim lines As New List(Of String)
+        For i = 0 To steps.Length - 1
+            Dim mark = If(i < n, "✓", If(i = n, "●", "○"))
+            lines.Add(mark & "  " & (i + 1) & ". " & steps(i))
+        Next
+        lblSteps.Text = String.Join(vbCrLf, lines)
+    End Sub
+
+    ' Проверка файла и то, что оператору важно знать до начала.
+    Private Sub LoadFile()
+        Dim errText As String = ""
+        AgentLog.Write("fwfile", "mode", mode.ToString(), "file", fName)
+        Label5.Text = Path.GetFileName(fName)
+        Label1.Text = ""
+        ProgressBar1.Value = 0
+        lblState.ForeColor = Theme.TextMain
+        Theme.Caption(lblInfo)
+        Button1.Visible = True
+        Button1.Enabled = False
+        btnCheck.Visible = True
+        btnCheck.Enabled = True
+
+        Select Case mode
+            Case eMode.FW_UPDATE, eMode.FW_VIA_BOOT
                 If Not clBoot.CheckAppFile(fName, app, errText) Then
                     FileRejected(errText)
                     Exit Sub
                 End If
-
                 image = app.image
                 fSize = image.Length
-                lblInfo.Text = FileInfoText()
-                lblState.Text = "Плата стоит в загрузчике. Не отключайте питание и USB"
-                Label1.Text = "0 из " & fSize & " байт"
+                lblInfo.Text = FirmwareText()
+                lblState.Text = PreparationText()
+                If mode = eMode.FW_UPDATE AndAlso BoardBuild <> 0 AndAlso app.build = BoardBuild Then
+                    lblState.Text = "Эта прошивка уже стоит на плате — обновлять нечего." & vbCrLf &
+                                    "Если нужен другой файл, нажмите «Выбрать другой файл»."
+                    Exit Sub
+                End If
 
             Case eMode.BOOT_REPLACE
-                lblTitle.Text = If(boardHw = 0, "Перевод на новую систему: шаг 2 из 2, загрузчик",
-                                   "Замена загрузчика")
-                Button1.Text = "Заменить загрузчик"
-                btnCheck.Text = "Пробная передача"
-
                 Try
                     image = File.ReadAllBytes(fName)
                 Catch ex As Exception
-                    FileRejected(ex.Message)
+                    FileRejected("Файл не читается: " & ex.Message)
                     Exit Sub
                 End Try
 
@@ -135,41 +177,69 @@ Public Class frmFW
                     Exit Sub
                 End If
 
-                fSize = image.Length
-                lblInfo.Text = "Загрузчик 0x32 для платы " & fileHw & ", " & fSize & " байт," & vbCrLf &
-                               "контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8") & "." & vbCrLf &
-                               "Проверено: размер, векторы, версия и плата внутри образа."
-
                 ' Плата под старым загрузчиком свою версию не знает и сообщает 0 —
                 ' тогда сверять не с чем, файл выбирается по плате.
                 If boardHw <> 0 AndAlso boardHw <> fileHw Then
-                    FileRejected("Файл для платы " & fileHw & ", а контроллер сообщает плату " & boardHw & ".")
+                    FileRejected("Этот загрузчик для платы " & fileHw & ", а подключена плата " & boardHw & ". Выберите файл для своей платы.")
                     Exit Sub
                 End If
 
-                lblState.Text = "Сначала пробная передача, она ничего не меняет. Потом замена"
-                Label1.Text = "0 из " & fSize & " байт"
-
+                fSize = image.Length
+                Dim profile = FirmwareFiles.ProfileName(fName)
+                lblInfo.Text = "Новый загрузчик для платы " & fileHw &
+                               If(profile.Length <= 6, " (комплект " & profile & ")", "") & "." & vbCrLf &
+                               "Файл проверен и подходит к этой плате."
+                AgentLog.Write("fwfile", "crc", clOpros.Crc32Stm(image).ToString("X8"), "hw", fileHw)
+                lblState.Text = PreparationText()
                 ' здесь необратима сама операция, а не выход из окна
                 Theme.DangerOutline(Button1)
         End Select
 
         Button1.Enabled = True
-        btnCheck.Enabled = (mode = eMode.BOOT_REPLACE)
+        Me.AcceptButton = Button1
     End Sub
 
-    ' Пробная передача загрузчика: контроллер принимает и проверяет файл, затем отмена.
+    Private Function PreparationText() As String
+        Select Case mode
+            Case eMode.BOOT_REPLACE
+                Return "Загрузчик — служебная программа платы, через которую ставятся прошивки. Меняется один раз." & vbCrLf & vbCrLf &
+                       "Перед началом проверьте:" & vbCrLf &
+                       "•  плата подключена к 12 В и к компьютеру по USB;" & vbCrLf &
+                       "•  до конца нельзя отключать питание и кабель — прерванная замена выводит плату из строя." & vbCrLf & vbCrLf &
+                       "Сначала плата проверит файл, ничего не меняя. Если файл подходит, загрузчик заменится, " &
+                       "плата перезапустится, программа подключится к ней сама. Около 1 минуты."
+            Case eMode.FW_VIA_BOOT
+                Return "Перед началом проверьте:" & vbCrLf &
+                       "•  плата подключена к 12 В и к компьютеру по USB;" & vbCrLf &
+                       "•  до конца не отключайте питание и кабель." & vbCrLf & vbCrLf &
+                       "Запись займёт около 1 минуты."
+            Case Else
+                Return "Перед началом проверьте:" & vbCrLf &
+                       "•  плата подключена к 12 В и к компьютеру по USB;" & vbCrLf &
+                       "•  до конца не отключайте питание и кабель." & vbCrLf & vbCrLf &
+                       "Около 1 минуты. После передачи плата сама установит прошивку и перезапустится, " &
+                       "программа дождётся её и подключится сама."
+        End Select
+    End Function
+
+    ' Кнопка «Выбрать другой файл»: оператор берёт файл сам, папка запоминается.
     Private Sub btnCheck_Click(sender As Object, e As EventArgs) Handles btnCheck.Click
-        StartWork(False)
+        Using dialog As New OpenFileDialog With {.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"}
+            Dim folder = Path.GetDirectoryName(fName)
+            If folder <> "" AndAlso Directory.Exists(folder) Then dialog.InitialDirectory = folder
+            If dialog.ShowDialog(Me) <> DialogResult.OK Then Exit Sub
+            fName = dialog.FileName
+            FirmwareFiles.LastFolder = Path.GetDirectoryName(fName)
+        End Using
+        LoadFile()
     End Sub
 
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
 
         If mode = eMode.BOOT_REPLACE Then
             ' Двойное подтверждение по п. 9.6 краткого ТЗ.
-            Using f As New frmInfo("Внимание", "Заменить загрузчик контроллера на файл" & vbCrLf &
-                                   Path.GetFileName(fName) & "?" & vbCrLf &
-                                   "Плата " & fileHw & ".", , True)
+            Using f As New frmInfo("Замена загрузчика", "Заменить загрузчик этой платы?" & vbCrLf &
+                                   "Сначала плата проверит файл, потом загрузчик заменится.", , True)
                 f.Button1.Text = "Да"
                 f.Button2.Text = "Нет"
                 If f.ShowDialog(Me) <> DialogResult.OK Then
@@ -177,9 +247,8 @@ Public Class frmFW
                 End If
             End Using
 
-            Using f As New frmInfo("Внимание", "Замена необратима: вернуть прежний загрузчик" & vbCrLf &
-                                   "без программатора нельзя." & vbCrLf &
-                                   "Не отключайте питание и USB до конца замены!", , True)
+            Using f As New frmInfo("Внимание", "Вернуть прежний загрузчик потом будет нельзя." & vbCrLf &
+                                   "До конца не отключайте питание и USB!", , True)
                 f.Button1.Text = "Заменить"
                 f.Button2.Text = "Отмена"
                 If f.ShowDialog(Me) <> DialogResult.OK Then
@@ -188,7 +257,7 @@ Public Class frmFW
             End Using
         End If
 
-        StartWork(True)
+        StartWork()
     End Sub
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
@@ -203,25 +272,25 @@ Public Class frmFW
         If running Then e.Cancel = True
     End Sub
 
-    Private Sub StartWork(ByVal apply As Boolean)
-        applyRun = apply
+    Private Sub StartWork()
         running = True
         Button1.Enabled = False
         btnCheck.Enabled = False
         Button2.Enabled = False
         ProgressBar1.Value = 0
+        lblState.ForeColor = Theme.TextMain
+        ShowStep(1)
 
         Select Case mode
             Case eMode.BOOT_REPLACE
-                lblState.Text = If(apply,
-                                   "Передача загрузчика в контроллер. Не отключайте питание и USB",
-                                   "Пробная передача: контроллер принимает и проверяет файл")
+                lblState.Text = "Плата проверяет файл. На плате пока ничего не меняется."
             Case eMode.FW_VIA_BOOT
-                lblState.Text = "Запись прошивки через загрузчик"
+                lblState.Text = "Идёт запись прошивки. Не отключайте питание и USB."
             Case Else
-                lblState.Text = "Передача прошивки в контроллер"
+                lblState.Text = "Идёт передача прошивки в плату. Не отключайте питание и USB."
         End Select
 
+        clock.Restart()
         thread_work = New Threading.Thread(AddressOf tWork)
         thread_work.Priority = Threading.ThreadPriority.Normal
         thread_work.Name = "deviceWork"
@@ -239,7 +308,19 @@ Public Class frmFW
                 Case eMode.FW_VIA_BOOT
                     ok = clBoot.Upload(bootPort, fName, app, AddressOf onProgress, errText)
                 Case eMode.BOOT_REPLACE
-                    ok = opros.ReplaceBootloader(image, applyRun, AddressOf onProgress, errText)
+                    ' сначала пробная передача: плата принимает и проверяет файл, ничего не меняя
+                    ok = opros.ReplaceBootloader(image, False, AddressOf onProgress, errText)
+                    If ok Then
+                        Me.Invoke(New Action(Sub()
+                                                 ShowStep(2)
+                                                 lblState.Text = "Файл подошёл. Идёт замена загрузчика. Не отключайте питание и USB!"
+                                                 ProgressBar1.Value = 0
+                                                 clock.Restart()
+                                             End Sub))
+                        ok = opros.ReplaceBootloader(image, True, AddressOf onProgress, errText)
+                    ElseIf errText <> "" Then
+                        errText = "плата не приняла файл, на плате ничего не изменилось. " & errText
+                    End If
             End Select
         Catch ex As Exception
             ok = False
@@ -302,7 +383,7 @@ Public Class frmFW
                         tries = 0
                         fw_onRead(fReaded, percent)
                     Case 253
-                        errText = "Контроллер прекратил загрузку. Причина записана в его журнал событий."
+                        errText = "Плата прекратила загрузку. Причина записана в её журнал событий."
                         Return False
                     Case Else
                         tries += 1
@@ -310,7 +391,7 @@ Public Class frmFW
             End If
 
             If tries >= MAX_BLOCK_TRIES Then
-                errText = "Блок " & nBlock & " не принят " & MAX_BLOCK_TRIES & " раз подряд. Обновление прервано."
+                errText = "часть файла не прошла " & MAX_BLOCK_TRIES & " раз подряд. Проверьте кабель USB и начните заново."
                 Return False
             End If
 
@@ -338,21 +419,21 @@ Public Class frmFW
     Private Shared Function StartAnswerText(ByVal rez As clOpros.eCmdAnswer) As String
         Select Case rez
             Case clOpros.eCmdAnswer.CMD_PARAMERROR
-                Return "Ошибка в параметрах команды!"
+                Return "плата отклонила файл (ошибка в параметрах)."
             Case clOpros.eCmdAnswer.CMD_RUNERROR
-                Return "Контроллер сейчас не может принять прошивку: идёт другая загрузка, пробный запуск новой прошивки, замена загрузчика или стоит старый загрузчик. Причина записана в журнал событий контроллера."
+                Return "плата сейчас занята: идёт другая загрузка, пробный запуск новой прошивки или замена загрузчика. Подождите несколько минут и начните заново."
             Case clOpros.eCmdAnswer.CMD_UNDEFRESULT
-                Return "Контроллер не ответил на команду обновления!"
+                Return "плата не ответила. Проверьте кабель USB и питание и начните заново."
             Case clOpros.eCmdAnswer.CMD_GETPASSWORD
-                Return "Требуется ввод пароля!"
+                Return "плата просит ПИН-код. Переподключитесь к плате с ПИН-кодом."
             Case clOpros.eCmdAnswer.CMD_ROLLBACKRUN
-                Return "Контроллер запустил откат на предыдущую прошивку."
+                Return "плата сейчас возвращает предыдущую прошивку. Подождите пару минут и подключитесь заново."
             Case clOpros.eCmdAnswer.CMD_CRCERROR
-                Return "Ошибка в контрольной сумме!"
+                Return "файл повреждён (не сходится контрольная сумма). Возьмите файл заново."
             Case clOpros.eCmdAnswer.CMD_UNDEFINE
-                Return "Команда не поддерживается!"
+                Return "эта плата не умеет обновляться по USB."
             Case Else
-                Return "Контроллер отказал, код " & CInt(rez) & "."
+                Return "плата отказала, код " & CInt(rez) & "."
         End Select
     End Function
 
@@ -360,19 +441,19 @@ Public Class frmFW
     Private Shared Function ProgressText(ByVal percent As Byte) As String
         Select Case percent
             Case 249
-                Return "Обновление не уложилось в отведённый час."
+                Return "обновление не уложилось в отведённый час."
             Case 250
-                Return "Прошивка собрана для другой платы!"
+                Return "файл собран для другой платы. Выберите файл для своей платы."
             Case 251
-                Return "Блоки перестали приходить, обновление прекращено."
+                Return "передача прервалась. Проверьте кабель USB и начните заново."
             Case 252
-                Return "Не верная контрольная сумма!"
+                Return "файл повреждён (не сходится контрольная сумма)."
             Case 253
-                Return "В контроллере нет резервной копии прошивки."
+                Return "на плате нет резервной копии прошивки."
             Case 254
-                Return "Прошивка с таким номером уже установлена."
+                Return "эта прошивка уже стоит на плате."
             Case Else
-                Return "Сбой обновления, код " & percent & "."
+                Return "сбой обновления, код " & percent & "."
         End Select
     End Function
 
@@ -385,16 +466,22 @@ Public Class frmFW
         Me.BeginInvoke(UIUpdater, readed, percent)
     End Sub
 
+    ' Проценты и сколько примерно осталось - по скорости с начала этапа.
     Private Sub refOnReaded(ByVal readed As Integer, ByVal percent As Byte)
-        Label1.Text = readed & " из " & fSize & " байт"
+        If percent > 100 Then Exit Sub
+        ProgressBar1.Value = percent
 
-        If percent <= 100 Then
-            ProgressBar1.Value = percent
+        Dim left As String = ""
+        If percent >= 3 AndAlso percent < 100 Then
+            Dim seconds = CInt(clock.Elapsed.TotalSeconds * (100 - percent) / percent)
+            left = " · осталось около " & If(seconds < 60, Math.Max(5, (seconds + 4) \ 5 * 5) & " с", ((seconds + 30) \ 60) & " мин")
         End If
+        Label1.Text = percent & " %" & left
 
         ' 100 % - это «всё отдано», дальше контроллер работает сам
         If percent >= 100 AndAlso mode = eMode.FW_UPDATE Then
-            lblState.Text = "Контроллер проверяет контрольную сумму и устанавливает прошивку"
+            ShowStep(2)
+            lblState.Text = "Файл передан. Плата проверяет его и начинает установку."
         End If
     End Sub
 
@@ -404,104 +491,91 @@ Public Class frmFW
 
     Private Sub refDone(ByVal ok As Boolean, ByVal text As String)
         running = False
+        clock.Stop()
         Button2.Enabled = True
 
         If Not ok Then
-            lblState.Text = "Не выполнено: " & text
+            ShowStep(0)
+            lblState.Text = "Не получилось: " & text & vbCrLf & vbCrLf &
+                            "Можно нажать «" & Button1.Text & "» ещё раз или закрыть окно."
             lblState.ForeColor = Theme.Danger
             Button1.Enabled = True
-            btnCheck.Enabled = (mode = eMode.BOOT_REPLACE)
+            btnCheck.Enabled = True
             Exit Sub
         End If
 
         Select Case mode
             Case eMode.FW_UPDATE
-                Finish("Прошивка передана целиком. Контроллер устанавливает её и перезагружается." & vbCrLf &
-                       "Подключитесь заново примерно через 20 секунд.")
+                ShowStep(3)
+                Finish("Файл передан, плата устанавливает прошивку и перезапускается." & vbCrLf &
+                       "Нажмите «Дальше» — программа дождётся платы, подключится сама и покажет итог." & vbCrLf &
+                       "Питание и USB не отключайте.")
 
             Case eMode.FW_VIA_BOOT
                 If oldBoot Then
-                    Finish("Прошивка записана, контрольная сумма на плате сошлась." & vbCrLf &
-                           "Снимите питание (12 В и USB) и включите плату без кнопки." & vbCrLf &
-                           "NextConfig найдёт её и предложит шаг 2: замену загрузчика.")
+                    ShowStep(2)
+                    Finish("Новая прошивка записана." & vbCrLf & vbCrLf &
+                           "Теперь:" & vbCrLf &
+                           "1.  Отключите от платы 12 В и USB." & vbCrLf &
+                           "2.  Подождите 5 секунд и включите снова (кнопку на плате не нажимать)." & vbCrLf &
+                           "3.  Подключитесь к плате — программа предложит шаг 2, замену загрузчика.")
                 Else
-                    Finish("Прошивка записана. Загрузчик устанавливает её и запускает." & vbCrLf &
-                           "Подключитесь заново примерно через 20 секунд.")
+                    ShowStep(2)
+                    Finish("Прошивка записана. Плата запускает её." & vbCrLf &
+                           "Через 20 секунд плата появится в списке — подключитесь к ней.")
                 End If
 
             Case eMode.BOOT_REPLACE
-                If Not applyRun Then
-                    lblState.Text = "Пробная передача прошла: контроллер принял и проверил файл." & vbCrLf &
-                                    "На плате ничего не изменилось."
-                    lblState.ForeColor = Theme.OkText
-                    Button1.Enabled = True
-                    btnCheck.Enabled = True
-                    Exit Sub
-                End If
-
-                Finish("Контроллер перезаписывает загрузчик и перезагружается." & vbCrLf &
-                       "Через 15 секунд подключитесь заново и проверьте версию загрузчика: она должна стать 0x32.")
+                ShowStep(3)
+                Finish("Загрузчик передан, плата записывает его и перезапускается." & vbCrLf &
+                       "Нажмите «Дальше» — программа дождётся платы, подключится сама и проверит загрузчик." & vbCrLf &
+                       "Питание и USB не отключайте.")
         End Select
     End Sub
 
-    ' Работа кончилась удачно: итог в окне, дальше только «Готово».
+    ' Работа кончилась удачно: итог в окне, дальше только одна кнопка.
     Private Sub Finish(ByVal text As String)
         doneOk = True
 
         lblState.Text = text
         lblState.ForeColor = Theme.OkText
         ProgressBar1.Value = ProgressBar1.Maximum
+        Label1.Text = "100 %"
 
         Button1.Visible = False
         btnCheck.Visible = False
-        Button2.Text = "Готово"
+        Button2.Text = If(mode = eMode.FW_VIA_BOOT, "Готово", "Дальше")
         Theme.Primary(Button2)
         Button2.Enabled = True
         Me.AcceptButton = Button2
     End Sub
 
-    ' Что за файл и что в нём проверено. Пишем только те проверки, которые есть.
-    Private Function FileInfoText() As String
+    ' Что за прошивка, простыми словами: что стоит сейчас и что будет.
+    Private Function FirmwareText() As String
         Dim marked As Boolean = False
 
         If image.Length >= HW_MARKER_OFFSET + 4 Then
             Dim mark As UInt32 = BitConverter.ToUInt32(image, HW_MARKER_OFFSET)
             marked = (mark And &HFFFFFF00UI) = HW_MARKER_TAG
         End If
+        AgentLog.Write("fwfile", "crc", clOpros.Crc32Stm(image).ToString("X8"), "hw", app.hard, "marked", marked)
 
-        Dim t As String = "Прошивка " & app.version & ", сборка " & BuildText(app.build) & "," & vbCrLf &
-                          "для платы " & app.hard & ", " & fSize & " байт," & vbCrLf &
-                          "контрольная сумма 0x" & clOpros.Crc32Stm(image).ToString("X8") & "." & vbCrLf
-
-        If marked Then
-            Return t & "Проверено: имя файла, размер, векторы, метка платы внутри образа."
+        Dim t As String = "Новая прошивка: сборка от " & BuildText(app.build) & "."
+        If BoardBuild <> 0 Then
+            t &= vbCrLf & "Сейчас на плате: сборка от " & BuildText(BoardBuild) & "."
+            If app.build < BoardBuild Then t &= vbCrLf & "Внимание: файл старее той прошивки, что стоит на плате."
         End If
-
-        Return t & "Проверено: имя файла, размер, векторы. Метки платы в образе нет," & vbCrLf &
-                   "совпадение с платой не подтверждено."
+        Return t & vbCrLf & "Файл для платы " & app.hard & ", проверен."
     End Function
 
-    ' Файл не подходит: работать нечем, остаётся закрыть окно.
+    ' Файл не подходит: сказать почему и предложить выбрать другой.
     Private Sub FileRejected(ByVal why As String)
         lblInfo.Text = why
         Theme.Note(lblInfo, True)
-        lblState.Text = "Файл не подходит"
+        lblState.Text = "Этот файл не подходит. Нажмите «Выбрать другой файл»."
         lblState.ForeColor = Theme.Danger
         Button1.Visible = False
-        btnCheck.Visible = False
-        Me.AcceptButton = Button2
-    End Sub
-
-    ' Окно показывает поток окна, а не поток записи: иначе форма живёт в двух потоках.
-    Private Sub ShowMsg(ByVal caption As String, ByVal text As String)
-        If Me.InvokeRequired Then
-            Me.Invoke(New Action(Of String, String)(AddressOf ShowMsg), caption, text)
-            Exit Sub
-        End If
-
-        Using f As New frmInfo(caption, text)
-            f.ShowDialog(Me)
-        End Using
+        Me.AcceptButton = btnCheck
     End Sub
 
 End Class

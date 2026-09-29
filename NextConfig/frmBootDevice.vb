@@ -19,16 +19,16 @@
         Dim pages As New TabControl()
         Dim device As New TabPage("Устройство") With {.BackColor = Theme.WindowBack, .AutoScroll = True}
         pages.TabPages.Add(device)
-        Dim upload As New Button With {.Text = "Обновить прошивку", .Width = Theme.Px(250)}
+        Dim upload As New Button With {.Text = "Записать прошивку", .Width = Theme.Px(250)}
         Theme.Primary(upload)
         AddHandler upload.Click, AddressOf UploadFirmware
         Dim close As New Button With {.Text = "Закрыть", .Width = Theme.Px(120)}
         Theme.Secondary(close) : AddHandler close.Click, Sub() Me.Close()
         Dim old = version < clBoot.OLD_BOOT_BELOW
         Dim description As New Label With {.AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontBody,
-            .Text = If(old, "Шаг 1 из 2: записать новую прошивку через старый загрузчик. " &
-                "После перезапуска войдите по ПИН-коду: NextConfig предложит шаг 2 — замену загрузчика на 0x32.",
-                "Плата находится в загрузчике. Выберите файл прошивки для этой платы.")}
+            .Text = If(old, "Шаг 1 из 2: записать на плату новую прошивку. Нажмите «Записать прошивку» — программа сама возьмёт файл и проведёт по шагам. " &
+                "Потом нужно будет выключить и включить питание платы и подключиться к ней — программа предложит шаг 2.",
+                "Плата в режиме загрузки: прошивки на ней нет или она не запустилась. Нажмите «Записать прошивку» — программа сама возьмёт файл и проведёт по шагам.")}
         device.Controls.Add(Theme.CardPage(Theme.PageHeading("Устройство", If(old, "Перевод на новую систему", "Восстановление прошивки")),
             Theme.Card("Прошивка и загрузчик", description,
                 New Label With {.Text = "Загрузчик 0x" & version.ToString("X2") & " · плата " & board &
@@ -37,14 +37,21 @@
         root.Controls.Add(Theme.MainNavigation(pages), 0, 1) : Controls.Add(root)
     End Sub
 
+    ' Файл берём сами (свежая сборка для этой платы рядом с программой),
+    ' в окне записи его можно поменять кнопкой «Выбрать другой файл».
     Private Sub UploadFirmware(sender As Object, e As EventArgs)
-        Using dialog As New OpenFileDialog With {.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*",
-            .FileName = hardware & ".FW.БИЛД.bin", .InitialDirectory = AppDomain.CurrentDomain.BaseDirectory}
-            If dialog.ShowDialog(Me) <> DialogResult.OK Then Return
-            ' frmFW оставляет существующие проверки файла и подтверждение записи.
-            Using transfer As New frmFW(dialog.FileName, port, version)
-                If transfer.ShowDialog(Me) <> DialogResult.OK Then Return
+        Dim file = FirmwareFiles.FindFirmware(hardware)
+        If file Is Nothing Then
+            Using dialog As New OpenFileDialog With {.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*",
+                .InitialDirectory = AppDomain.CurrentDomain.BaseDirectory}
+                If dialog.ShowDialog(Me) <> DialogResult.OK Then Return
+                file = dialog.FileName
+                FirmwareFiles.LastFolder = IO.Path.GetDirectoryName(file)
             End Using
+        End If
+        ' frmFW оставляет существующие проверки файла и подтверждение записи.
+        Using transfer As New frmFW(file, port, version)
+            If transfer.ShowDialog(Me) <> DialogResult.OK Then Return
         End Using
         If Demo.IsOn AndAlso version < clBoot.OLD_BOOT_BELOW Then Demo.LegacyFwStarted = True
         DialogResult = DialogResult.OK : Close()

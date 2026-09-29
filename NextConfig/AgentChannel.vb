@@ -25,7 +25,7 @@ Public Module AgentChannel
         "btnTestOUT1", "btnTestOUT2", "btnTranspMode", "btnUnConnect", "btnImport",
         "Label16", "Label19", "Label20"}
     Private ReadOnly BlockedTexts As New HashSet(Of String) From {
-        "Перевести на новую систему", "Обновить прошивку", "Сделать снимок", "Забрать фото"}
+        "Перевести на новую систему", "Обновить прошивку", "Записать прошивку", "Заменить загрузчик", "Сделать снимок", "Забрать фото"}
 
     Public Sub Start()
         ' создаётся в потоке окна: через него команды попадают в этот поток

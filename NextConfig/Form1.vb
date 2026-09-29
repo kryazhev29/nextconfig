@@ -37,6 +37,18 @@ Public Class Form1
     Private devices As New List(Of clOpros.FoundDevice)
     Private lastScanText As String = ""
 
+    ' После обновления плата перезапускается. Её ждём и открываем сами - это
+    ' единственный случай, когда программа подключается без оператора: он только
+    ' что обновлял эту плату этим ПИН-кодом.
+    Private pending As UpdateCheck
+    Private pendingImei As String = ""
+    Private pendingPin As String = ""
+    Private pendingSince As DateTime
+    Private pendingGone As Boolean
+    Private ReadOnly pendingTimer As New System.Windows.Forms.Timer With {.Interval = 1000}
+    Private checkOnConnect As UpdateCheck
+    Private Const PendingLimitSeconds As Integer = 180
+
     Public Sub New()
         InitializeComponent()
     End Sub
@@ -51,6 +63,7 @@ Public Class Form1
         opros = New clOpros(Me)
 
         AddHandler opros.onScan, AddressOf opros_onScan
+        AddHandler pendingTimer.Tick, Sub() PendingTick()
 
         UpdateConnectState()
 
@@ -174,6 +187,11 @@ Public Class Form1
             SelectionChanged()
         End If
 
+        If pending IsNot Nothing Then
+            PendingScan(found)
+            Return
+        End If
+
         If portCount = 0 Then
             SetStatus(Theme.eDot.Bad, "Нет доступных портов")
         ElseIf found.Count = 0 Then
@@ -226,13 +244,75 @@ Public Class Form1
 
         Me.Hide()
         opros.SetRegim(clOpros.eRejim.Work)
+        Dim afterUpdate As UpdateCheck
+        Dim pinText = txtPIN.Text
         Using f2 As New Form2(opros, dev.Port, txtIMEI.Text, pin)
+            f2.CheckOnConnect = checkOnConnect
+            checkOnConnect = Nothing
             If f2.ShowDialog() = DialogResult.Abort Then
                 Me.Close()
                 Exit Sub
             End If
+            afterUpdate = f2.PendingCheck
         End Using
+        Dim imei = dev.Imei
         BackToList()
+        If afterUpdate IsNot Nothing Then WaitAfterUpdate(afterUpdate, imei, pinText)
+    End Sub
+
+    Private Sub WaitAfterUpdate(check As UpdateCheck, imei As String, pinText As String)
+        pending = check
+        pendingImei = imei
+        pendingPin = pinText
+        pendingSince = DateTime.Now
+        pendingGone = False
+        btnConnect.Enabled = False
+        pendingTimer.Start()
+        PendingTick()
+    End Sub
+
+    Private Sub PendingTick()
+        If pending Is Nothing Then pendingTimer.Stop() : Return
+        Dim passed = CInt((DateTime.Now - pendingSince).TotalSeconds)
+        If passed > PendingLimitSeconds Then
+            StopPending()
+            SetStatus(Theme.eDot.Bad, "Плата не вернулась")
+            Using f As New frmInfo("Плата не вернулась", "Плата не появилась за 3 минуты после обновления." & vbCrLf &
+                                   "Проверьте питание 12 В и кабель USB. Когда плата появится в списке, подключитесь к ней как обычно.")
+                f.ShowDialog(Me)
+            End Using
+            Return
+        End If
+        SetStatus(Theme.eDot.Waiting, "Плата перезапускается после обновления. Ничего не отключайте — программа подключится сама (" & passed & " с)")
+        lblReason.Text = ""
+    End Sub
+
+    ' Плату открываем, когда она пропала (ушла на перезапуск) и появилась снова.
+    ' Если пропажу проход не застал - не раньше чем через 40 с.
+    Private Sub PendingScan(found As List(Of clOpros.FoundDevice))
+        Dim dev = found.FirstOrDefault(Function(d) d.Kind = clOpros.eDeviceKind.NextFw AndAlso d.Imei = pendingImei)
+        If dev Is Nothing Then
+            pendingGone = True
+            Return
+        End If
+        If Not pendingGone AndAlso (DateTime.Now - pendingSince).TotalSeconds < 40 Then Return
+
+        checkOnConnect = pending
+        Dim pinText = pendingPin
+        StopPending()
+        lstDevices.SelectedIndex = found.IndexOf(dev)
+        SelectionChanged()
+        txtPIN.Text = pinText
+        UpdateConnectState()
+        AgentLog.Write("autoconnect", "imei", pendingImei, "port", dev.Port)
+        If btnConnect.Enabled Then btnConnect.PerformClick()
+    End Sub
+
+    Private Sub StopPending()
+        pending = Nothing
+        pendingPin = ""
+        pendingTimer.Stop()
+        UpdateConnectState()
     End Sub
 
     Private Sub OpenOldFirmware(dev As clOpros.FoundDevice)

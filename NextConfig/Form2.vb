@@ -263,26 +263,53 @@ Public Class Form2
         SetHeadState(Theme.eDot.Good, "На связи")
         Theme.SetText(lblLastUpdate, "Последнее обновление: " & lastStatus.ToString("HH:mm:ss"))
 
+        If CheckOnConnect IsNot Nothing AndAlso status.fw_version <> 0 Then
+            Dim check = CheckOnConnect
+            CheckOnConnect = Nothing
+            ' итог показываем вместо предложения замены: оно появится при следующем подключении
+            bootOffered = True
+            Me.BeginInvoke(New Action(Sub() ShowUpdateResult(check)))
+        End If
+
         If Not bootOffered AndAlso status.fw_version <> 0 AndAlso status.boot_version < clBoot.OLD_BOOT_BELOW Then
             bootOffered = True
             Me.BeginInvoke(New MethodInvoker(AddressOf OfferBootReplace))
         End If
     End Sub
 
-    Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
-        OpenFileDialog1.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
-        OpenFileDialog1.FileName = "FW_xx.bin"
+    ' После удачной передачи плата перезапускается: экран подключения по этому
+    ' ожиданию сам дождётся её, подключится и покажет итог.
+    Public Property PendingCheck As UpdateCheck
 
-        If OpenFileDialog1.ShowDialog <> DialogResult.OK Then Exit Sub
+    ' Итог прошлого обновления: проверяется по первому статусу после подключения.
+    Public Property CheckOnConnect As UpdateCheck
+
+    ' Файл берём сами (самая свежая сборка для этой платы рядом с программой);
+    ' нет такого - оператор выбирает, папка запоминается.
+    Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
+        Dim file As String = FirmwareFiles.FindFirmware(status.hw_version)
+        If file Is Nothing Then
+            Using f As New frmInfo("Обновление прошивки", "Рядом с программой нет файла прошивки для этой платы." & vbCrLf &
+                                   "Укажите файл вида 139.71.1790667089.bin — его присылает производитель.")
+                f.ShowDialog(Me)
+            End Using
+            OpenFileDialog1.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
+            OpenFileDialog1.FileName = ""
+            If OpenFileDialog1.ShowDialog <> DialogResult.OK Then Exit Sub
+            file = OpenFileDialog1.FileName
+            FirmwareFiles.LastFolder = Path.GetDirectoryName(file)
+        End If
 
         ' опрос статуса на время записи не нужен: порт занимают блоки прошивки
         busyWithBoard = True
         tmr1.Enabled = False
         opros.StopGetStatus(True)
 
-        Using f As New frmFW(OpenFileDialog1.FileName, opros)
+        Using f As New frmFW(file, opros) With {.BoardBuild = CUInt(status.fw_build)}
             If f.ShowDialog() = DialogResult.OK Then
                 ' контроллер устанавливает прошивку и перезагружается, связь потеряна
+                PendingCheck = New UpdateCheck With {.BeforeBuild = CUInt(status.fw_build), .ExpectedBuild = f.FileBuild,
+                                                     .BeforeBoot = status.boot_version}
                 Me.Close()
                 Exit Sub
             End If
@@ -298,11 +325,31 @@ Public Class Form2
         If file <> "" Then ReplaceBoot(file)
     End Sub
 
+    ' Загрузчик для этой платы рядом с программой. У v5 и MODEM плата одна (139),
+    ' поэтому файлов может быть несколько - тогда оператор выбирает по плате.
     Private Function AskBootFile() As String
-        OpenFileDialog1.Filter = "Файлы загрузчика (*.bin)|*.bin|Все файлы (*.*)|*.*"
-        OpenFileDialog1.FileName = "DomovoiBoot_0x32.bin"
-        OpenFileDialog1.InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
-        Return If(OpenFileDialog1.ShowDialog = DialogResult.OK, OpenFileDialog1.FileName, "")
+        Dim found = FirmwareFiles.FindBootloaders(status.hw_version)
+        If found.Count = 1 Then Return found(0)
+
+        OpenFileDialog1.Filter = "Файлы загрузчика (DomovoiBoot*.bin)|DomovoiBoot*.bin|Все файлы (*.*)|*.*"
+        OpenFileDialog1.FileName = ""
+        If found.Count > 1 Then
+            Dim names = String.Join(", ", found.Select(Function(f) FirmwareFiles.ProfileName(f)))
+            Using f As New frmInfo("Выбор загрузчика", "Для этой платы подходят несколько загрузчиков: " & names & "." & vbCrLf &
+                                   "Откройте папку с названием вашей платы (например, v5 — для платы v5) и выберите DomovoiBoot.bin.")
+                f.ShowDialog(Me)
+            End Using
+            OpenFileDialog1.InitialDirectory = Path.GetDirectoryName(Path.GetDirectoryName(found(0)))
+        Else
+            Using f As New frmInfo("Выбор загрузчика", "Рядом с программой нет файла загрузчика." & vbCrLf &
+                                   "Укажите файл DomovoiBoot.bin из комплекта для вашей платы.")
+                f.ShowDialog(Me)
+            End Using
+            OpenFileDialog1.InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
+        End If
+        If OpenFileDialog1.ShowDialog <> DialogResult.OK Then Return ""
+        FirmwareFiles.LastFolder = Path.GetDirectoryName(Path.GetDirectoryName(OpenFileDialog1.FileName))
+        Return OpenFileDialog1.FileName
     End Function
 
     Private Sub ReplaceBoot(ByVal file As String)
@@ -314,6 +361,8 @@ Public Class Form2
         Using f As New frmFW(file, opros, status.hw_version)
             If f.ShowDialog() = DialogResult.OK Then
                 ' контроллер перезагружается с новым загрузчиком, связь потеряна
+                PendingCheck = New UpdateCheck With {.Bootloader = True, .BeforeBuild = CUInt(status.fw_build),
+                                                     .BeforeBoot = status.boot_version}
                 Me.Close()
                 Exit Sub
             End If
@@ -342,19 +391,39 @@ Public Class Form2
             If f.ShowDialog(Me) <> DialogResult.OK Then Exit Sub
         End Using
 
-        ' рядом с программой, иначе в папке комплекта уровнем выше
-        Dim found As String() = {}
-        Dim dir As IO.DirectoryInfo = New IO.DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory)
-        Try
-            found = IO.Directory.GetFiles(dir.FullName, "DomovoiBoot*.bin")
-            If found.Length = 0 AndAlso dir.Parent IsNot Nothing Then
-                found = IO.Directory.GetFiles(dir.Parent.FullName, "DomovoiBoot*.bin")
-            End If
-        Catch
-        End Try
-
-        Dim file As String = If(found.Length = 1, found(0), AskBootFile())
+        Dim file As String = AskBootFile()
         If file <> "" Then ReplaceBoot(file)
+    End Sub
+
+    ' Плата вернулась после обновления: что было и что стало, словами.
+    Private Sub ShowUpdateResult(ByVal check As UpdateCheck)
+        Dim ok As Boolean
+        Dim text As String
+        If check.Bootloader Then
+            ok = status.boot_version >= clBoot.OLD_BOOT_BELOW
+            text = If(ok, "Загрузчик заменён, плата работает." & vbCrLf &
+                          "Было: 0x" & check.BeforeBoot.ToString("X2") & ". Стало: 0x" & status.boot_version.ToString("X2") & "." & vbCrLf &
+                          "Теперь плата может получать обновления с сервера.",
+                      "Загрузчик не заменился: на плате по-прежнему 0x" & status.boot_version.ToString("X2") & "." & vbCrLf &
+                          "Плата работает. Попробуйте заменить загрузчик ещё раз.")
+        ElseIf CUInt(status.fw_build) = check.ExpectedBuild Then
+            ok = True
+            text = "Прошивка обновлена, плата работает." & vbCrLf &
+                   "Было: сборка от " & BuildText(check.BeforeBuild) & "." & vbCrLf &
+                   "Стало: сборка от " & BuildText(check.ExpectedBuild) & "."
+        ElseIf CUInt(status.fw_build) = check.BeforeBuild Then
+            ok = False
+            text = "Плата работает на прежней прошивке (сборка от " & BuildText(check.BeforeBuild) & ")." & vbCrLf &
+                   "Новая не установилась. Причина записана в журнал событий платы (раздел «Журнал»)."
+        Else
+            ok = False
+            text = "На плате сборка от " & BuildText(CUInt(status.fw_build)) & "," & vbCrLf &
+                   "а ожидалась сборка от " & BuildText(check.ExpectedBuild) & ". Посмотрите журнал событий платы."
+        End If
+        AgentLog.Write("updatecheck", "ok", ok, "boot", check.Bootloader, "fw", status.fw_build, "bootver", status.boot_version)
+        Using f As New frmInfo(If(ok, "Готово", "Внимание"), text)
+            f.ShowDialog(Me)
+        End Using
     End Sub
 
     ' Кнопка ТЕСТ по ТЗ: запускает алгоритм выхода по его настройкам (команда 8, значение 1)

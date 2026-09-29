@@ -125,6 +125,7 @@
     <Compile Include="OldFirmwareNumbersUI.vb" />
     <Compile Include="OldSettings.vb" />
     <Compile Include="OldSettingsPresentation.vb" />
+    <Compile Include="FirmwareFiles.vb" />
     <Compile Include="OldFirmwareSettingsUI.vb" />
     <Compile Include="OldFirmwareWriteUI.vb" />
     <Compile Include="OldFirmwarePhotoUI.vb" />

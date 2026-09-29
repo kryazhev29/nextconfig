@@ -667,12 +667,12 @@ Partial Class Form2
         Me.lblFwHint.AutoSize = True
         Me.lblFwHint.Name = "lblFwHint"
         Me.lblFwHint.MaximumSize = New System.Drawing.Size(Theme.Px(560), 0)
-        Me.lblFwHint.Text = "Файл вида 139.71.1789482488.bin. Контроллер сам проверит контрольную сумму, установит прошивку и перезагрузится."
+        Me.lblFwHint.Text = "Программа сама найдёт свежий файл прошивки и проведёт по шагам. Около 1 минуты, потом сама подключится к плате и покажет итог."
         Me.lblFwHint.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblFwHint)
 
         Me.btnUpdateBoot.Name = "btnUpdateBoot"
-        Me.btnUpdateBoot.Text = "Выбрать файл и заменить загрузчик"
+        Me.btnUpdateBoot.Text = "Заменить загрузчик"
         Me.btnUpdateBoot.Width = Theme.Px(300)
         Me.btnUpdateBoot.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Theme.DangerOutline(Me.btnUpdateBoot)
@@ -680,7 +680,7 @@ Partial Class Form2
         Me.lblBootHint.AutoSize = True
         Me.lblBootHint.Name = "lblBootHint"
         Me.lblBootHint.MaximumSize = New System.Drawing.Size(Theme.Px(560), 0)
-        Me.lblBootHint.Text = "Необратимо: прежний загрузчик без программатора не вернуть. Сначала пробная передача, она ничего на плате не меняет."
+        Me.lblBootHint.Text = "Нужно один раз, если на плате старый загрузчик. Вернуть прежний нельзя. Программа сама найдёт файл, сначала проверит его на плате и проведёт по шагам."
         Me.lblBootHint.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblBootHint)
 
