@@ -9,11 +9,15 @@ Imports System.Threading
 '   NextConfig.exe --demo        устройство найдено, статус идёт
 '   NextConfig.exe --demo:none   портов нет
 '   NextConfig.exe --demo:boot   на порту отвечает загрузчик
+'   NextConfig.exe --demo:oldboot   на порту старый загрузчик 0x21 (шаг 1 перевода)
+'   NextConfig.exe --demo:oldfw     новая прошивка под старым загрузчиком (шаг 2 перевода)
 Public Enum eDemoMode
     Off = 0
     Found = 1
     NoPorts = 2
     Boot = 3
+    OldBoot = 4
+    OldFw = 5
 End Enum
 
 Public Module Demo
@@ -35,6 +39,10 @@ Public Module Demo
                     Return eDemoMode.NoPorts
                 Case "--demo:boot", "/demo:boot"
                     Return eDemoMode.Boot
+                Case "--demo:oldboot", "/demo:oldboot"
+                    Return eDemoMode.OldBoot
+                Case "--demo:oldfw", "/demo:oldfw"
+                    Return eDemoMode.OldFw
             End Select
         Next
         Return eDemoMode.Off
@@ -75,6 +83,12 @@ Partial Public Class clOpros
                 rejim = eRejim.Boot
                 RaiseEvent onBootFound("COM9", &H32, 139)
 
+            Case eDemoMode.OldBoot
+                RaiseEvent onFind("COM9")
+                Thread.Sleep(900)
+                rejim = eRejim.Boot
+                RaiseEvent onBootFound("COM9", &H21, 139)
+
             Case Else
                 RaiseEvent onFind("COM9")
                 Thread.Sleep(900)
@@ -112,6 +126,12 @@ Partial Public Class clOpros
         s.fw_build = 1789482488
         s.boot_version = 50
         s.hw_version = 139
+
+        ' под старым загрузчиком прошивка знает его версию, а плату - нет
+        If Demo.Mode = eDemoMode.OldFw Then
+            s.boot_version = &H21
+            s.hw_version = 0
+        End If
         s.signal = CByte(24 + (demoTick Mod 6))
         s.balance = 0
         s.gsm = 1
@@ -159,6 +179,27 @@ Partial Public Class clOpros
         percent = CByte(Math.Min(100, CInt((nBlock + 1) * 100L \ Math.Max(1, demoBlocks))))
 
         Return eCmdAnswer.CMD_SUCCESS
+    End Function
+
+    ' Замена загрузчика командой 110 без платы: принимает всё подряд.
+    Private demoBootReceived As UInt32 = 0
+
+    Private Function DemoBootManual(ByVal op As eBootOp, ByVal payload As Byte(),
+                                    ByRef received As UInt32, ByRef hw As Byte, ByRef armed As Byte) As eBootStatus
+        Threading.Thread.Sleep(5)
+
+        Select Case op
+            Case eBootOp.OP_BEGIN, eBootOp.OP_CANCEL
+                demoBootReceived = 0
+            Case eBootOp.OP_DATA
+                demoBootReceived = BitConverter.ToUInt32(payload, 0) + CUInt(payload.Length - 4)
+            Case eBootOp.OP_COMMIT
+                armed = 1
+        End Select
+
+        received = demoBootReceived
+        hw = 139
+        Return eBootStatus.BOOT_OK
     End Function
 
     ' Настройки, какие обычно стоят на стендовой плате.

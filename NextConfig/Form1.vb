@@ -176,10 +176,24 @@ Public Class Form1
         SetStatus(Theme.eDot.Waiting, "Загрузчик 0x" & bootVer.ToString("X2") & " · плата " & hw & " · " & port)
         UpdateConnectState()
 
-        Using f As New frmInfo("Загрузчик", "На порту " & port & " отвечает загрузчик 0x" & bootVer.ToString("X2") &
-                               ", плата " & hw & "." & vbCrLf &
-                               "Прошивки на плате нет или её держат кнопкой." & vbCrLf &
-                               "Записать прошивку?", , True)
+        Dim oldBoot As Boolean = bootVer < clBoot.OLD_BOOT_BELOW
+        Dim text As String
+
+        If oldBoot Then
+            ' Плата старой системы: перевод в два шага, оба делает эта программа.
+            text = "На порту " & port & " старый загрузчик 0x" & bootVer.ToString("X2") & ", плата " & hw & "." & vbCrLf &
+                   "Перевод на новую систему - два шага:" & vbCrLf &
+                   "1. Новая прошивка через этот загрузчик (файл " & hw & ".FW.БИЛД.bin, шифровать не нужно)." & vbCrLf &
+                   "2. После перезапуска - замена загрузчика на 0x32." & vbCrLf &
+                   "Записать прошивку?"
+        Else
+            text = "На порту " & port & " отвечает загрузчик 0x" & bootVer.ToString("X2") &
+                   ", плата " & hw & "." & vbCrLf &
+                   "Прошивки на плате нет или её держат кнопкой." & vbCrLf &
+                   "Записать прошивку?"
+        End If
+
+        Using f As New frmInfo("Загрузчик", text, , True)
             f.Button1.Text = "Записать прошивку"
             f.Button2.Text = "Отмена"
 
@@ -192,9 +206,10 @@ Public Class Form1
         Using ofd As New OpenFileDialog()
             ofd.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
             ofd.FileName = hw & ".FW.БИЛД.bin"
+            ofd.InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
 
             If ofd.ShowDialog() = DialogResult.OK Then
-                Using f As New frmFW(ofd.FileName, opros.GetComPort)
+                Using f As New frmFW(ofd.FileName, opros.GetComPort, bootVer)
                     f.ShowDialog()
                 End Using
             End If

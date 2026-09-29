@@ -218,6 +218,10 @@ Public Class Form2
         SetHeadState(Theme.eDot.Good, "На связи")
         Theme.SetText(lblLastUpdate, "Последнее обновление: " & lastStatus.ToString("HH:mm:ss"))
 
+        If Not bootOffered AndAlso status.fw_version <> 0 AndAlso status.boot_version < clBoot.OLD_BOOT_BELOW Then
+            bootOffered = True
+            Me.BeginInvoke(New MethodInvoker(AddressOf OfferBootReplace))
+        End If
     End Sub
 
     Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
@@ -245,26 +249,67 @@ Public Class Form2
     End Sub
 
     Private Sub btnUpdateBoot_Click(sender As Object, e As EventArgs) Handles btnUpdateBoot.Click
+        Dim file As String = AskBootFile()
+        If file <> "" Then ReplaceBoot(file)
+    End Sub
+
+    Private Function AskBootFile() As String
         OpenFileDialog1.Filter = "Файлы загрузчика (*.bin)|*.bin|Все файлы (*.*)|*.*"
-        OpenFileDialog1.FileName = "Boot_xx.bin"
-        If OpenFileDialog1.ShowDialog = DialogResult.OK Then
-            ' опрос статуса на время замены не нужен: порт занимает команда 110
-            busyWithBoard = True
-            tmr1.Enabled = False
-            opros.StopGetStatus(True)
+        OpenFileDialog1.FileName = "DomovoiBoot_0x32.bin"
+        OpenFileDialog1.InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
+        Return If(OpenFileDialog1.ShowDialog = DialogResult.OK, OpenFileDialog1.FileName, "")
+    End Function
 
-            Using f As New frmFW(OpenFileDialog1.FileName, opros, status.hw_version)
-                If f.ShowDialog() = DialogResult.OK Then
-                    ' контроллер перезагружается с новым загрузчиком, связь потеряна
-                    Me.Close()
-                    Exit Sub
-                End If
-            End Using
+    Private Sub ReplaceBoot(ByVal file As String)
+        ' опрос статуса на время замены не нужен: порт занимает команда 110
+        busyWithBoard = True
+        tmr1.Enabled = False
+        opros.StopGetStatus(True)
 
-            busyWithBoard = False
-            opros.StopGetStatus(False)
-            tmr1.Enabled = True
-        End If
+        Using f As New frmFW(file, opros, status.hw_version)
+            If f.ShowDialog() = DialogResult.OK Then
+                ' контроллер перезагружается с новым загрузчиком, связь потеряна
+                Me.Close()
+                Exit Sub
+            End If
+        End Using
+
+        busyWithBoard = False
+        opros.StopGetStatus(False)
+        tmr1.Enabled = True
+    End Sub
+
+    ' Шаг 2 перевода на новую систему. Прошивка работает, а загрузчик старый: она
+    ' сообщает серверу плату 0 и не берёт обновления с сервера. Предлагаем один раз
+    ' за подключение. Файл загрузчика берём рядом с программой, если он там один.
+    Private bootOffered As Boolean = False
+
+    Private Sub OfferBootReplace()
+        If busyWithBoard Then Exit Sub
+
+        Using f As New frmInfo("Перевод на новую систему",
+                               "На плате новая прошивка, но старый загрузчик 0x" & status.boot_version.ToString("X2") & "." & vbCrLf &
+                               "Шаг 2 из 2: заменить загрузчик на 0x32." & vbCrLf &
+                               "Без него нет обновлений с сервера, и сервер видит плату 0." & vbCrLf &
+                               "В следующем окне сначала пробная передача, она ничего не меняет.", , True)
+            f.Button1.Text = "Заменить загрузчик"
+            f.Button2.Text = "Позже"
+            If f.ShowDialog(Me) <> DialogResult.OK Then Exit Sub
+        End Using
+
+        ' рядом с программой, иначе в папке комплекта уровнем выше
+        Dim found As String() = {}
+        Dim dir As IO.DirectoryInfo = New IO.DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory)
+        Try
+            found = IO.Directory.GetFiles(dir.FullName, "DomovoiBoot*.bin")
+            If found.Length = 0 AndAlso dir.Parent IsNot Nothing Then
+                found = IO.Directory.GetFiles(dir.Parent.FullName, "DomovoiBoot*.bin")
+            End If
+        Catch
+        End Try
+
+        Dim file As String = If(found.Length = 1, found(0), AskBootFile())
+        If file <> "" Then ReplaceBoot(file)
     End Sub
 
     ' Кнопка ТЕСТ по ТЗ: запускает алгоритм выхода по его настройкам (команда 8, значение 1)

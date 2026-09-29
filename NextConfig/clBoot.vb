@@ -8,12 +8,29 @@ Imports System.Threading
 ' кадр "SLGT" + длина 2 + тело + CRC16 тела; тело запроса [0xAA, команда, данные],
 ' тело ответа [0x55, команда, статус, версия, HW, ...] — всего 10 байт.
 ' Команды: 0x00 идентификация, 0x20 начать приём, 0x21 данные, 0x22 установить.
+'
+' Старый загрузчик 2.x (платы до перевода на новую систему) говорит тем же кадром
+' и так же отвечает на 0x00, но пишет прошивку своими командами и принимает её
+' только зашифрованной (как программа CodingFW): 0x10 открыть флеш, 0x12 стереть,
+' 0x13 заголовок 512 байт, 0x14 блоки по 1024, 0x15 проверить CRC, 0x11 закрыть.
+' Ответ на них - [0x55, команда, статус]. Шифрование делает сама программа.
 Public Class clBoot
 
     Public Const CMD_INFO As Byte = &H0
     Public Const CMD_BEGIN As Byte = &H20
     Public Const CMD_DATA As Byte = &H21
     Public Const CMD_COMMIT As Byte = &H22
+
+    ' старый загрузчик 2.x
+    Public Const OLD_BOOT_BELOW As Byte = &H30     ' версии ниже - старый загрузчик
+    Private Const OLD_UNLOCK As Byte = &H10
+    Private Const OLD_LOCK As Byte = &H11
+    Private Const OLD_ERASE As Byte = &H12
+    Private Const OLD_HEADER As Byte = &H13
+    Private Const OLD_BLOCK As Byte = &H14
+    Private Const OLD_CHECK As Byte = &H15
+    Private Const OLD_HEADER_SIZE As Integer = 512
+    Private Const OLD_BLOCK_SIZE As Integer = 1024
 
     Public Const CHUNK As Integer = 256
     Public Const MAX_CODE As Integer = &H17E00     ' размер области прошивки
@@ -77,11 +94,13 @@ Public Class clBoot
     End Function
 
     ' Одна команда загрузчику. Возвращает тело ответа или Nothing.
+    ' legacy: старый загрузчик, ответ короче 10 байт и без кода объёма памяти.
     Private Shared Function Exchange(ByVal comport As ClComPort,
                                      ByVal cmd As Byte,
                                      ByVal data As Byte(),
                                      ByVal timeout As Integer,
-                                     ByRef errText As String) As Byte()
+                                     ByRef errText As String,
+                                     Optional ByVal legacy As Boolean = False) As Byte()
 
         ' иначе обработчик события приёма заберёт ответ загрузчика себе
         comport.EnableEventReceived = False
@@ -146,12 +165,12 @@ Public Class clBoot
                     Continue While
                 End If
 
-                If body.Length <> 10 Then
+                If body.Length < 3 OrElse (Not legacy AndAlso body.Length <> 10) Then
                     errText = "Загрузчик ответил кадром неизвестного вида."
                     Return Nothing
                 End If
 
-                If body(2) = 7 Then
+                If Not legacy AndAlso body(2) = 7 Then
                     errText = "Микроконтроллер платы сообщает другой объём памяти: этот загрузчик ему не подходит."
                     Return Nothing
                 End If
@@ -268,19 +287,25 @@ Public Class clBoot
                                   ByVal progress As Action(Of Integer),
                                   ByRef errText As String) As Boolean
 
+        If Demo.IsOn Then Return DemoUpload(progress)
+
         Dim body As Byte() = Exchange(comport, CMD_INFO, Nothing, 2000, errText)
 
         If body Is Nothing Then
             Return False
         End If
 
-        If body(3) < &H31 Then
-            errText = "На плате старый загрузчик, он этот протокол не понимает."
+        If body(4) <> app.hard Then
+            errText = "Загрузчик сообщает плату " & body(4) & ", а файл для платы " & app.hard & "."
             Return False
         End If
 
-        If body(4) <> app.hard Then
-            errText = "Загрузчик сообщает плату " & body(4) & ", а файл для платы " & app.hard & "."
+        If body(3) < OLD_BOOT_BELOW Then
+            Return UploadLegacy(comport, app, progress, errText)
+        End If
+
+        If body(3) < &H31 Then
+            errText = "Загрузчик 0x" & body(3).ToString("X2") & " этот протокол не понимает."
             Return False
         End If
 
@@ -319,6 +344,109 @@ Public Class clBoot
         If Exchange(comport, CMD_COMMIT, Nothing, 30000, errText) Is Nothing Then
             Return False
         End If
+
+        Return True
+    End Function
+
+    ' Пакет для старого загрузчика, как у CodingFW: заголовок 512 байт (SLFW, плата,
+    ' номер прошивки, размер, CRC по открытому образу, билд) и тело, зашифрованное
+    ' цепочкой от 0x5A. Повторно такой пакет не шифруется - берётся обычный BIN.
+    Public Shared Function LegacyPackage(ByVal app As s_appfile) As Byte()
+        Dim image As Byte() = app.image
+        Dim fw As Byte = CByte(app.version And &HFF)
+        Dim pkg(OLD_HEADER_SIZE + image.Length - 1) As Byte
+
+        For i As Integer = 0 To OLD_HEADER_SIZE - 1
+            pkg(i) = &HFF
+        Next
+
+        Array.Copy(BitConverter.GetBytes(&H57464C53UI), 0, pkg, 0, 4) ' "SLFW"
+        pkg(4) = app.hard
+        Array.Copy(BitConverter.GetBytes(app.version), 0, pkg, 5, 2)
+        pkg(7) = 0
+        Array.Copy(BitConverter.GetBytes(CUInt(image.Length)), 0, pkg, 8, 4)
+        Array.Copy(BitConverter.GetBytes(clOpros.Crc32Stm(image)), 0, pkg, 12, 4)
+        Array.Copy(BitConverter.GetBytes(app.build), 0, pkg, 20, 4)
+
+        Dim crypt As Integer = &H5A
+
+        For i As Integer = 0 To image.Length - 1
+            pkg(OLD_HEADER_SIZE + i) = CByte((((CInt(image(i)) - fw) And &HFF) Xor crypt) And &HFF)
+            crypt = (crypt + image(i)) And &HFF
+        Next
+
+        Return pkg
+    End Function
+
+    ' Запись через старый загрузчик. Перезапуск (0x04) не шлётся: плату включают
+    ' заново без кнопки, и загрузчик запускает записанную прошивку.
+    Private Shared Function UploadLegacy(ByVal comport As ClComPort,
+                                         ByVal app As s_appfile,
+                                         ByVal progress As Action(Of Integer),
+                                         ByRef errText As String) As Boolean
+
+        If app.version > 255 Then
+            errText = "Старый загрузчик принимает номер прошивки не больше 255."
+            Return False
+        End If
+
+        Dim pkg As Byte() = LegacyPackage(app)
+        Dim size As Integer = app.image.Length
+
+        If Exchange(comport, OLD_UNLOCK, Nothing, 3000, errText, True) Is Nothing Then Return False
+
+        If Exchange(comport, OLD_ERASE, BitConverter.GetBytes(CUInt(size + OLD_HEADER_SIZE)), 20000, errText, True) Is Nothing Then
+            errText = "Стирание: " & errText
+            Return False
+        End If
+
+        Dim head(OLD_HEADER_SIZE + 1) As Byte
+        Array.Copy(BitConverter.GetBytes(CUShort(OLD_HEADER_SIZE)), 0, head, 0, 2)
+        Array.Copy(pkg, 0, head, 2, OLD_HEADER_SIZE)
+
+        If Exchange(comport, OLD_HEADER, head, 5000, errText, True) Is Nothing Then
+            errText = "Заголовок: " & errText
+            Return False
+        End If
+
+        Dim offset As Integer = 0
+
+        While offset < size
+            Dim chunk As Integer = Math.Min(OLD_BLOCK_SIZE, size - offset)
+            Dim data(chunk + 5) As Byte
+
+            Array.Copy(BitConverter.GetBytes(CUInt(offset)), 0, data, 0, 4)
+            Array.Copy(BitConverter.GetBytes(CUShort(chunk)), 0, data, 4, 2)
+            Array.Copy(pkg, OLD_HEADER_SIZE + offset, data, 6, chunk)
+
+            If Exchange(comport, OLD_BLOCK, data, 5000, errText, True) Is Nothing Then
+                errText = "Блок на смещении " & offset & ": " & errText
+                Return False
+            End If
+
+            offset += chunk
+
+            If progress IsNot Nothing Then
+                progress((offset * 100) \ size)
+            End If
+        End While
+
+        If Exchange(comport, OLD_CHECK, Nothing, 5000, errText, True) Is Nothing Then
+            errText = "Контрольная сумма на плате не сошлась: " & errText
+            Return False
+        End If
+
+        If Exchange(comport, OLD_LOCK, Nothing, 3000, errText, True) Is Nothing Then Return False
+
+        Return True
+    End Function
+
+    ' Демонстрационный режим: ход записи без платы.
+    Private Shared Function DemoUpload(ByVal progress As Action(Of Integer)) As Boolean
+        For p As Integer = 5 To 100 Step 5
+            Thread.Sleep(80)
+            If progress IsNot Nothing Then progress(p)
+        Next
 
         Return True
     End Function

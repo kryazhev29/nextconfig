@@ -62,15 +62,19 @@ Public Class frmFW
         boardHw = _boardHw
     End Sub
 
-    ' Запись прошивки в плату, стоящую в загрузчике.
-    Public Sub New(ByVal _file As String, ByVal _port As ClComPort)
+    ' Запись прошивки в плату, стоящую в загрузчике. bootVer - версия из опроса:
+    ' ниже 0x30 - старый загрузчик, первый шаг перевода платы на новую систему.
+    Public Sub New(ByVal _file As String, ByVal _port As ClComPort, ByVal _bootVer As Byte)
 
         InitializeComponent()
 
         fName = _file
         mode = eMode.FW_VIA_BOOT
         bootPort = _port
+        oldBoot = _bootVer < clBoot.OLD_BOOT_BELOW
     End Sub
+
+    Private ReadOnly oldBoot As Boolean
 
     Private Sub frmFW_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Dim errText As String = ""
@@ -97,7 +101,8 @@ Public Class frmFW
                 Label1.Text = "0 из " & fSize & " байт"
 
             Case eMode.FW_VIA_BOOT
-                lblTitle.Text = "Запись прошивки через загрузчик"
+                lblTitle.Text = If(oldBoot, "Перевод на новую систему: шаг 1 из 2, прошивка",
+                                   "Запись прошивки через загрузчик")
                 Button1.Text = "Прошить"
 
                 If Not clBoot.CheckAppFile(fName, app, errText) Then
@@ -112,7 +117,8 @@ Public Class frmFW
                 Label1.Text = "0 из " & fSize & " байт"
 
             Case eMode.BOOT_REPLACE
-                lblTitle.Text = "Замена загрузчика"
+                lblTitle.Text = If(boardHw = 0, "Перевод на новую систему: шаг 2 из 2, загрузчик",
+                                   "Замена загрузчика")
                 Button1.Text = "Заменить загрузчик"
                 btnCheck.Text = "Пробная передача"
 
@@ -427,8 +433,14 @@ Public Class frmFW
                        "Подключитесь заново примерно через 20 секунд.")
 
             Case eMode.FW_VIA_BOOT
-                Finish("Прошивка записана. Загрузчик устанавливает её и запускает." & vbCrLf &
-                       "Подключитесь заново примерно через 20 секунд.")
+                If oldBoot Then
+                    Finish("Прошивка записана, контрольная сумма на плате сошлась." & vbCrLf &
+                           "Снимите питание (12 В и USB) и включите плату без кнопки." & vbCrLf &
+                           "NextConfig найдёт её и предложит шаг 2: замену загрузчика.")
+                Else
+                    Finish("Прошивка записана. Загрузчик устанавливает её и запускает." & vbCrLf &
+                           "Подключитесь заново примерно через 20 секунд.")
+                End If
 
             Case eMode.BOOT_REPLACE
                 If Not applyRun Then

@@ -91,6 +91,8 @@ Partial Public Class clOpros
 
         Dim rez As eBootStatus = eBootStatus.BOOT_NOANSWER
 
+        If Demo.IsOn Then Return DemoBootManual(op, payload, received, hw, armed)
+
         SyncLock Me
             _isPause = True
 
