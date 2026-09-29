@@ -85,6 +85,12 @@
     <EmbeddedResource Include="periphery.ini"><LogicalName>NextConfig.periphery.ini</LogicalName><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></EmbeddedResource>
     <Compile Include="clComPort.vb" />
     <Compile Include="ClLog_NT.vb" />
+    <Compile Include="SldnStream.vb" />
+    <Compile Include="PhotoTransfer.vb" />
+    <Compile Include="PhotoSession.vb" />
+    <Compile Include="PhotoDemoWire.vb" />
+    <Compile Include="PhotoPanel.vb" />
+    <Compile Include="clOprosPhoto.vb" />
     <Compile Include="clOpros.vb" />
     <Compile Include="clOprosCommands.vb" />
     <Compile Include="clOprosDemo.vb" />

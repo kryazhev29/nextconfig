@@ -68,6 +68,7 @@ Partial Public Class clOpros
         Dim in2 As Boolean
         Dim out1 As Boolean
         Dim out2 As Boolean
+        Dim readyToUpdate As Boolean
         Dim fw_version As Byte
         Dim fw_build As Integer
         Dim boot_version As Byte
@@ -329,6 +330,7 @@ Partial Public Class clOpros
                     Thread.Sleep(200)
 
                 Case eRejim.WaitConnect, eRejim.Work
+                    SyncLock Me
 
                     If _isPause Then
                         Thread.Sleep(100)
@@ -367,6 +369,7 @@ Partial Public Class clOpros
                     End Try
 
                     _isSending = False
+                    End SyncLock
 
                     Thread.Sleep(1000)
 
@@ -400,40 +403,12 @@ Partial Public Class clOpros
 
     Private Function SetCmd(ByVal cmd As Byte, ByVal payload As Byte()) As Byte()
 
-        Dim send As Byte()
-        Dim len As Integer
-
-        If payload Is Nothing Then
-            ReDim send(8)
-            len = 3
-        Else
-            ReDim send(payload.Length + 8)
-            len = payload.Length + 3
-        End If
-
-        'идентификатор
-        send(0) = 83
-        send(1) = 76
-        send(2) = 68
-        send(3) = 78
-        'длина
-        send(4) = len And &HFF
-        send(5) = (len >> 8) And &HFF
-
-        send(6) = &HFF
-        send(7) = 0
-        send(8) = cmd
-
-        If payload IsNot Nothing Then
-            Array.Copy(payload, 0, send, 9, payload.Length)
-        End If
-
-        Return send
+        Return SldnStream.Command(cmd, payload)
     End Function
 
     Private Function ParseRec(ByVal rec As Byte()) As Boolean
         'проверим идентификатор
-        If rec.Length < 6 Then Return False
+        If rec.Length < 11 Then Return False
 
         Dim len As Integer = rec(5)
         len = (len << 8) + rec(4)
@@ -452,8 +427,10 @@ Partial Public Class clOpros
                 Return True
 
             Case eCmd.CMD_STATUS 'статус для конфигуратора
+                If rec.Length < 42 Then Return False
                 Dim status As s_status
 
+                status.readyToUpdate = (BitConverter.ToUInt16(rec, 13) And &H800) <> 0
                 status.time = BitConverter.ToUInt32(rec, 9)
                 status.in1 = rec(13) And &H8
                 status.in2 = rec(13) And &H4

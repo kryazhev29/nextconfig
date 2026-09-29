@@ -204,7 +204,7 @@ Public Class clBoot
     ' Единственный вход для этапа чтения v5. Сборка кадра и CRC остаются общими.
     Friend Shared Function ReadOldFirmware(comport As ClComPort, cmd As Byte, data As Byte(), ByRef errorText As String) As Byte()
         Select Case cmd
-            Case &H0, &H20, &H22, &H25, &H2C
+            Case &H0, &H20, &H22, &H25, &H2C, &H30, &H31, &H32
                 Return Exchange(comport, cmd, data, 3000, errorText, True, True)
             Case Else
                 Throw New InvalidOperationException("Команда не разрешена в режиме чтения старой прошивки.")

@@ -3,6 +3,9 @@ Imports System.IO
 
 Public Class Form2
 
+    Private photoCard As PhotoPanel
+    Private photoClosePending As Boolean
+    Private ReadOnly photoDisabled As New List(Of Control)
     Private WithEvents opros As clOpros
     Private WithEvents tmr1 As New System.Windows.Forms.Timer
     Private status As clOpros.s_status
@@ -41,6 +44,17 @@ Public Class Form2
         lblIMEI.Text = _imei
         lblPIN.Text = System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(_pin))
         pinCode = _pin
+        photoCard = New PhotoPanel(opros, _imei)
+        Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
+        Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
+        grid.RowCount = 3
+        grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        grid.Controls.Add(photoCard, 0, 2) : grid.SetColumnSpan(photoCard, 2)
+        grid.AutoSize = True : grid.Dock = DockStyle.Top
+        grid.RowStyles(0).SizeType = SizeType.AutoSize
+        overview.RowStyles(1).SizeType = SizeType.AutoSize
+        overview.AutoScrollMinSize = Size.Empty
+        AddHandler photoCard.BusyChanged, AddressOf PhotoBusyChanged
 
         If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
     End Sub
@@ -64,6 +78,9 @@ Public Class Form2
     End Sub
 
     Private Sub Form2_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
+        If photoCard.Busy Then
+            photoClosePending = True : photoCard.Cancel() : e.Cancel = True : Return
+        End If
         RemoveHandler opros.onStatus, AddressOf opros_onStatus
 
         CheckBox1.Checked = False
@@ -84,7 +101,32 @@ Public Class Form2
 
     ' Раз в секунду смотрим, давно ли приходил статус. Если связь пропала,
     ' в шапке видно, что на экране последнее полученное, а не текущее состояние.
+    Private Sub PhotoBusyChanged(value As Boolean)
+        busyWithBoard = value
+        If value Then
+            DisableOtherActions(Me)
+        Else
+            For Each c In photoDisabled
+                If Not c.IsDisposed Then c.Enabled = True
+            Next
+            photoDisabled.Clear()
+            If photoClosePending Then BeginInvoke(New Action(AddressOf Close))
+        End If
+    End Sub
+
+    Private Sub DisableOtherActions(parent As Control)
+        For Each c As Control In parent.Controls
+            If c Is photoCard Then Continue For
+            If (TypeOf c Is Button OrElse TypeOf c Is CheckBox OrElse TypeOf c Is ComboBox OrElse TypeOf c Is TextBox) AndAlso c.Enabled Then
+                photoDisabled.Add(c) : c.Enabled = False
+            Else
+                DisableOtherActions(c)
+            End If
+        Next
+    End Sub
+
     Private Sub TmrTick()
+        photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds)
         If lastStatus = DateTime.MinValue Then
             SetHeadState(Theme.eDot.Waiting, "Ожидание данных")
         ElseIf DateTime.Now.Subtract(lastStatus).TotalSeconds > StaleSeconds Then
@@ -184,6 +226,7 @@ Public Class Form2
 
         status = _status
         lastStatus = DateTime.Now
+        photoCard.SetState(onBoard, status.readyToUpdate, True)
         Status485()
 
         Theme.SetText(lblTime, DeviceTimeText(status.time))
@@ -945,7 +988,7 @@ Public Class Form2
 
             Array.Copy(imei, 0, send, 9, 15)
 
-            crc = opros.GetComPort.Crc16(send, 4, 20)
+            crc = ClComPort.Crc16(send, 4, 20)
 
             send(24) = crc And &HFF
             send(25) = (crc >> 8) And &HFF
@@ -1035,7 +1078,7 @@ Public Class Form2
 
             Array.Copy(imei, 0, send, 9, 15)
 
-            crc = opros.GetComPort.Crc16(send, 4, 20)
+            crc = ClComPort.Crc16(send, 4, 20)
 
             send(24) = crc And &HFF
             send(25) = (crc >> 8) And &HFF

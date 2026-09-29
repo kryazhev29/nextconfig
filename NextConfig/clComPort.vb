@@ -266,7 +266,7 @@ Public Class ClComPort
 
     End Function
 
-    Public Function Crc16(ByVal modbusframe As Byte(), ByVal start As Integer, ByVal len As Integer) As Integer
+    Public Shared Function Crc16(ByVal modbusframe As Byte(), ByVal start As Integer, ByVal len As Integer) As Integer
 
         Dim reg_crc As Integer = &HFFFF
 

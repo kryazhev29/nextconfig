@@ -42,6 +42,10 @@ Public Module Demo
                 b(5) = 48 : b(6) = &H8B
                 PutText(b, 10, "000000000000048")
                 Return b
+            Case &H30
+                Return New Byte() {&H55, &H30, 250}
+            Case &H31, &H32
+                Return Nothing
             Case &H25
                 ' В демо нет настоящего пароля; имитируем уже разрешённый доступ.
                 Return New Byte() {&H55, &H25, 0, &H20}
@@ -216,6 +220,7 @@ Partial Public Class clOpros
     Private Function DemoStatus() As s_status
         Dim s As New s_status
 
+        s.readyToUpdate = PhotoDemoWire.Scenario = "updating"
         s.time = CUInt(DateTimeToUnixTimestamp(DateTime.UtcNow))
         s.in1 = ((demoTick \ 8) Mod 2) = 1
         s.in2 = False
@@ -318,7 +323,7 @@ Partial Public Class clOpros
         c.resetTime = 0
         c.fullLog = 0
         c.VoLTE = 1
-        c.rs485Mode = 1
+        c.rs485Mode = If(PhotoDemoWire.Scenario = "no-camera", CByte(0), CByte(1))
         c.rs485Baud = 0
         c.periph1.rs485Adr = 1
         c.periph1.rs485Type = 3

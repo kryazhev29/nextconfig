@@ -36,11 +36,12 @@ Public Class frmOldFirmware
         Dim area = Screen.FromControl(Me).WorkingArea
         Size = New Size(Math.Min(Width, area.Width), Math.Min(Height, area.Height))
 
-        Dim root As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 5,
+        Dim root As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .RowCount = 6,
             .Padding = New Padding(Theme.Px(14))}
         root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(112)))
         root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(76)))
         root.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
+        root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(190)))
         root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(51)))
         root.RowStyles.Add(New RowStyle(SizeType.Absolute, Theme.Px(30)))
         Controls.Add(root)
@@ -126,12 +127,13 @@ Public Class frmOldFirmware
             .Text = "Журнал: чтение журнала не поддерживается этой прошивкой." & vbCrLf &
                 "Для настроек нужен администратор, для базы — управляющий или администратор. " &
                 If(Demo.IsOn, "ДЕМО: доступ разрешён, пароль не требуется.", "Пароль вводится только владельцем.")}
-        root.Controls.Add(journal, 0, 3)
+        root.Controls.Add(New PhotoPanel(Nothing, device.Imei, True), 0, 3)
+        root.Controls.Add(journal, 0, 4)
         feedback.Dock = DockStyle.Fill
         feedback.AutoEllipsis = True
         feedback.Font = Theme.FontCaption
         feedback.Text = "Порт занят только этим сеансом чтения."
-        root.Controls.Add(feedback, 0, 4)
+        root.Controls.Add(feedback, 0, 5)
         AddHandler Shown, Async Sub(s, e) Await LoadInitial()
         AddHandler readConfig.Click, Async Sub(s, e) Await ReadConfiguration()
         AddHandler readBase.Click, Async Sub(s, e) Await ReadDatabase()
