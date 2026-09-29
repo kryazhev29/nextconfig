@@ -31,6 +31,8 @@ Public Class frmOldFirmware
     Private ReadOnly signalBar As New Meter With {.Maximum = 31}
     Private ReadOnly migrate As New Button With {.Text = "Перевести на новую систему"}
     Public Property EnteredBootloader As Boolean
+    ' номер платы в новой системе (139 v5, 140 старая MODEM, 0 - перевода нет)
+    Public Property MigrationTargetHw As Byte
     Private settings As DataTable
     Private numbers As DataTable
     Private busy As Boolean
@@ -93,13 +95,17 @@ Public Class frmOldFirmware
         Theme.Value(version)
         ' Переход в загрузчик одинаков у v1–v3 и v5 (user_fun.c, case 0x04), но на железе
         ' перевод проверен только на v5 (прошивка 48) - на остальных об этом сказано.
+        ' Номер платы в новой системе: v5 - 139, старая MODEM - 140, MINI - прошивки нет.
+        MigrationTargetHw = FirmwareFiles.MigrationTarget(device.Identification(5), device.Identification(4))
+        migrate.Visible = MigrationTargetHw <> 0
         Dim testedMigration = device.Identification(5) = 48
         Dim fwCard = Theme.Card("Устройство",
             Theme.ValueRow("Версия прошивки", version),
             StateRow("Время устройства", "time"),
             StateRow("Память номеров", "memory"), migrate,
-            New Label With {.Text = "Перевод: новая прошивка, затем замена загрузчика; программа проведёт по шагам. Настройки и база старой системы не переносятся — сначала сохраните базу CSV." &
-                If(testedMigration, "", vbCrLf & "Для этой платы перевод ещё не проверялся на железе."),
+            New Label With {.Text = If(MigrationTargetHw = 0, "Для этой платы (MINI) новой прошивки пока нет, перевести её нельзя.",
+                "Перевод: новая прошивка, затем замена загрузчика; программа проведёт по шагам. Настройки и база старой системы не переносятся — сначала сохраните базу CSV." &
+                If(testedMigration, "", vbCrLf & "Для этой платы перевод ещё не проверялся на железе.")),
                 .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted})
         SetupButton(testOutput, "Проверить выход", 225)
         writeButtons.Add(testOutput) : testOutput.Enabled = device.CanWrite

@@ -419,7 +419,10 @@ Public Class clBoot
             Return False
         End If
 
-        If body(4) <> app.hard Then
+        ' Старый загрузчик старой платы MODEM сообщает 139, как v5; в новой системе у неё
+        ' свой номер 140. Номер в заголовке старый загрузчик не проверяет (bootloader.c v1–v3).
+        Dim oldModem = body(3) < OLD_BOOT_BELOW AndAlso body(4) = &H8B AndAlso app.hard = 140
+        If body(4) <> app.hard AndAlso Not oldModem Then
             errText = "Загрузчик сообщает плату " & body(4) & ", а файл для платы " & app.hard & "."
             Return False
         End If

@@ -106,6 +106,47 @@ Public Module FirmwareFiles
     Public Function ProfileName(file As String) As String
         Return Path.GetFileName(Path.GetDirectoryName(file))
     End Function
+
+    ' Номер платы в новой системе для старой платы. Старые загрузчики v5 и MODEM
+    ' оба сообщают 139, различаем по версии старой прошивки: 48 - v5 (139),
+    ' 45/47 - старая MODEM, у неё в новой системе свой номер 140. MINI (11) -
+    ' новой прошивки для неё нет, 0.
+    Public Function MigrationTarget(oldFw As Byte, oldLoaderHw As Byte) As Byte
+        If oldFw = 48 Then Return 139
+        If oldLoaderHw = &H8B Then Return 140
+        Return 0
+    End Function
+
+    Private ReadOnly Property TargetsFile As String
+        Get
+            Return Path.Combine(AgentLog.Folder, "migration.txt")
+        End Get
+    End Property
+
+    ' Номер переходящей платы по IMEI: между шагами перехода плата перезапускается,
+    ' и в загрузчике и под старым загрузчиком свой номер она не сообщает.
+    Public Function SavedTarget(imei As String) As Byte
+        Try
+            For Each line In File.ReadAllLines(TargetsFile)
+                Dim parts = line.Split("="c)
+                Dim hw As Byte
+                If parts.Length = 2 AndAlso parts(0) = imei AndAlso Byte.TryParse(parts(1), hw) Then Return hw
+            Next
+        Catch
+        End Try
+        Return 0
+    End Function
+
+    Public Sub SaveTarget(imei As String, hw As Byte)
+        Try
+            Directory.CreateDirectory(AgentLog.Folder)
+            Dim lines As New List(Of String)
+            If File.Exists(TargetsFile) Then lines.AddRange(File.ReadAllLines(TargetsFile).Where(Function(l) Not l.StartsWith(imei & "=")))
+            lines.Add(imei & "=" & hw)
+            File.WriteAllLines(TargetsFile, lines)
+        Catch
+        End Try
+    End Sub
 End Module
 
 ' Что проверить, когда плата вернётся после обновления: экран подключения

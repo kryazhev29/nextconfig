@@ -77,7 +77,8 @@ Public Class frmFW
 
     ' Запись прошивки в плату, стоящую в загрузчике. bootVer - версия из опроса:
     ' ниже 0x30 - старый загрузчик, первый шаг перевода платы на новую систему.
-    Public Sub New(ByVal _file As String, ByVal _port As ClComPort, ByVal _bootVer As Byte)
+    ' targetHw - номер платы в новой системе (0 - неизвестен): файл другой платы не пишется.
+    Public Sub New(ByVal _file As String, ByVal _port As ClComPort, ByVal _bootVer As Byte, Optional ByVal targetHw As Byte = 0)
 
         InitializeComponent()
 
@@ -85,6 +86,7 @@ Public Class frmFW
         mode = eMode.FW_VIA_BOOT
         bootPort = _port
         oldBoot = _bootVer < clBoot.OLD_BOOT_BELOW
+        boardHw = targetHw
     End Sub
 
     Private ReadOnly oldBoot As Boolean
@@ -152,6 +154,11 @@ Public Class frmFW
             Case eMode.FW_UPDATE, eMode.FW_VIA_BOOT
                 If Not clBoot.CheckAppFile(fName, app, errText) Then
                     FileRejected(errText)
+                    Exit Sub
+                End If
+                If boardHw <> 0 AndAlso app.hard <> boardHw Then
+                    FileRejected("Этот файл для платы " & app.hard & ", а для этой платы нужен файл " & boardHw &
+                                 ".X.X.bin" & If(boardHw = 140, " (старая плата ДОМОВОЙ IP).", "."))
                     Exit Sub
                 End If
                 image = app.image

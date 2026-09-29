@@ -284,10 +284,19 @@ Public Class Form2
     ' Итог прошлого обновления: проверяется по первому статусу после подключения.
     Public Property CheckOnConnect As UpdateCheck
 
+    ' Номер платы для выбора файлов. Под старым загрузчиком прошивка сообщает 0 -
+    ' тогда номер, запомненный при переводе этой платы (139 v5, 140 старая MODEM).
+    Private ReadOnly Property BoardHw As Byte
+        Get
+            If status.hw_version <> 0 Then Return status.hw_version
+            Return FirmwareFiles.SavedTarget(lblIMEI.Text.Trim())
+        End Get
+    End Property
+
     ' Файл берём сами (самая свежая сборка для этой платы рядом с программой);
     ' нет такого - оператор выбирает, папка запоминается.
     Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
-        Dim file As String = FirmwareFiles.FindFirmware(status.hw_version)
+        Dim file As String = FirmwareFiles.FindFirmware(BoardHw)
         If file Is Nothing Then
             Using f As New frmInfo("Обновление прошивки", "Рядом с программой нет файла прошивки для этой платы." & vbCrLf &
                                    "Укажите файл вида 139.71.1790667089.bin — его присылает производитель.")
@@ -328,7 +337,7 @@ Public Class Form2
     ' Загрузчик для этой платы рядом с программой. У v5 и MODEM плата одна (139),
     ' поэтому файлов может быть несколько - тогда оператор выбирает по плате.
     Private Function AskBootFile() As String
-        Dim found = FirmwareFiles.FindBootloaders(status.hw_version)
+        Dim found = FirmwareFiles.FindBootloaders(BoardHw)
         If found.Count = 1 Then Return found(0)
 
         OpenFileDialog1.Filter = "Файлы загрузчика (DomovoiBoot*.bin)|DomovoiBoot*.bin|Все файлы (*.*)|*.*"
@@ -358,7 +367,7 @@ Public Class Form2
         tmr1.Enabled = False
         opros.StopGetStatus(True)
 
-        Using f As New frmFW(file, opros, status.hw_version)
+        Using f As New frmFW(file, opros, BoardHw)
             If f.ShowDialog() = DialogResult.OK Then
                 ' контроллер перезагружается с новым загрузчиком, связь потеряна
                 PendingCheck = New UpdateCheck With {.Bootloader = True, .BeforeBuild = CUInt(status.fw_build),
@@ -382,10 +391,9 @@ Public Class Form2
         If busyWithBoard Then Exit Sub
 
         Using f As New frmInfo("Перевод на новую систему",
-                               "На плате новая прошивка, но старый загрузчик 0x" & status.boot_version.ToString("X2") & "." & vbCrLf &
-                               "Шаг 2 из 2: заменить загрузчик на 0x32." & vbCrLf &
-                               "Без него нет обновлений с сервера, и сервер видит плату 0." & vbCrLf &
-                               "В следующем окне сначала пробная передача, она ничего не меняет.", , True)
+                               "Новая прошивка уже стоит. Остался шаг 2 из 2 — заменить загрузчик." & vbCrLf &
+                               "Без этого плата не сможет получать обновления с сервера." & vbCrLf &
+                               "Около 1 минуты, программа проведёт по шагам.", , True)
             f.Button1.Text = "Заменить загрузчик"
             f.Button2.Text = "Позже"
             If f.ShowDialog(Me) <> DialogResult.OK Then Exit Sub

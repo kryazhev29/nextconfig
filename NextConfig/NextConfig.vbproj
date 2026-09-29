@@ -76,6 +76,12 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
+    <!-- прошивки и загрузчики для перевода старых плат: лежат рядом с программой -->
+    <Content Include="Переход_на_новую_систему\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <None Include="app.manifest" />
   </ItemGroup>
   <ItemGroup>

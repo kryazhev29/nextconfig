@@ -47,6 +47,8 @@ Public Class Form1
     Private pendingGone As Boolean
     Private ReadOnly pendingTimer As New System.Windows.Forms.Timer With {.Interval = 1000}
     Private checkOnConnect As UpdateCheck
+    ' старая плата ушла в загрузчик для перехода: номер платы в новой системе
+    Private migrationHw As Byte
     Private Const PendingLimitSeconds As Integer = 180
 
     Public Sub New()
@@ -321,6 +323,7 @@ Public Class Form1
         Using f As New frmOldFirmware(New OldFirmware(opros.GetComPort, dev.Identity, Demo.IsOn), dev.Port)
             f.ShowDialog(Me)
             toBoot = f.EnteredBootloader
+            If toBoot Then migrationHw = f.MigrationTargetHw
         End Using
 
         If toBoot Then
@@ -336,7 +339,10 @@ Public Class Form1
 
     Private Sub OpenBootloader(dev As clOpros.FoundDevice)
         Hide()
-        Using device As New frmBootDevice(opros.GetComPort, dev.Port, dev.BootVer, dev.Hw)
+        ' номер платы в новой системе известен, если в загрузчик её перевели мы сами
+        Dim target = migrationHw
+        migrationHw = 0
+        Using device As New frmBootDevice(opros.GetComPort, dev.Port, dev.BootVer, dev.Hw, target)
             device.ShowDialog(Me)
         End Using
         BackToList()

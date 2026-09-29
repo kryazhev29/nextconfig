@@ -110,6 +110,8 @@ Partial Public Class frmOldFirmware
             Finally
                 portGate.Release()
             End Try
+            ' на следующих шагах плата свой номер не сообщит - запоминаем по IMEI
+            FirmwareFiles.SaveTarget(device.Imei, MigrationTargetHw)
             EnteredBootloader = True
         Catch ex As Exception
             feedback.Text = OldOperatorError(ex)
