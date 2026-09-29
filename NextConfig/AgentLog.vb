@@ -137,13 +137,37 @@ Public Module AgentLog
     Public Sub SlgtExchange(port As String, cmd As Byte, tx As Byte(), rx As Byte(), ms As Integer, err As String)
         If cmd = &H22 AndAlso rx IsNot Nothing AndAlso Not PollDue("slgt22") Then Return
         If cmd = 0 AndAlso Not PollDue("slgt0 " & port & If(rx Is Nothing, " -", " +")) Then Return
-        Dim masked As New HashSet(Of Integer)
-        ' 0x25 - вход по паролю старой прошивки: пароль в данных запроса
-        If cmd = &H25 Then AddRange(masked, 8, If(tx Is Nothing, 0, tx.Length - 10))
+        Dim txMasked As New HashSet(Of Integer)
+        Dim rxMasked As New HashSet(Of Integer)
+        Select Case cmd
+            Case &H25 ' вход по паролю старой прошивки: пароль в данных запроса
+                AddRange(txMasked, 8, If(tx Is Nothing, 0, tx.Length - 10))
+            Case &H20 ' настройки в ответе с байта 6 тела [55, 20, итог, блок, длина 2]
+                MaskOldConfig(rxMasked, 6)
+            Case &H21 ' настройки в запросе с байта 11 кадра [SLGT, длина 2, AA, 21, блок, длина 2]
+                MaskOldConfig(txMasked, 11)
+        End Select
+
+        ' База номеров - телефоны и имена жильцов: только заголовок кадра и длина.
+        Dim baseCmd = cmd >= &H2A AndAlso cmd <= &H2D
         Write("usb", "port", port, "proto", "SLGT", "cmd", CInt(cmd),
-              "tx", Hex(tx, masked), "rx", If(rx Is Nothing, Nothing, Hex(rx, Nothing)),
+              "tx", If(baseCmd, HexHead(tx, 12), Hex(tx, txMasked)),
+              "rx", If(rx Is Nothing, Nothing, If(baseCmd, HexHead(rx, 7), Hex(rx, rxMasked))),
               "ok", rx IsNot Nothing, "err", If(String.IsNullOrEmpty(err), Nothing, err), "ms", ms)
     End Sub
+
+    ' Блок настроек старой прошивки (ConfStr, 512 байт): пароли администратора и
+    ' управляющего - байты 9–12, PIN SIM-карты - 55–59.
+    Private Sub MaskOldConfig(masked As HashSet(Of Integer), start As Integer)
+        AddRange(masked, start + 9, 4)
+        AddRange(masked, start + 55, 5)
+    End Sub
+
+    Private Function HexHead(b As Byte(), count As Integer) As String
+        If b Is Nothing Then Return Nothing
+        If b.Length <= count Then Return Hex(b, Nothing)
+        Return Hex(b.Take(count).ToArray(), Nothing) & " … (" & b.Length & " байт, номера не пишутся)"
+    End Function
 
     ' Кадры потока фото: пишутся без прореживания, их немного.
     Public Sub PhotoFrame(port As String, outgoing As Boolean, frame As Byte())
