@@ -7,10 +7,12 @@ Public Class PhotoPanel
     Private ReadOnly shoot As New Button With {.Text = "Сделать снимок"}
     Private ReadOnly fetch As New Button With {.Text = "Забрать фото"}
     Private ReadOnly stopButton As New Button With {.Text = "Отмена", .Visible = False}
+    Private ReadOnly save As New Button With {.Text = "Сохранить…", .Enabled = False}
+    Private ReadOnly open As New Button With {.Text = "Открыть крупно", .Enabled = False}
     Private ReadOnly addresses As New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList}
     Private ReadOnly hint As New Label With {.AutoSize = True}
     Private ReadOnly progress As New Label With {.AutoSize = True}
-    Private ReadOnly preview As New PictureBox With {.SizeMode = PictureBoxSizeMode.Zoom}
+    Private ReadOnly preview As New PhotoFrame With {.Name = "photoFrame"}
     Private ReadOnly meter As New Meter()
     Private ReadOnly opros As clOpros
     Private ReadOnly imei As String
@@ -19,6 +21,8 @@ Public Class PhotoPanel
     Private blocked As Boolean = True
     Private configured As Boolean
     Private lastImage As String
+    Private lastPhoto As Byte()
+    Private lastPhotoTime As DateTime
     Private lastFolder As String = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
     Public Event BusyChanged(busy As Boolean)
     Public ReadOnly Property Busy As Boolean
@@ -41,28 +45,44 @@ Public Class PhotoPanel
         Dim heading As New Label With {.Text = "Фото с камеры", .AutoSize = True}
         Theme.Group(heading)
         Controls.Add(heading)
-        Dim actions As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .AutoSize = True, .Margin = New Padding(0, Theme.GapRelated, 0, Theme.GapRelated)}
+        Dim actions As New FlowLayoutPanel With {.FlowDirection = FlowDirection.TopDown, .WrapContents = False,
+            .AutoSize = True, .Margin = New Padding(0)}
         Theme.Primary(shoot) : Theme.Secondary(fetch) : Theme.Secondary(stopButton)
-        For Each button In {shoot, fetch, stopButton}
-            button.Size = New Size(Theme.Px(155), Theme.ButtonHeightSmall)
+        Theme.Secondary(save) : Theme.Secondary(open)
+        For Each button In {shoot, fetch, stopButton, save, open}
+            button.Size = New Size(Theme.Px(220), Theme.ButtonHeightSmall)
             button.Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
         Next
-        addresses.Font = Theme.FontBody : addresses.Width = Theme.Px(105)
-        actions.Controls.AddRange({shoot, fetch, addresses, stopButton})
-        Controls.Add(actions)
+        addresses.Font = Theme.FontBody : addresses.Width = Theme.Px(220)
+        Dim addressCaption As New Label With {.Text = "Камера · адрес RS-485", .AutoSize = True,
+            .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted,
+            .Margin = New Padding(0, Theme.GapRelated, 0, Theme.GapLabel), .Visible = Not legacy}
+        actions.Controls.AddRange({shoot, fetch, addressCaption, addresses, save, open, stopButton})
         For Each label In {hint, progress}
-            Theme.Note(label, False) : label.Dock = DockStyle.Fill
-            label.Margin = New Padding(0, 0, 0, Theme.GapRelated)
-            Controls.Add(label)
+            Theme.Note(label, False)
+            label.MaximumSize = New Size(Theme.Px(320), 0)
+            label.Margin = New Padding(0, Theme.GapRelated, 0, Theme.GapRelated)
+            actions.Controls.Add(label)
         Next
-        meter.Dock = DockStyle.Top : meter.Height = Theme.Px(5) : meter.Visible = False
-        Controls.Add(meter)
-        preview.Dock = DockStyle.Top : preview.Height = Theme.Px(200) : preview.Visible = False
-        Controls.Add(preview)
+        meter.Size = New Size(Theme.Px(220), Theme.Px(5)) : meter.Visible = False
+        actions.Controls.Add(meter)
+        preview.Size = New Size(Theme.Px(480), Theme.Px(360))
+        preview.Margin = New Padding(0, 0, Theme.GapSection, 0)
+        preview.Placeholder = "Фотографии нет" & vbLf & "Сделайте снимок или заберите фото с платы"
+        Dim body As New TableLayoutPanel With {.ColumnCount = 2, .RowCount = 1, .AutoSize = True,
+            .Dock = DockStyle.Fill, .Margin = New Padding(0, Theme.GapRelated, 0, 0)}
+        body.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        body.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        body.Controls.Add(preview, 0, 0)
+        body.Controls.Add(actions, 1, 0)
+        Controls.Add(body)
         AddHandler shoot.Click, Async Sub() Await Run(True)
         AddHandler fetch.Click, Async Sub() Await Run(False)
         AddHandler stopButton.Click, Sub() Cancel()
         AddHandler preview.Click, AddressOf ShowPreview
+        AddHandler open.Click, AddressOf ShowPreview
+        AddHandler save.Click, Sub() OldPhotoFiles.Save(FindForm(), lastPhoto, imei, lastPhotoTime,
+            Sub(path) progress.Text = "Сохранено: " & path)
         If legacy Then
             hint.Text = "Фото по USB не поддерживается этой прошивкой v5."
             addresses.Visible = False : blocked = False
@@ -145,19 +165,18 @@ Public Class PhotoPanel
         meter.Visible = Busy AndAlso value.Total > 0
         meter.Value = If(value.Total = 0, 0, Math.Min(100, CInt(100.0 * value.Received / value.Total)))
         If value.SavedPath Is Nothing OrElse value.SavedPath = lastImage Then Return
-        Using stream = File.OpenRead(value.SavedPath), source = Image.FromStream(stream)
-            Dim old = preview.Image
-            preview.Image = New Bitmap(source)
-            If old IsNot Nothing Then old.Dispose()
+        Dim jpeg = File.ReadAllBytes(value.SavedPath)
+        Using stream As New MemoryStream(jpeg), source = Image.FromStream(stream)
+            preview.SetImage(New Bitmap(source))
         End Using
-        lastImage = value.SavedPath : preview.Visible = True
+        lastPhoto = jpeg : lastPhotoTime = File.GetLastWriteTime(value.SavedPath)
+        lastImage = value.SavedPath
+        save.Enabled = True : open.Enabled = True
     End Sub
 
     Private Sub ShowPreview(sender As Object, e As EventArgs)
-        If preview.Image Is Nothing Then Return
-        Using window As New Form With {.Text = Path.GetFileName(lastImage), .StartPosition = FormStartPosition.CenterParent,
-            .Size = New Size(Theme.Px(720), Theme.Px(560)), .BackColor = Theme.WindowBack, .Font = Theme.FontBody}
-            window.Controls.Add(New PictureBox With {.Dock = DockStyle.Fill, .SizeMode = PictureBoxSizeMode.Zoom, .Image = preview.Image})
+        If lastPhoto Is Nothing Then Return
+        Using window As New frmOldPhotoView(lastPhoto, imei, lastPhotoTime)
             window.ShowDialog(FindForm())
         End Using
     End Sub
@@ -165,7 +184,6 @@ Public Class PhotoPanel
     Protected Overrides Sub Dispose(disposing As Boolean)
         If disposing Then
             Cancel()
-            If preview.Image IsNot Nothing Then preview.Image.Dispose()
         End If
         MyBase.Dispose(disposing)
     End Sub
