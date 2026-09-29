@@ -256,7 +256,7 @@ Public Class clBoot
         Return ReadOptionalOldService(comport, &H29, Nothing)
     End Function
     Friend Shared Sub TestOldOutput(comport As ClComPort)
-        SendOldWithoutReply(comport, &H26, Nothing)
+        SendOldWithoutReply(comport, &H26, Nothing, 0)
     End Sub
     Friend Shared Sub SetOldAutoregistration(comport As ClComPort, enabled As Boolean)
         SendOldWithoutReply(comport, &H27, New Byte() {If(enabled, CByte(1), CByte(0))})
@@ -286,12 +286,12 @@ Public Class clBoot
     Friend Shared Function CompressOldNumbers(comport As ClComPort) As Byte()
         Return OldWriteExchange(comport, &H28, Nothing, 60000)
     End Function
-    Private Shared Sub SendOldWithoutReply(comport As ClComPort, cmd As Byte, payload As Byte())
+    Private Shared Sub SendOldWithoutReply(comport As ClComPort, cmd As Byte, payload As Byte(), Optional settleMilliseconds As Integer = 100)
         comport.EnableEventReceived = False
         Dim frame = clBoot.Frame(cmd, payload)
         comport.Port.Write(frame, 0, frame.Length)
         AgentLog.SlgtExchange(comport.Port.PortName, cmd, frame, Nothing, 0, "Команда без ответа; результат проверяется чтением")
-        Thread.Sleep(100)
+        If settleMilliseconds > 0 Then Thread.Sleep(settleMilliseconds)
     End Sub
 
     Friend Shared Function WriteOldSettings(comport As ClComPort, block As Byte()) As Byte()

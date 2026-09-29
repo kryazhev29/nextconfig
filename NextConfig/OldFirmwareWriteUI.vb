@@ -16,6 +16,9 @@ Public Class OldChangeDialog
         Dim cancel As New Button With {.Text = "Отмена", .DialogResult = DialogResult.Cancel, .AutoSize = True}
         Dim confirm As New Button With {.Name = "oldConfirmWrite", .Text = "Подтвердить запись", .DialogResult = DialogResult.OK, .AutoSize = True}
         Theme.Secondary(cancel) : Theme.Primary(confirm)
+        cancel.AutoSize = False : confirm.AutoSize = False
+        cancel.Size = New Size(Theme.Px(245), Theme.ButtonHeight) : confirm.Size = cancel.Size
+        If title = "Проверка выхода" Then confirm.Text = "Проверить выход"
         buttons.Controls.AddRange({cancel, confirm})
         root.Controls.Add(text, 0, 0) : root.Controls.Add(buttons, 0, 1) : Controls.Add(root)
         CancelButton = cancel
@@ -25,65 +28,21 @@ End Class
 
 Partial Public Class frmOldFirmware
     Private ReadOnly writeSettings As New Button With {.Name = "oldWriteSettings"}
-    Private ReadOnly editSetting As New Button With {.Name = "oldEditSetting"}
     Private ReadOnly writeButtons As New List(Of Button)
     Private originalSettings As Byte()
     Private editedSettings As Byte()
 
     Private Sub SetupSettingsWrite(actions As FlowLayoutPanel)
-        SetupButton(editSetting, "Изменить параметр", 195)
         SetupButton(writeSettings, "Записать настройки", 205)
-        actions.Controls.AddRange({editSetting, writeSettings})
+        actions.Controls.Add(writeSettings)
         writeButtons.Add(writeSettings)
         writeSettings.Enabled = device.CanWrite
-        AddHandler editSetting.Click, Sub() EditOldSetting(settingsGrid)
-        AddHandler settingsGrid.CellDoubleClick, Sub() EditOldSetting(settingsGrid)
-        AddHandler schedulesGrid.CellDoubleClick, Sub() EditOldSetting(schedulesGrid)
         AddHandler writeSettings.Click, Async Sub() Await SaveOldSettings()
     End Sub
 
     Private Sub ShowSettings(block As Byte())
         settings = OldSettings.Table(block)
-        BindFields(settingsGrid, settings) : FilterSettings()
-        Dim schedules = settings.Clone()
-        For Each row As DataRow In settings.Rows
-            If CStr(row(0)).StartsWith("Расписание ") Then schedules.ImportRow(row)
-        Next
-        BindFields(schedulesGrid, schedules)
-    End Sub
-
-    Private Sub EditOldSetting(grid As DataGridView)
-        If busy OrElse editedSettings Is Nothing Then Return
-        Dim row = TryCast(grid.CurrentRow?.DataBoundItem, DataRowView)
-        If row Is Nothing Then Return
-        Dim index = settings.Rows.Cast(Of DataRow)().ToList().FindIndex(Function(r) CStr(r(1)) = CStr(row(1)))
-        If index < 0 Then Return
-        Dim field = OldSettings.Fields(index)
-        If Not field.Editable Then
-            feedback.Text = "Резерв сохраняется без изменений, CRC пересчитывается автоматически." : Return
-        End If
-        Using dialog As New Form With {.Text = CStr(row(1)), .StartPosition = FormStartPosition.CenterParent, .Size = New Size(Theme.Px(650), Theme.Px(300))}
-            Theme.StyleForm(dialog)
-            dialog.AutoScroll = True
-            AddHandler dialog.Shown, Sub() Theme.FitBoardWindow(dialog)
-            Dim input As New TextBox With {.Text = OldSettings.RawValue(editedSettings, index), .UseSystemPasswordChar = field.Secret, .Dock = DockStyle.Top}
-            Dim hint As New Label With {.Text = field.Hint, .AutoSize = True, .MaximumSize = New Size(Theme.Px(570), 0)}
-            Dim apply As New Button With {.Text = "Применить к черновику", .AutoSize = True}
-            Theme.Secondary(apply)
-            dialog.Controls.Add(Theme.CardPage(hint, input, apply))
-            AddHandler apply.Click, Sub()
-                                        Try
-                                            editedSettings = OldSettings.Change(editedSettings, index, input.Text)
-                                            dialog.DialogResult = DialogResult.OK
-                                        Catch ex As Exception
-                                            hint.Text = ex.Message
-                                        End Try
-                                    End Sub
-            If dialog.ShowDialog(Me) = DialogResult.OK Then
-                ShowSettings(editedSettings)
-                feedback.Text = "Изменён черновик. Для записи нажмите «Записать настройки»."
-            End If
-        End Using
+        RenderSettingCards()
     End Sub
 
     Private Async Function RunWrite(title As String, changes As String, action As Action, Optional done As Action = Nothing, Optional successMessage As String = "Операция выполнена и проверена.", Optional requiredAccess As Byte = &H20) As Task
@@ -108,9 +67,9 @@ Partial Public Class frmOldFirmware
                 portGate.Release()
             End Try
             If done IsNot Nothing Then done()
-            feedback.Text = successMessage
+            If successMessage IsNot Nothing Then feedback.Text = successMessage
         Catch ex As Exception
-            feedback.Text = ex.Message
+            feedback.Text = OldOperatorError(ex)
             reconnect.Visible = True
         Finally
             pin = Nothing : SetBusy(False)
@@ -121,6 +80,9 @@ Partial Public Class frmOldFirmware
     Private Async Function SaveOldSettings() As Task
         If originalSettings Is Nothing OrElse editedSettings Is Nothing Then
             feedback.Text = "Сначала прочитайте настройки." : Return
+        End If
+        If invalidSettings.Count > 0 Then
+            feedback.Text = "Исправьте неверные поля в настройках перед записью." : Return
         End If
         Dim changes = OldSettings.Changes(originalSettings, editedSettings)
         If changes = "" Then feedback.Text = "Изменений нет." : Return

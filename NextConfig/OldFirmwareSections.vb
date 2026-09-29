@@ -61,9 +61,8 @@ Partial Public Class frmOldFirmware
         Integer.TryParse(Field(table, "Уровень сигнала CSQ (0–31, 99 — неизвестен)"), signal)
         StatusValue("signal", If(signal <= 31, signal & " из 31", "Не определён"))
         signalBar.Value = If(signal <= 31, Math.Max(0, signal), 0)
-        StatusValue("time", Field(table, "Местное время платы"))
+        StatusValue("time", System.Text.RegularExpressions.Regex.Replace(Field(table, "Местное время платы"), " \(\d+\)$", ""))
         StatusValue("memory", Field(table, "Номеров в базе") & " из " & device.NumberLimit)
-        StatusValue("build", Field(table, "Дата / время сборки (коды)"))
         Dim states = Field(table, "Вход 1 / вход 2 / выход").Split("/"c)
         Dim keys = {"in1", "in2", "out"}
         For i = 0 To Math.Min(2, states.Length - 1)
@@ -75,15 +74,19 @@ Partial Public Class frmOldFirmware
     Private Sub ShowNumberDetails(sender As Object, e As EventArgs)
         Dim row = TryCast(numbersGrid.CurrentRow?.DataBoundItem, DataRowView)
         If row Is Nothing Then numberDetails.Clear() : Return
-        numberDetails.Text = String.Join(vbCrLf, row.Row.Table.Columns.Cast(Of DataColumn)().
-            Where(Function(c) c.Ordinal > 4).Select(Function(c) c.ColumnName & ": " & CStr(row(c.Ordinal))))
+        Dim expiry = CStr(row(5))
+        expiry = If(expiry.Contains("не задано"), "Бессрочно", System.Text.RegularExpressions.Regex.Replace(expiry, " \(\d+\)$", ""))
+        numberDetails.Text = "Действует до (время платы): " & expiry & vbCrLf &
+            "Лимит проходов: " & If(CStr(row(6)) = "0", "Без ограничений", CStr(row(6))) & vbCrLf &
+            "Расписание: " & If(CStr(row(7)) = "0", "Без ограничений по времени", CStr(row(7))) & vbCrLf &
+            "Использовано проходов: " & CStr(row(8))
     End Sub
 
     Private Async Sub EnterBootloader(sender As Object, e As EventArgs)
         If busy Then Return
         poll.Stop()
         Using confirmation As New frmInfo("Перевод на новую систему",
-            "Плата перезапустится в старый загрузчик (команда 0x04, флаг 1). " &
+            "Плата перезапустится в режим загрузки прошивки. " &
             "Затем потребуется выбрать файл новой прошивки, а после её запуска — заменить загрузчик. " &
             "Сохраните базу номеров перед переводом. Перейти в загрузчик?", , True)
             confirmation.Button1.Text = "Перейти в загрузчик"
@@ -103,7 +106,7 @@ Partial Public Class frmOldFirmware
             End Try
             EnteredBootloader = True
         Catch ex As Exception
-            feedback.Text = ex.Message
+            feedback.Text = OldOperatorError(ex)
         Finally
             SetBusy(False)
         End Try

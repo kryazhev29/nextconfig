@@ -5,7 +5,6 @@ Imports System.Threading.Tasks
 Public Class frmOldFirmware
     Inherits Form
     Private ReadOnly device As OldFirmware
-    Private ReadOnly settingsGrid As New DataGridView()
     Private ReadOnly statusGrid As New DataGridView()
     Private ReadOnly numbersGrid As New DataGridView()
     Private ReadOnly password As New TextBox()
@@ -21,12 +20,11 @@ Public Class frmOldFirmware
     Private ReadOnly closeButton As New Button()
     Private ReadOnly poll As New Timer() With {.Interval = 2000}
     Private ReadOnly tabs As New TabControl()
-    Private ReadOnly tabDevice As New TabPage("Устройство")
-    Private ReadOnly tabUsers As New TabPage("Пользователи")
-    Private ReadOnly tabSettings As New TabPage("Настройки")
-    Private ReadOnly tabSchedules As New TabPage("Расписания")
-    Private ReadOnly tabService As New TabPage("Сервис")
-    Private ReadOnly schedulesGrid As New DataGridView()
+    Private ReadOnly tabDevice As New OldStableTabPage("Устройство")
+    Private ReadOnly tabUsers As New OldStableTabPage("Пользователи")
+    Private ReadOnly tabSettings As New OldStableTabPage("Настройки")
+    Private ReadOnly tabSchedules As New OldStableTabPage("Расписания")
+    Private ReadOnly tabService As New OldStableTabPage("Сервис")
     Private ReadOnly numberDetails As New TextBox With {.Multiline = True, .ReadOnly = True}
     Private ReadOnly stateValues As New Dictionary(Of String, Label)
     Private ReadOnly stateDots As New Dictionary(Of String, Label)
@@ -66,7 +64,7 @@ Public Class frmOldFirmware
         actions.Controls.Add(Theme.FieldBox(password, 100))
         SetupButton(closeButton, "Закрыть", 100) : actions.Controls.Add(closeButton)
         root.Controls.Add(Theme.BoardHeader("Устройство " & device.Imei,
-            portName & " · старая прошивка " & device.Identification(5) & " · плата " & device.Identification(4), actions), 0, 0)
+            portName & " · старая прошивка " & device.Identification(5), actions), 0, 0)
         SetupButton(readConfig, "Прочитать настройки", 200) : Theme.Primary(readConfig)
         SetupButton(readBase, "Прочитать базу", 170)
         SetupButton(export, "Сохранить базу CSV", 190)
@@ -91,16 +89,17 @@ Public Class frmOldFirmware
         signalBar.Height = Theme.Px(8) : signalBar.Dock = DockStyle.Top : connection.Controls.Add(signalBar)
         Dim version As New Label With {.Text = device.Identification(5).ToString(), .AutoSize = True}
         Theme.Value(version)
-        Dim boot As New Label With {.Text = "0x" & device.Identification(3).ToString("X2"), .AutoSize = True}
-        Theme.Value(boot)
         Dim fwCard = Theme.Card("Устройство",
-            Theme.ValueRow("Версия прошивки", version), Theme.ValueRow("Версия загрузчика", boot),
-            StateRow("Сборка (коды платы)", "build"), StateRow("Время устройства", "time"),
+            Theme.ValueRow("Версия прошивки", version),
+            StateRow("Время устройства", "time"),
             StateRow("Память номеров", "memory"), migrate,
             New Label With {.Text = "Перевод: новая прошивка, затем замена загрузчика. Настройки старой системы автоматически не переносятся.",
                 .AutoSize = True, .Dock = DockStyle.Fill, .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted})
+        SetupButton(testOutput, "Проверить выход", 225)
+        writeButtons.Add(testOutput) : testOutput.Enabled = device.CanWrite
+        AddHandler testOutput.Click, Async Sub() Await ServiceAction(0)
         Dim inputs = Theme.Card("Входы и выходы", Theme.SignalGrid(
-            {StateIndicator("in1"), StateIndicator("in2"), StateIndicator("out")}, {Nothing, Nothing, Nothing}))
+            {StateIndicator("in1"), StateIndicator("in2"), StateIndicator("out")}, {Nothing, Nothing, testOutput}))
         ' фото сразу под верхними карточками, входы и выходы - ниже
         Dim photos = BuildOldPhotos()
         Dim overview = DirectCast(Theme.Overview({connection, fwCard, photos, inputs}), TableLayoutPanel)
@@ -123,19 +122,22 @@ Public Class frmOldFirmware
         grid.Controls.Add(journal, 0, 4) : grid.SetColumnSpan(journal, 2)
         grid.AutoSize = True : grid.Dock = DockStyle.Top
         overview.RowStyles(1).SizeType = SizeType.AutoSize : overview.AutoScrollMinSize = Size.Empty
-        tabDevice.Controls.Add(overview)
+        overview.AutoScroll = False : overview.AutoSize = True : overview.Dock = DockStyle.Top
+        Dim viewport As New OldStablePanel With {.Name = "oldDeviceViewport", .AutoScroll = True, .Dock = DockStyle.Fill}
+        viewport.Controls.Add(overview)
+        tabDevice.AutoScroll = False : tabDevice.Controls.Add(viewport)
         AddHandler overview.SizeChanged, Sub() Theme.ReflowOverview(overview)
 
-        Theme.ReadOnlyGrid(settingsGrid) : Theme.ReadOnlyGrid(statusGrid)
-        Theme.ReadOnlyGrid(numbersGrid) : Theme.ReadOnlyGrid(schedulesGrid)
+        Theme.ReadOnlyGrid(statusGrid)
+        Theme.ReadOnlyGrid(numbersGrid)
         showSecrets.Text = "Показать пароли и PIN в настройках" : showSecrets.AutoSize = True : showSecrets.Font = Theme.FontCaption
         search.Width = Theme.Px(260)
         Dim settingsActions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
         settingsActions.Controls.Add(readConfig)
-        settingsActions.Controls.Add(New Label With {.Text = "Поиск:", .Font = Theme.FontCaption, .AutoSize = True, .Padding = New Padding(0, Theme.GapRelated, 0, 0)})
+        settingsActions.Controls.Add(New Label With {.Text = "Поиск в разделе:", .Font = Theme.FontCaption, .AutoSize = True, .Padding = New Padding(0, Theme.GapRelated, 0, 0)})
         settingsActions.Controls.Add(Theme.FieldBox(search, 260))
         SetupSettingsWrite(settingsActions)
-        tabSettings.Controls.Add(GridPage("Настройки", "Выберите параметр и измените черновик · запись после подтверждения", settingsGrid, settingsActions, showSecrets))
+        tabSettings.Controls.Add(BuildSettingsPage(settingsActions))
         numbersTitle.Text = "База номеров / ID · ещё не прочитана" : numbersTitle.AutoSize = True : Theme.Group(numbersTitle)
         Dim numberActions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
         numberActions.Controls.AddRange({readBase, export})
@@ -148,7 +150,7 @@ Public Class frmOldFirmware
         Dim readSchedules As New Button()
         SetupButton(readSchedules, "Прочитать расписания", 220)
         AddHandler readSchedules.Click, Async Sub() Await ReadConfiguration()
-        tabSchedules.Controls.Add(GridPage("Расписания", "Двойной щелчок — изменить · запись в разделе Настройки", schedulesGrid, readSchedules))
+        tabSchedules.Controls.Add(BuildSchedulesPage(readSchedules))
         monitorTitle.AutoSize = True : Theme.Group(monitorTitle)
         statusGrid.Height = Theme.Px(420) : statusGrid.Dock = DockStyle.Top
         Dim allSettings As New Button()
@@ -156,7 +158,7 @@ Public Class frmOldFirmware
         AddHandler allSettings.Click, Sub() tabs.SelectedTab = tabSettings
         tabService.Controls.Add(Theme.CardPage(Theme.PageHeading("Сервис", "Данные платы для проверки и диагностики"),
             BuildServiceActions(), BuildRfidCard(),
-            Theme.Card("Мониторинг · все поля", monitorTitle, statusGrid),
+            BuildMonitoringDiagnostics(), BuildSettingsDiagnostics(),
             Theme.Card("Настройки платы", allSettings,
                 New Label With {.Text = "Для настроек нужен администратор, для базы — управляющий или администратор. " &
                     If(Demo.IsOn, "ДЕМО: пароль не требуется.", "Пароль вводится только владельцем."),
@@ -173,8 +175,11 @@ Public Class frmOldFirmware
         AddHandler export.Click, AddressOf ExportBase
         AddHandler closeButton.Click, Sub(s, e) Close()
         AddHandler search.TextChanged, Sub(s, e) FilterSettings()
-        AddHandler showSecrets.CheckedChanged, Sub(s, e) settingsGrid.Invalidate()
-        AddHandler settingsGrid.CellFormatting, AddressOf FormatSetting
+        AddHandler showSecrets.CheckedChanged, Sub(s, e)
+            For Each entry In settingEditors
+                If OldSettings.Fields(entry.Key).Secret AndAlso TypeOf entry.Value Is TextBox Then DirectCast(entry.Value, TextBox).UseSystemPasswordChar = Not showSecrets.Checked
+            Next
+        End Sub
         AddHandler FormClosing, AddressOf ClosingReader
         AddHandler FormClosed, Sub(s, e) poll.Dispose()
     End Sub
@@ -182,7 +187,10 @@ Public Class frmOldFirmware
     Private Sub SetupButton(button As Button, title As String, width As Integer)
         Theme.Secondary(button)
         button.Text = title
-        button.Size = New Size(Theme.Px(width), Theme.ButtonHeightSmall)
+        ' Шапка и авторская карточка фото сохраняют свои размеры.
+        Dim compact = button Is closeButton OrElse button Is oldShoot OrElse button Is headerShoot OrElse button Is photoSave OrElse button Is photoOpen OrElse button Is reconnect
+        button.AutoSize = False
+        button.Size = New Size(Theme.Px(If(compact, width, 245)), If(compact, Theme.ButtonHeightSmall, Theme.ButtonHeight))
     End Sub
 
     Private Async Function LoadInitial() As Task
@@ -197,6 +205,7 @@ Public Class frmOldFirmware
 
     Private Sub SetBusy(value As Boolean)
         busy = value
+        UpdateSettingDependencies()
         rfidAddress.Enabled = Not value
         rfidParameter.Enabled = Not value
         rfidValue.Enabled = Not value
@@ -269,9 +278,9 @@ Public Class frmOldFirmware
                 If message <> "" Then feedback.Text = message
             End If
         Catch ex As OperationCanceledException When Not closePending
-            feedback.Text = ex.Message
+            feedback.Text = OldOperatorError(ex)
         Catch ex As Exception
-            feedback.Text = ex.Message
+            feedback.Text = OldOperatorError(ex)
             ' плата забыла вход: спросить пароль окном и повторить один раз
             If authenticate AndAlso Not retried AndAlso ex.Message.StartsWith("Требуется пароль") Then
                 device.ForgetAccess()
@@ -305,6 +314,14 @@ Public Class frmOldFirmware
     End Function
 
     Private Async Function ReadConfiguration() As Task
+        If busy OrElse closePending Then Return
+        If originalSettings IsNot Nothing AndAlso editedSettings IsNot Nothing AndAlso
+            (invalidSettings.Count > 0 OrElse OldSettings.Changes(originalSettings, editedSettings) <> "") Then
+            Using question As New frmInfo("Перечитать настройки", "В черновике есть изменения. Перечитать настройки с платы и отменить эти изменения?", , True)
+                question.Button1.Text = "Перечитать" : question.Button2.Text = "Отмена"
+                If question.ShowDialog(Me) <> DialogResult.OK Then Return
+            End Using
+        End If
         Await RunRead(Function() device.ReadSettings(),
             Sub(t)
                 originalSettings = device.SettingsSnapshot()
@@ -349,21 +366,7 @@ Public Class frmOldFirmware
 
     Private Sub FilterSettings()
         If settings Is Nothing Then Return
-        ' LINQ по строкам вместо RowFilter: ввод %, [, ', * не становится выражением.
-        Dim q = search.Text.Trim()
-        Dim view = settings.Clone()
-        For Each row As DataRow In settings.Rows
-            If (CStr(row(0)) & " " & CStr(row(1))).IndexOf(q, StringComparison.CurrentCultureIgnoreCase) >= 0 Then view.ImportRow(row)
-        Next
-        settingsGrid.DataSource = view
-    End Sub
-
-    Private Sub FormatSetting(sender As Object, e As DataGridViewCellFormattingEventArgs)
-        If e.RowIndex < 0 OrElse e.ColumnIndex <> 2 OrElse showSecrets.Checked Then Return
-        Dim row = TryCast(settingsGrid.Rows(e.RowIndex).DataBoundItem, DataRowView)
-        If row IsNot Nothing AndAlso CStr(row(0)) = "Доступ" Then
-            e.Value = "••••" : e.FormattingApplied = True
-        End If
+        FilterSettingCards()
     End Sub
 
     Private Sub ExportBase(sender As Object, e As EventArgs)
@@ -375,7 +378,7 @@ Public Class frmOldFirmware
                 OldFirmware.SaveCsv(numbers, dialog.FileName)
                 feedback.Text = "Сохранено записей: " & numbers.Rows.Count & " · " & dialog.FileName
             Catch ex As Exception
-                feedback.Text = "Не удалось сохранить CSV: " & ex.Message
+                feedback.Text = "Не удалось сохранить CSV. Выберите доступную папку и повторите сохранение."
             End Try
         End Using
     End Sub

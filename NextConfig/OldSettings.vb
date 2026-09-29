@@ -114,13 +114,13 @@ Public Class OldSettings
     End Sub
 
     Public Shared Function Changes(before As Byte(), after As Byte()) As String
-        Dim a = Table(before), b = Table(after)
+        Dim a = Table(before)
         Dim lines As New List(Of String)
         For i = 0 To Fields.Count - 1
             If Not Fields(i).Editable OrElse RawValue(before, i) = RawValue(after, i) Then Continue For
-            Dim oldValue = If(Fields(i).Secret, "••••", CStr(a.Rows(i)(2)))
-            Dim newValue = If(Fields(i).Secret, "•••• (изменён)", CStr(b.Rows(i)(2)))
-            lines.Add(CStr(a.Rows(i)(1)) & ": " & oldValue & " → " & newValue)
+            Dim oldValue = OldSettingsPresentation.DisplayValue(Fields(i), before, i)
+            Dim newValue = If(Fields(i).Secret, "•••• (изменён)", OldSettingsPresentation.DisplayValue(Fields(i), after, i))
+            lines.Add(OldSettingsPresentation.Title(Fields(i), CStr(a.Rows(i)(1))) & ": " & oldValue & " → " & newValue)
         Next
         Return String.Join(vbCrLf, lines)
     End Function

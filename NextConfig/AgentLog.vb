@@ -146,6 +146,8 @@ Public Module AgentLog
                 MaskOldConfig(rxMasked, 6)
             Case &H21 ' настройки в запросе с байта 11 кадра [SLGT, длина 2, AA, 21, блок, длина 2]
                 MaskOldConfig(txMasked, 11)
+            Case &H22 ' DEVICE содержит номер звонящего и рабочие буферы; в журнале только заголовок.
+                AddRange(rxMasked, 5, If(rx Is Nothing, 0, rx.Length - 5))
         End Select
 
         ' База номеров - телефоны и имена жильцов: только заголовок кадра и длина.
@@ -160,7 +162,9 @@ Public Module AgentLog
     ' управляющего - байты 9–12, PIN SIM-карты - 55–59.
     Private Sub MaskOldConfig(masked As HashSet(Of Integer), start As Integer)
         AddRange(masked, start + 9, 4)
+        AddRange(masked, start + 15, 40) ' APN, логин, пароль
         AddRange(masked, start + 55, 5)
+        AddRange(masked, start + 118, 16) ' номер SIM
     End Sub
 
     Private Function HexHead(b As Byte(), count As Integer) As String

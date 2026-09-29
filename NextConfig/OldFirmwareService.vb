@@ -46,6 +46,15 @@ Partial Public Class OldFirmware
             clBoot.TestOldOutput(port)
         End If
     End Sub
+    ' Вызывается под portGate: между действием и чтением не может вклиниться опрос.
+    Public Function TestOutputAndReadStatus() As DataTable
+        TestOutput()
+        Try
+            Return ReadStatus()
+        Catch ex As Exception
+            Throw New IOException("Команда проверки отправлена, но состояние выхода прочитать не удалось. Проверьте питание и USB, затем нажмите «Обновить состояние»; повторное нажатие проверки может снова открыть ворота.", ex)
+        End Try
+    End Function
     Public Shared Function FactorySettings(version As Byte, hardware As Byte) As Byte()
         ' user_setdefault_c1 обеих веток. Для 47 семейство не предполагаем.
         If version <> 45 AndAlso version <> 48 Then Return Nothing

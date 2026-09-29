@@ -29,19 +29,29 @@ Partial Public Class frmOldFirmware
             Dim access As New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList}
             kind.Items.AddRange({"Телефон", "1-Wire", "RFID"})
             access.Items.AddRange({"Пользователь", "Управляющий", "Администратор", "IP-пользователь"})
-            Dim expires As New TextBox With {.Text = "0"}
-            Dim passages As New TextBox With {.Text = "0"}
-            Dim schedule As New TextBox With {.Text = "0"}
+            Dim expires As New DateTimePicker With {.Format = DateTimePickerFormat.Custom, .CustomFormat = "dd.MM.yyyy HH:mm", .ShowCheckBox = True,
+                .MinDate = New DateTime(1970, 1, 1), .MaxDate = New DateTime(2106, 2, 7, 6, 28, 14), .Checked = False}
+            Dim passages As New NumericUpDown With {.Minimum = 0, .Maximum = 255}
+            Dim schedule As New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList}
+            schedule.Items.Add("Без ограничений по времени")
+            For n = 1 To 7 : schedule.Items.Add("Расписание " & n) : Next
+            schedule.SelectedIndex = 0 : kind.SelectedIndex = 0 : access.SelectedIndex = 0
+            Dim originalExpiry As UInteger = 0
             If source IsNot Nothing Then
                 idBox.Text = OldNumbers.Id(source)
                 nameBox.Text = System.Text.Encoding.GetEncoding(1251).GetString(source, 12, 20).Split(ChrW(0))(0)
                 Dim code = (source(32) >> 4) And 3
                 kind.SelectedIndex = If(code < 3, code, -1)
                 access.SelectedIndex = source(32) And 3
-                expires.Text = BitConverter.ToUInt32(source, 33).ToString()
-                passages.Text = source(37).ToString() : schedule.Text = source(38).ToString()
+                originalExpiry = BitConverter.ToUInt32(source, 33)
+                If originalExpiry <> 0 AndAlso originalExpiry <> UInteger.MaxValue Then
+                    expires.Value = New DateTime(1970, 1, 1).AddSeconds(originalExpiry) : expires.Checked = True
+                End If
+                passages.Value = source(37)
+                If source(38) > 7 Then schedule.Items.Add("Неизвестное расписание — выберите 0–7")
+                schedule.SelectedIndex = If(source(38) <= 7, CInt(source(38)), 8)
             End If
-            Dim captions = {"Номер / ID (10 символов)", "Имя", "Тип", "Уровень доступа", "Срок: Unix, 0 — без срока", "Лимит проходов (0–255)", "Расписание (0–7)"}
+            Dim captions = {"Номер / ID (10 символов)", "Имя", "Тип", "Уровень доступа", "Действует до (время платы); без галочки — бессрочно", "Лимит проходов (0 — без лимита)", "Расписание доступа"}
             Dim controls As Control() = {idBox, nameBox, kind, access, expires, passages, schedule}
             For i = 0 To controls.Length - 1
                 fields.Controls.Add(New Label With {.Text = captions(i), .AutoSize = True}, 0, i)
@@ -49,17 +59,17 @@ Partial Public Class frmOldFirmware
             Next
             Dim hint As New Label With {.AutoSize = True, .MaximumSize = New Size(Theme.Px(570), 0), .Text = "Телефон без +7. ID — шестнадцатеричный. Счётчик использованных проходов будет сброшен."}
             Dim apply As New Button With {.Text = "Просмотреть изменения", .AutoSize = True}
-            Theme.Secondary(apply)
+            SetupButton(apply, "Просмотреть изменения", 245)
             fields.Controls.Add(hint, 0, controls.Length) : fields.SetColumnSpan(hint, 2)
             fields.Controls.Add(apply, 1, controls.Length + 1)
             dialog.Controls.Add(fields)
             AddHandler apply.Click, Sub()
                                         Try
                                             result = OldNumbers.Edit(source, idBox.Text, nameBox.Text, kind.SelectedIndex, access.SelectedIndex,
-                                                                     UInteger.Parse(expires.Text), Byte.Parse(passages.Text), Byte.Parse(schedule.Text))
+                                                                     If(expires.Checked, CUInt((expires.Value - New DateTime(1970, 1, 1)).TotalSeconds), If(originalExpiry = UInteger.MaxValue, UInteger.MaxValue, 0UI)), CByte(passages.Value), CByte(schedule.SelectedIndex))
                                             dialog.DialogResult = DialogResult.OK
                                         Catch ex As Exception
-                                            hint.Text = "Проверьте поля: " & ex.Message
+                                            hint.Text = "Проверьте номер, тип, права и расписание. Телефон — 10 цифр, ID — 10 шестнадцатеричных символов; имя — до 19 символов."
                                         End Try
                                     End Sub
             If dialog.ShowDialog(Me) <> DialogResult.OK Then Return Nothing
@@ -105,7 +115,7 @@ Partial Public Class frmOldFirmware
                 If original IsNot Nothing Then changes &= vbCrLf & "Изменение выполняется удалением и добавлением; при обрыве между командами запись может отсутствовать."
             End If
         Catch ex As Exception
-            feedback.Text = ex.Message : Return
+            feedback.Text = "Не удалось подготовить изменения базы. Проверьте выбранную запись или формат CSV и повторите." : Return
         End Try
         Dim backup As String
         Using dialog As New SaveFileDialog With {.Title = "Резерв базы перед изменением", .Filter = "База номеров CSV|*.csv", .FileName = "Domovoi_base_" & DateTime.Now.ToString("yyyyMMdd_HHmmss") & ".csv"}
