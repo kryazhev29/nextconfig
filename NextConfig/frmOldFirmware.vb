@@ -137,10 +137,11 @@ Public Class frmOldFirmware
         numbersTitle.Text = "База номеров / ID · ещё не прочитана" : numbersTitle.AutoSize = True : Theme.Group(numbersTitle)
         Dim numberActions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
         numberActions.Controls.AddRange({readBase, export})
+        SetupNumberWrites(numberActions)
         numberDetails.Dock = DockStyle.Fill : numberDetails.Height = Theme.Px(112)
         numberDetails.ScrollBars = ScrollBars.Vertical : numberDetails.BorderStyle = BorderStyle.None
         numberDetails.Font = Theme.FontCaption : numberDetails.BackColor = Theme.Surface
-        tabUsers.Controls.Add(GridPage("Пользователи", "База номеров / ID · чтение и сохранение CSV", numbersGrid, numberActions, numberDetails))
+        tabUsers.Controls.Add(GridPage("Пользователи", "База номеров / ID · изменения после подтверждения", numbersGrid, numberActions, numberDetails))
         AddHandler numbersGrid.SelectionChanged, AddressOf ShowNumberDetails
         Dim readSchedules As New Button()
         SetupButton(readSchedules, "Прочитать расписания", 220)

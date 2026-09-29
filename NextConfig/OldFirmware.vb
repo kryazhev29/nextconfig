@@ -216,10 +216,13 @@ Public NotInheritable Class OldFirmware
     ' Unit1.cpp:1154-1198,3739-3747; Unit1.h:945-972.
     ' Читаем последовательно: firmware хранит numbersoffset.
     Public Function ReadNumbers() As DataTable
+        ' v1-v3 отвечает старым numberscount, затем пересчитывает его.
+        Request(&H2C, New Byte() {0})
         Dim b = Request(&H2C, New Byte() {0})
         Header(b, &H2C, 5)
         If b.Length <> 5 OrElse b(2) <> 0 Then Throw New InvalidDataException("Неверный ответ количества номеров.")
         Dim total = U16(b, 3)
+        If total > NumberLimit Then Throw New InvalidDataException("Количество номеров превышает объём платы.")
         Dim table = NumbersTable()
         Dim index As Integer = 0
         While index < total
@@ -243,6 +246,7 @@ Public NotInheritable Class OldFirmware
         Dim table = NumbersTable()
         For n = 0 To count - 1
             Dim p = 7 + n * 64
+            If b(p) <> &HAA Then Throw New InvalidDataException("Неактивная ячейка в ответе базы. Повторите чтение; экспорт отменён.")
             Dim flags = b(p + 32)
             Dim kind = (flags >> 4) And 3
             Dim id = Str(b, p + 1, 11)

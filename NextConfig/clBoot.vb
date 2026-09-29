@@ -226,6 +226,42 @@ Public Class clBoot
 
     ' v5 User/user_fun.c:409-418; Unit1.cpp:2699 RebootinBootClick -> ResetDevice(1).
     ' Отдельно от допуска чтения: единственный вызов — после подтверждения в окне платы.
+    Private Shared Function OldWriteExchange(comport As ClComPort, cmd As Byte, payload As Byte(), Optional timeout As Integer = 10000) As Byte()
+        Dim errorText As String = ""
+        Dim reply = Exchange(comport, cmd, payload, timeout, errorText, True, True)
+        If reply Is Nothing Then Throw New IOException(errorText & " Результат операции неизвестен; повторять автоматически нельзя.")
+        Return reply
+    End Function
+
+    Friend Shared Function AddOldNumber(comport As ClComPort, record As Byte()) As Byte()
+        OldNumbers.Validate(record)
+        Return OldWriteExchange(comport, &H2A, record)
+    End Function
+    Friend Shared Function DeleteOldNumber(comport As ClComPort, record As Byte()) As Byte()
+        OldNumbers.Validate(record)
+        Return OldWriteExchange(comport, &H2B, record)
+    End Function
+    Friend Shared Function WriteOldNumbersBlock(comport As ClComPort, payload As Byte()) As Byte()
+        If payload.Length < 69 OrElse payload(0) <> 0 OrElse payload.Length <> 5 + BitConverter.ToUInt16(payload, 3) * 64 Then Throw New InvalidDataException("Неверный блок базы.")
+        Return OldWriteExchange(comport, &H2D, payload, 30000)
+    End Function
+    Friend Shared Function ClearOldNumbers(comport As ClComPort) As Byte()
+        Return OldWriteExchange(comport, &H2D, New Byte() {1}, 30000)
+    End Function
+    Friend Shared Sub FinishOldNumbers(comport As ClComPort)
+        SendOldWithoutReply(comport, &H2D, New Byte() {2})
+    End Sub
+    Friend Shared Function CompressOldNumbers(comport As ClComPort) As Byte()
+        Return OldWriteExchange(comport, &H28, Nothing, 60000)
+    End Function
+    Private Shared Sub SendOldWithoutReply(comport As ClComPort, cmd As Byte, payload As Byte())
+        comport.EnableEventReceived = False
+        Dim frame = clBoot.Frame(cmd, payload)
+        comport.Port.Write(frame, 0, frame.Length)
+        AgentLog.SlgtExchange(comport.Port.PortName, cmd, frame, Nothing, 0, "Команда без ответа; результат проверяется чтением")
+        Thread.Sleep(100)
+    End Sub
+
     Friend Shared Function WriteOldSettings(comport As ClComPort, block As Byte()) As Byte()
         If block Is Nothing OrElse block.Length <> 512 Then Throw New InvalidDataException("Требуется блок 512 байт.")
         Dim errorText As String = ""

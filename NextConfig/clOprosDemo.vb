@@ -42,6 +42,8 @@ Public Module Demo
     Public Property LegacyBootReplaced As Boolean
 
     Private oldSettingsBlock As Byte()
+    Private oldNumbersState As List(Of Byte())
+    Private oldReportedCount As Integer
 
     Public Function OldFirmwareReply(cmd As Byte, data As Byte()) As Byte()
         Select Case cmd
@@ -93,11 +95,11 @@ Public Module Demo
                 ' structures.h:79-262: packed DEVICE = 513, несмотря на комментарий 512.
                 Dim d(512) As Byte
                 PutText(d, 0, "000000000000048")
-                d(16) = 48 : d(17) = &H8B : d(23) = &H11 : d(24) = 24
+                d(16) = If(Mode = eDemoMode.OldFw45, CByte(45), CByte(48)) : d(17) = &H8B : d(23) = &H11 : d(24) = 24
                 Put16(d, 25, 2026) : d(27) = 9 : d(28) = 29
                 d(29) = 12 : d(32) = &H41
                 Put32(d, 49, 86400UI + CUInt((Environment.TickCount And &HFFFF) \ 1000))
-                d(53) = 1 : Put16(d, 54, 35) : d(60) = &H20 : d(61) = 27
+                d(53) = 1 : Put16(d, 54, If(oldNumbersState Is Nothing, 35, oldNumbersState.Count)) : d(60) = &H20 : d(61) = 27
                 Put16(d, 62, 3200) : Put16(d, 64, 25)
                 Put32(d, 66, CUInt(DateTimeToUnixTimestamp(DateTime.Now)))
                 d(70) = &H89 : Put16(d, 79, 127)
@@ -107,24 +109,51 @@ Public Module Demo
                 b(0) = &H55 : b(1) = cmd : Put16(b, 3, d.Length)
                 Array.Copy(d, 0, b, 5, d.Length)
                 Return b
+            Case &H28
+                Return New Byte() {&H55, cmd, 1}
+            Case &H2A, &H2B, &H2D
+                If oldNumbersState Is Nothing Then OldFirmwareReply(&H2C, New Byte() {0})
+                If cmd = &H2A Then
+                    Dim record = CType(data.Clone(), Byte()) : record(39) = 0
+                    oldNumbersState.Add(record)
+                ElseIf cmd = &H2B Then
+                    oldNumbersState.RemoveAll(Function(r) OldNumbers.Id(r) = OldNumbers.Id(data))
+                Else
+                    If data(0) = 1 Then oldNumbersState.Clear()
+                    If data(0) = 0 Then
+                        Dim start = CInt(BitConverter.ToUInt16(data, 1))
+                        If start = 0 Then oldNumbersState.Clear()
+                        If start <> oldNumbersState.Count Then Return New Byte() {&H55, cmd, 0, 10, 0, 0, 0, 0}
+                        For p = 5 To data.Length - 1 Step 64
+                            Dim record = data.Skip(p).Take(64).ToArray() : record(39) = 0
+                            oldNumbersState.Add(record)
+                        Next
+                    End If
+                    Return New Byte() {&H55, cmd, 0, data(0)}
+                End If
+                Return New Byte() {&H55, cmd, 0}
             Case &H2C
-                If data(0) = 0 Then Return New Byte() {&H55, cmd, 0, 35, 0}
+                If oldNumbersState Is Nothing Then
+                    oldNumbersState = New List(Of Byte())
+                    For k = 0 To 34
+                        Dim record(63) As Byte
+                        record(0) = &HAA
+                        PutText(record, 1, If(k Mod 3 = 0, "900000" & k.ToString("0000"), "00" & k.ToString("X8")))
+                        PutText(record, 12, If(k = 0, "Администратор", "Житель " & (k + 1)))
+                        record(32) = CByte(((k Mod 3) << 4) Or If(k = 0, 2, 0))
+                        Put32(record, 33, If(k Mod 2 = 0, 0UI, 1800000000UI))
+                        record(37) = 20 : record(38) = CByte(k Mod 7) : record(39) = CByte(k Mod 10)
+                        oldNumbersState.Add(record)
+                    Next
+                End If
+                If data(0) = 0 Then
+                    Dim count = If(Mode = eDemoMode.OldFw45, oldReportedCount, oldNumbersState.Count)
+                    oldReportedCount = oldNumbersState.Count
+                    Return New Byte() {&H55, cmd, 0, CByte(count And 255), CByte(count >> 8)}
+                End If
                 Dim index = CInt(BitConverter.ToUInt16(data, 1))
-                Dim count = Math.Min(31, 35 - index) ' USB: до 2000 / 64 записей
-                Dim b(6 + count * 64) As Byte
-                b(0) = &H55 : b(1) = cmd : b(2) = 1
-                Put16(b, 3, index) : Put16(b, 5, count)
-                For n = 0 To count - 1
-                    Dim k = index + n
-                    Dim p = 7 + 64 * n
-                    b(p) = &HAA
-                    PutText(b, p + 1, If(k Mod 3 = 0, "900000" & k.ToString("0000"), "00" & k.ToString("X8")))
-                    PutText(b, p + 12, If(k = 0, "Администратор", "Житель " & (k + 1)))
-                    b(p + 32) = CByte(((k Mod 3) << 4) Or If(k = 0, 2, 0))
-                    Put32(b, p + 33, If(k Mod 2 = 0, 0UI, 1800000000UI))
-                    b(p + 37) = 20 : b(p + 38) = CByte(k Mod 7) : b(p + 39) = CByte(k Mod 10)
-                Next
-                Return b
+                Dim records = oldNumbersState.Skip(index).Take(31).ToList()
+                Return New Byte() {&H55, cmd, 1, CByte(index And 255), CByte(index >> 8), CByte(records.Count), 0}.Concat(records.SelectMany(Function(r) r)).ToArray()
             Case Else
                 Throw New InvalidOperationException("Нет демо-ответа для этой команды чтения.")
         End Select
