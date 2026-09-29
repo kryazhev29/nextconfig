@@ -24,8 +24,14 @@ Partial Public Class clOpros
         BOOT_BUSY = 3
         BOOT_DENIED = 4
         BOOT_CRC = 5
+        ' прошивка отказала ответом 11, до обработчика замены дело не дошло
+        BOOT_OLD_FW = 100   ' код 255: команды 110 нет, на плате старая прошивка
+        BOOT_NEED_PIN = 101 ' код 4: ПИН не введён
+        BOOT_REFUSED = 102  ' другой код, он в _bootRefuseCode
         BOOT_NOANSWER = 255
     End Enum
+
+    Private _bootRefuseCode As Byte
 
     Public Const BOOT_IMAGE_SIZE As Integer = 32768
     Public Const BOOT_CHUNK As Integer = 256
@@ -50,7 +56,7 @@ Partial Public Class clOpros
         Return crc
     End Function
 
-    Public Shared Function BootStatusText(ByVal status As eBootStatus) As String
+    Public Function BootStatusText(ByVal status As eBootStatus) As String
         Select Case status
             Case eBootStatus.BOOT_OK
                 Return "выполнено"
@@ -64,6 +70,12 @@ Partial Public Class clOpros
                 Return "контроллер отказал: не тот объём памяти микроконтроллера"
             Case eBootStatus.BOOT_CRC
                 Return "не сошлась контрольная сумма"
+            Case eBootStatus.BOOT_OLD_FW
+                Return "прошивка на плате не умеет менять загрузчик, сначала залейте новую прошивку"
+            Case eBootStatus.BOOT_NEED_PIN
+                Return "контроллер ждёт ПИН-код, переподключитесь к плате"
+            Case eBootStatus.BOOT_REFUSED
+                Return "контроллер отказал, код ответа " & _bootRefuseCode
             Case Else
                 Return "контроллер не ответил"
         End Select
@@ -106,9 +118,15 @@ Partial Public Class clOpros
                         hw = rec(payloadIdx + 6)
                         armed = rec(payloadIdx + 7)
                     End If
-                ElseIf rec(cmdIdx) = eCmd.REC_ANSWER Then
-                    ' прошивка отказала целиком: 5 — занята или идёт пробный запуск
-                    rez = eBootStatus.BOOT_BUSY
+                ElseIf rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec.Length > payloadIdx + 1 Then
+                    ' прошивка отказала целиком, причина в коде ответа 11
+                    _bootRefuseCode = rec(payloadIdx + 1)
+                    Select Case _bootRefuseCode
+                        Case 5 : rez = eBootStatus.BOOT_BUSY ' идёт обновление или пробный запуск
+                        Case 4 : rez = eBootStatus.BOOT_NEED_PIN
+                        Case 255 : rez = eBootStatus.BOOT_OLD_FW
+                        Case Else : rez = eBootStatus.BOOT_REFUSED
+                    End Select
                 End If
             End If
 
