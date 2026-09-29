@@ -109,9 +109,10 @@ Public Module AgentChannel
                 Case "click" : Return OnUi(Function() Click(Arg(args, 0), Arg(args, 1)))
                 Case "type" : Return OnUi(Function() TypeText(Arg(args, 0), Arg(args, 1), Arg(args, 2)))
                 Case "select" : Return OnUi(Function() SelectItem(Arg(args, 0), Arg(args, 1), Arg(args, 2)))
+                Case "close" : Return OnUi(Function() CloseForm(Arg(args, 0)))
                 Case Else
                     Return Fail("команды: ping, windows, tree [окно] [all], snap [окно] [файл], click <текст|имя> [окно], " &
-                                "type <имя> <текст> [окно], select <имя> <пункт> [окно], log [n]")
+                                "type <имя> <текст> [окно], select <имя> <пункт> [окно], close [окно], log [n]")
             End Select
         Catch ex As Exception
             Return Fail(ex.Message)
@@ -208,6 +209,11 @@ Public Module AgentChannel
                 Dim cb = DirectCast(child, ComboBox)
                 n("items") = cb.Items.Cast(Of Object)().Select(Function(x) cb.GetItemText(x)).ToList()
                 n("selected") = cb.SelectedIndex
+            End If
+            If TypeOf child Is ListBox Then
+                Dim lb = DirectCast(child, ListBox)
+                n("items") = lb.Items.Cast(Of Object)().Select(Function(x) lb.GetItemText(x)).ToList()
+                n("selected") = lb.SelectedIndex
             End If
             If TypeOf child Is DataGridView Then n("grid") = GridRows(DirectCast(child, DataGridView))
 
@@ -342,6 +348,13 @@ Public Module AgentChannel
         Return ""
     End Function
 
+    ' Закрыть окно как крестиком: окно записи прошивки само не даст закрыться посреди работы.
+    Private Function CloseForm(formKey As String) As String
+        Dim f = FindForm(formKey)
+        invoker.BeginInvoke(New Action(Sub() f.Close()))
+        Return Ok("closing", f.GetType().Name)
+    End Function
+
     Private Function TypeText(name As String, text As String, formKey As String) As String
         Dim f = FindForm(formKey)
         Dim c = TryCast(FindControl(f, name, GetType(TextBox)), TextBox)
@@ -353,12 +366,15 @@ Public Module AgentChannel
 
     Private Function SelectItem(name As String, item As String, formKey As String) As String
         Dim f = FindForm(formKey)
-        Dim c = TryCast(FindControl(f, name, GetType(ComboBox)), ComboBox)
+        Dim c = TryCast(FindControl(f, name, GetType(ListControl)), ListControl)
         If c Is Nothing Then Return Fail("нет списка " & name)
-        For i = 0 To c.Items.Count - 1
-            If c.GetItemText(c.Items(i)) = item Then
+        Dim items = If(TypeOf c Is ComboBox, DirectCast(c, ComboBox).Items, DirectCast(c, ListBox).Items)
+        For i = 0 To items.Count - 1
+            ' пункт по полному тексту или по началу (у платы - порт)
+            Dim itemText = c.GetItemText(items(i))
+            If itemText = item OrElse itemText.StartsWith(item & " ") Then
                 c.SelectedIndex = i
-                Return Ok("list", c.Name, "selected", item)
+                Return Ok("list", c.Name, "selected", itemText)
             End If
         Next
         Return Fail("нет пункта " & item)

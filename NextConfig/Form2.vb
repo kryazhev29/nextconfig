@@ -78,6 +78,8 @@ Public Class Form2
         ReadConfig(True)
         If names485.Notice <> "" Then RichTextBox1.AppendText(names485.Notice & vbCrLf)
         AddHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
+        ' опрос сам заметил, что плата не отвечает
+        AddHandler opros.onLost, AddressOf OnErrorPort
         AddHandler opros.GetComPort.PinRequired, AddressOf OnPinRequired
     End Sub
 
@@ -86,6 +88,7 @@ Public Class Form2
             photoClosePending = True : photoCard.Cancel() : e.Cancel = True : Return
         End If
         RemoveHandler opros.onStatus, AddressOf opros_onStatus
+        RemoveHandler opros.onLost, AddressOf OnErrorPort
 
         CheckBox1.Checked = False
         CheckBox2.Checked = False

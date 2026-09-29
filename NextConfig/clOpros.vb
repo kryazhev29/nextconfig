@@ -6,12 +6,52 @@ Partial Public Class clOpros
     Const cmdIdx As Integer = 8
     Const payloadIdx As Integer = 9
 
-    Public Event isFinded(ByVal port As String, ByVal imei As String, ByVal isDefPIN As Byte)
-    Public Event onFind(ByVal port As String)
+    ' Итог одного прохода по всем портам: какие платы на них отвечают.
+    ' Сам поиск ничего не открывает - плату выбирает оператор.
+    Public Event onScan(ByVal devices As List(Of FoundDevice), ByVal portCount As Integer)
     Public Event onStatus(ByVal status As s_status)
-    ' на порту отозвался загрузчик: приложения на плате нет или его держат кнопкой
-    Public Event onBootFound(ByVal port As String, ByVal bootVer As Byte, ByVal hw As Byte)
-    Public Event onOldFirmwareFound(ByVal port As String, ByVal identity As Byte())
+    ' выбранная плата перестала отвечать на статус
+    Public Event onLost()
+
+    Public Enum eDeviceKind
+        NextFw      ' прошивка NEXT: вход по ПИН-коду
+        OldFirmware ' старая прошивка v5: только чтение и перевод
+        Bootloader  ' загрузчик: приложения нет или плату держат кнопкой
+    End Enum
+
+    Public Class FoundDevice
+        Public Port As String
+        Public Kind As eDeviceKind
+        Public Imei As String = ""
+        Public DefaultPin As Boolean
+        Public Identity As Byte()
+        Public BootVer As Byte
+        Public Hw As Byte
+
+        ' одна и та же плата на том же порту
+        Public ReadOnly Property Key As String
+            Get
+                Return Port & "|" & CInt(Kind) & "|" & Imei & "|" & BootVer
+            End Get
+        End Property
+
+        Public ReadOnly Property Title As String
+            Get
+                Select Case Kind
+                    Case eDeviceKind.NextFw
+                        Return Port & " · Домовой NEXT · " & Imei
+                    Case eDeviceKind.OldFirmware
+                        Return Port & " · старая прошивка " & Identity(5) & " · " & Imei
+                    Case Else
+                        Return Port & " · загрузчик 0x" & BootVer.ToString("X2") & " · плата " & Hw
+                End Select
+            End Get
+        End Property
+
+        Public Overrides Function ToString() As String
+            Return Title
+        End Function
+    End Class
 
     Private parrent As Form
     Private WithEvents Comport As ClComPort
@@ -149,18 +189,18 @@ Partial Public Class clOpros
 
     Private ReadOnly arraySendCommand As New ArrayList
     Private ReadOnly Waiter As New ManualResetEvent(True)
-    Private ports As String() 'список портов в системе
-    Private portIndex As Integer 'индекс текущего порта
 
     Public Enum eRejim
         None
-        Search
-        GetInfo
-        WaitConnect
+        Search      ' проход по всем портам, порты после опроса закрываются
+        WaitConnect ' порт выбранной платы NEXT открыт, ждём входа по ПИН-коду
         Work
         Boot ' на порту загрузчик: опрос стоит, портом распоряжается окно записи
         OldFirmware ' портом распоряжается только экран чтения v5
     End Enum
+
+    ' поиск и выбор платы не должны делить порт одновременно
+    Private ReadOnly scanLock As New Object
 
     Public Enum eCmd
         CMD_RESET = 2
@@ -256,80 +296,15 @@ Partial Public Class clOpros
         While (_continue)
 
             Select Case rejim
-                ' поиск устройств
+                ' проход по всем портам
                 Case eRejim.Search
+                    ScanOnce()
 
-                    If ports.Count Then
-
-                        If Comport IsNot Nothing AndAlso Comport.Port.IsOpen Then
-                            Comport.Port.Close()
-                        End If
-
-                        Dim serial As New System.IO.Ports.SerialPort(ports(portIndex))
-
-                        Try
-                            With serial
-                                .BaudRate = 115200
-                                .DataBits = 8
-                                .Parity = System.IO.Ports.Parity.None
-                                .StopBits = System.IO.Ports.StopBits.One
-                                .Handshake = System.IO.Ports.Handshake.None
-                                .ReceivedBytesThreshold = 1
-                                .ReadBufferSize = 1000
-                                .ReadTimeout = 50
-                            End With
-
-                            Comport = New ClComPort(serial, False)
-
-                            With Comport
-                                .Protokol = ClComPort.EProtokol.BIN
-                                .Port.Open()
-                            End With
-
-                            If Comport.Port.IsOpen Then
-                                RaiseEvent onFind(ports(portIndex))
-                                rejim = eRejim.GetInfo
-                            Else
-                                Thread.Sleep(1000)
-                                NextPort()
-                            End If
-
-                        Catch ex As Exception
-                            Thread.Sleep(1000)
-                            NextPort()
-                        End Try
-                    Else
-                        Thread.Sleep(3000)
-                        StartFind()
-                    End If
-
-                ' пробуем узнать кто на порту
-                Case eRejim.GetInfo
-                    Dim rec As Byte()
-
-                    If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_IDENT, Nothing), 500) Then
-                        If Not ParseRec(rec) Then
-                            NextPort()
-                        End If
-                    Else
-                        ' прошивка не ответила — спросим загрузчик его протоколом
-                        Dim identity = clBoot.IdentifyLegacy(Comport)
-                        If OldFirmware.IsFirmware(identity) Then
-                            rejim = eRejim.OldFirmware
-                            RaiseEvent onOldFirmwareFound(ports(portIndex), identity)
-                        ElseIf OldFirmware.IsBootloader(identity) Then
-                            rejim = eRejim.Boot
-                            RaiseEvent onBootFound(ports(portIndex), identity(3), identity(4))
-                        Else
-                            NextPort()
-                        End If
-                    End If
-
-                ' портом распоряжается окно записи прошивки
-                Case eRejim.Boot, eRejim.OldFirmware
+                ' портом распоряжается окно платы; до входа по ПИН-коду опроса нет
+                Case eRejim.Boot, eRejim.OldFirmware, eRejim.WaitConnect
                     Thread.Sleep(200)
 
-                Case eRejim.WaitConnect, eRejim.Work
+                Case eRejim.Work
                     SyncLock Me
 
                     If _isPause Then
@@ -347,25 +322,20 @@ Partial Public Class clOpros
                     Dim rec As Byte()
 
                     Try
-                        ' запрос статуса
-                        If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STATUS, Nothing), 3000) Then
+                        ' запрос статуса; чужой кадр в ответ - не обрыв, а просто неудачный опрос
+                        If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STATUS, Nothing), 3000) AndAlso ParseRec(rec) Then
                             errCnt = 0
-
-                            If rejim = eRejim.Work Then
-                                If Not ParseRec(rec) Then
-                                    NextPort()
-                                End If
-                            End If
-
                         Else
                             errCnt += 1
                             If errCnt = 5 Then
-                                NextPort()
+                                errCnt = 0
+                                Lost()
                             End If
                         End If
                         Thread.Sleep(100)
                     Catch ex As Exception
-                        NextPort()
+                        errCnt = 0
+                        Lost()
                     End Try
 
                     _isSending = False
@@ -386,31 +356,122 @@ Partial Public Class clOpros
 
     End Sub
 
+    ' Старая плата ушла в загрузчик: она появится в списке заново, уже загрузчиком.
     Public Sub FindAfterLegacyReset()
-        If Demo.IsOn Then
-            demoLegacyBoot = True
-            rejim = eRejim.Search
-        Else
-            SyncLock Me
-                If Comport.Port.IsOpen Then Comport.Port.Close()
-                StartFind()
-            End SyncLock
-        End If
+        If Demo.IsOn Then demoLegacyBoot = True
+        Release()
     End Sub
 
     Private Sub StartFind()
-        ports = System.IO.Ports.SerialPort.GetPortNames
-        portIndex = 0
         rejim = eRejim.Search
     End Sub
 
-    Private Sub NextPort()
-        Comport.Port.Close()
-        rejim = eRejim.Search
-        portIndex += 1
-        If portIndex = ports.Count Then
-            StartFind()
-        End If
+    Private Shared Function NewSerial(name As String) As System.IO.Ports.SerialPort
+        Return New System.IO.Ports.SerialPort(name) With {
+            .BaudRate = 115200, .DataBits = 8, .Parity = System.IO.Ports.Parity.None,
+            .StopBits = System.IO.Ports.StopBits.One, .Handshake = System.IO.Ports.Handshake.None,
+            .ReceivedBytesThreshold = 1, .ReadBufferSize = 1000, .ReadTimeout = 50}
+    End Function
+
+    ' Один проход: каждый порт открыть, спросить, кто там, и закрыть.
+    ' Если оператор выбрал плату посреди прохода, проход бросается.
+    Private Sub ScanOnce()
+        Dim names = System.IO.Ports.SerialPort.GetPortNames().Distinct().OrderBy(Function(n) n).ToArray()
+        Dim found As New List(Of FoundDevice)
+
+        For Each name In names
+            SyncLock scanLock
+                If rejim <> eRejim.Search Then Return
+                Dim dev = Probe(name)
+                If dev IsNot Nothing Then found.Add(dev)
+            End SyncLock
+        Next
+
+        If rejim <> eRejim.Search Then Return
+        RaiseEvent onScan(found, names.Length)
+
+        ' пауза между проходами, прерывается выбором платы
+        For i = 1 To 15
+            If rejim <> eRejim.Search OrElse Not _continue Then Return
+            Thread.Sleep(100)
+        Next
+    End Sub
+
+    Private Function Probe(name As String) As FoundDevice
+        Try
+            Using probePort As New ClComPort(NewSerial(name), False)
+                probePort.Port.Open()
+                Dim rec As Byte() = Nothing
+
+                If probePort.SendRecCmd(rec, SetCmd(eCmd.CMD_IDENT, Nothing), 500) AndAlso
+                   rec.Length >= 25 AndAlso rec(8) = eCmd.CMD_IDENT Then
+                    Return New FoundDevice With {.Port = name, .Kind = eDeviceKind.NextFw,
+                        .Imei = System.Text.Encoding.UTF8.GetString(rec, 9, 15), .DefaultPin = rec(24) > 0}
+                End If
+
+                ' прошивка NEXT не ответила - спросим протоколом загрузчика и старой прошивки
+                Dim identity = clBoot.IdentifyLegacy(probePort)
+                If OldFirmware.IsFirmware(identity) Then
+                    Return New FoundDevice With {.Port = name, .Kind = eDeviceKind.OldFirmware,
+                        .Identity = identity, .BootVer = identity(3), .Hw = identity(4),
+                        .Imei = System.Text.Encoding.GetEncoding(1251).GetString(identity, 10, 16).Split(ChrW(0))(0)}
+                End If
+                If OldFirmware.IsBootloader(identity) Then
+                    Return New FoundDevice With {.Port = name, .Kind = eDeviceKind.Bootloader,
+                        .Identity = identity, .BootVer = identity(3), .Hw = identity(4)}
+                End If
+            End Using
+        Catch
+            ' порт занят другой программой или пропал - не плата
+        End Try
+        Return Nothing
+    End Function
+
+    ' Оператор выбрал плату: открыть её порт и держать только его.
+    Public Function Open(dev As FoundDevice, ByRef errText As String) As Boolean
+        SyncLock scanLock
+            rejim = eRejim.None
+            If Not Demo.IsOn Then
+                Try
+                    Comport = New ClComPort(NewSerial(dev.Port), False)
+                    Comport.Protokol = ClComPort.EProtokol.BIN
+                    Comport.Port.Open()
+                Catch ex As Exception
+                    errText = "Порт " & dev.Port & " не открывается: " & ex.Message
+                    AgentLog.Write("device", "event", "open failed", "port", dev.Port, "error", ex.Message)
+                    rejim = eRejim.Search
+                    Return False
+                End Try
+            End If
+            AgentLog.Write("device", "event", "open", "port", dev.Port, "kind", dev.Kind.ToString(), "title", dev.Title)
+            Select Case dev.Kind
+                Case eDeviceKind.NextFw : rejim = eRejim.WaitConnect
+                Case eDeviceKind.OldFirmware : rejim = eRejim.OldFirmware
+                Case Else : rejim = eRejim.Boot
+            End Select
+            Return True
+        End SyncLock
+    End Function
+
+    ' Работа с платой закончена: порт отпустить и вернуться к поиску всех плат.
+    Public Sub Release()
+        rejim = eRejim.None
+        SyncLock Me
+            If Not Demo.IsOn AndAlso Comport IsNot Nothing AndAlso Comport.Port.IsOpen Then Comport.Port.Close()
+        End SyncLock
+        AgentLog.Write("device", "event", "release")
+        StartFind()
+    End Sub
+
+    ' Выбранная плата перестала отвечать: порт закрыть, окно платы решит, что делать.
+    Private Sub Lost()
+        rejim = eRejim.None
+        Try
+            If Comport.Port.IsOpen Then Comport.Port.Close()
+        Catch
+        End Try
+        AgentLog.Write("device", "event", "lost")
+        RaiseEvent onLost()
     End Sub
 
     Private Function SetCmd(ByVal cmd As Byte, ByVal payload As Byte()) As Byte()
@@ -432,11 +493,6 @@ Partial Public Class clOpros
             Case 2 'статус 1
             Case 3 'статус 2
             Case 11 'подтверждение
-
-            Case eCmd.CMD_IDENT 'идентификация
-                rejim = eRejim.WaitConnect
-                RaiseEvent isFinded(Comport.Port.PortName, System.Text.Encoding.UTF8.GetString(rec, 9, 15), rec(24))
-                Return True
 
             Case eCmd.CMD_STATUS 'статус для конфигуратора
                 If rec.Length < 42 Then Return False

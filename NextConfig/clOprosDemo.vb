@@ -11,6 +11,8 @@ Imports System.Threading
 '   NextConfig.exe --demo:boot   на порту отвечает загрузчик
 '   NextConfig.exe --demo:oldboot   на порту старый загрузчик 0x21 (шаг 1 перевода)
 '   NextConfig.exe --demo:oldfw     новая прошивка под старым загрузчиком (шаг 2 перевода)
+'   NextConfig.exe --demo:oldfw48   старая прошивка v5 (чтение и перевод)
+'   NextConfig.exe --demo:two       две платы: NEXT на COM9 и старая v5 на COM12
 Public Enum eDemoMode
     Off = 0
     Found = 1
@@ -19,6 +21,7 @@ Public Enum eDemoMode
     OldBoot = 4
     OldFw = 5
     OldFw48 = 6
+    Two = 7
 End Enum
 
 Public Module Demo
@@ -143,6 +146,8 @@ Public Module Demo
                     Return eDemoMode.OldFw
                 Case "--demo:oldfw48", "/demo:oldfw48"
                     Return eDemoMode.OldFw48
+                Case "--demo:two", "/demo:two"
+                    Return eDemoMode.Two
             End Select
         Next
         Return eDemoMode.Off
@@ -161,6 +166,7 @@ Partial Public Class clOpros
 
         _exit = False
         _continue = True
+        rejim = eRejim.Search
 
         thread_opros = New Threading.Thread(AddressOf Me.DemoCikl)
         thread_opros.Priority = Threading.ThreadPriority.Normal
@@ -171,50 +177,14 @@ Partial Public Class clOpros
 
     Private Sub DemoCikl()
 
-        Thread.Sleep(700)
-
-        Select Case Demo.Mode
-
-            Case eDemoMode.NoPorts
-                RaiseEvent onFind("")
-
-            Case eDemoMode.OldFw48
-                RaiseEvent onFind("COM9")
-                Thread.Sleep(900)
-                rejim = eRejim.OldFirmware
-                RaiseEvent onOldFirmwareFound("COM9", Demo.OldFirmwareReply(0, Nothing))
-
-            Case eDemoMode.Boot
-                RaiseEvent onFind("COM9")
-                Thread.Sleep(900)
-                rejim = eRejim.Boot
-                RaiseEvent onBootFound("COM9", &H32, 139)
-
-            Case eDemoMode.OldBoot
-                RaiseEvent onFind("COM9")
-                Thread.Sleep(900)
-                rejim = eRejim.Boot
-                RaiseEvent onBootFound("COM9", &H21, 139)
-
-            Case Else
-                RaiseEvent onFind("COM9")
-                Thread.Sleep(900)
-                rejim = eRejim.WaitConnect
-                RaiseEvent isFinded("COM9", "867442070217472", 1)
-
-        End Select
-
         While _continue
             Thread.Sleep(500)
 
             If rejim = eRejim.Search Then
-                If demoLegacyBoot Then
-                    demoLegacyBoot = False : rejim = eRejim.Boot
-                    RaiseEvent onBootFound("COM9", &H21, 139)
-                Else
-                    rejim = eRejim.WaitConnect
-                    RaiseEvent isFinded("COM9", "867442070217472", 1)
-                End If
+                ' проход по портам в демо тоже занимает время
+                Dim list = DemoDevices()
+                Thread.Sleep(700)
+                If rejim = eRejim.Search Then RaiseEvent onScan(list, If(Demo.Mode = eDemoMode.NoPorts, 0, 2))
             End If
             If rejim = eRejim.Work AndAlso Not _stopGetStatus Then
                 demoTick += 1
@@ -228,6 +198,41 @@ Partial Public Class clOpros
 
         _exit = True
     End Sub
+
+    ' Какие платы «нашёл» проход по портам в демо.
+    Private Function DemoDevices() As List(Of FoundDevice)
+        Dim nextBoard = New FoundDevice With {.Port = "COM9", .Kind = eDeviceKind.NextFw, .Imei = "867442070217472", .DefaultPin = True}
+        Dim identity = Demo.OldFirmwareReply(0, Nothing)
+        Dim oldBoard = New FoundDevice With {.Port = "COM12", .Kind = eDeviceKind.OldFirmware, .Identity = identity,
+            .BootVer = identity(3), .Hw = identity(4), .Imei = "000000000000048"}
+        Dim list As New List(Of FoundDevice)
+
+        Select Case Demo.Mode
+            Case eDemoMode.NoPorts
+            Case eDemoMode.Two
+                list.Add(nextBoard) : list.Add(oldBoard)
+            Case eDemoMode.OldFw48
+                If Demo.LegacyFwStarted Then
+                    nextBoard.Port = "COM12" : list.Add(nextBoard)
+                ElseIf demoLegacyBoot Then
+                    list.Add(New FoundDevice With {.Port = "COM12", .Kind = eDeviceKind.Bootloader, .BootVer = &H21, .Hw = 139})
+                Else
+                    list.Add(oldBoard)
+                End If
+            Case eDemoMode.Boot
+                list.Add(New FoundDevice With {.Port = "COM9", .Kind = eDeviceKind.Bootloader, .BootVer = &H32, .Hw = 139})
+            Case eDemoMode.OldBoot
+                If Demo.LegacyFwStarted Then
+                    list.Add(nextBoard)
+                Else
+                    list.Add(New FoundDevice With {.Port = "COM9", .Kind = eDeviceKind.Bootloader, .BootVer = &H21, .Hw = 139})
+                End If
+            Case Else
+                list.Add(nextBoard)
+        End Select
+
+        Return list
+    End Function
 
     ' Правдоподобный статус платы №1: FW 71, загрузчик 0x32, плата 139, на сервере.
     Private Function DemoStatus() As s_status

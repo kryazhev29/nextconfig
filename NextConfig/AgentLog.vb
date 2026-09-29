@@ -107,7 +107,7 @@ Public Module AgentLog
         Dim cmd As Integer = If(tx IsNot Nothing AndAlso tx.Length > 8, tx(8), -1)
         If cmd = clOpros.eCmd.CMD_STATUS AndAlso rx IsNot Nothing AndAlso Not PollDue("sldn101") Then Return
         ' поиск платы перебирает порты без конца: молчащий порт пишем изредка
-        If cmd = clOpros.eCmd.CMD_IDENT AndAlso rx Is Nothing AndAlso Not PollDue("ident " & port) Then Return
+        If cmd = clOpros.eCmd.CMD_IDENT AndAlso Not PollDue("ident " & port & If(rx Is Nothing, " -", " +")) Then Return
 
         Dim answer As Object = Nothing
         If rx IsNot Nothing AndAlso rx.Length > 10 AndAlso rx(8) = clOpros.eCmd.REC_ANSWER Then answer = CInt(rx(10))
@@ -136,7 +136,7 @@ Public Module AgentLog
     ' Кадр SLGT (загрузчик и старая прошивка v5): тело [AA|55, команда, ...].
     Public Sub SlgtExchange(port As String, cmd As Byte, tx As Byte(), rx As Byte(), ms As Integer, err As String)
         If cmd = &H22 AndAlso rx IsNot Nothing AndAlso Not PollDue("slgt22") Then Return
-        If cmd = 0 AndAlso rx Is Nothing AndAlso Not PollDue("slgt0 " & port) Then Return
+        If cmd = 0 AndAlso Not PollDue("slgt0 " & port & If(rx Is Nothing, " -", " +")) Then Return
         Dim masked As New HashSet(Of Integer)
         ' 0x25 - вход по паролю старой прошивки: пароль в данных запроса
         If cmd = &H25 Then AddRange(masked, 8, If(tx Is Nothing, 0, tx.Length - 10))
