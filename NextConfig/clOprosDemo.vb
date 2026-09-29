@@ -21,6 +21,7 @@ Public Enum eDemoMode
     OldBoot = 4
     OldFw = 5
     OldFw48 = 6
+    OldFw45 = 8
     Two = 7
 End Enum
 
@@ -45,7 +46,7 @@ Public Module Demo
             Case 0
                 Dim b(25) As Byte
                 b(0) = &H55 : b(2) = 1 : b(3) = &H21 : b(4) = 139
-                b(5) = 48 : b(6) = &H8B
+                b(5) = If(Mode = eDemoMode.OldFw45, CByte(45), CByte(48)) : b(6) = &H8B
                 PutText(b, 10, "000000000000048")
                 Return b
             Case &H30
@@ -61,7 +62,7 @@ Public Module Demo
                 Dim d(511) As Byte
                 d(0) = &HAD : d(1) = 1 : d(3) = 1 : d(4) = &H8B
                 Put32(d, 5, 1790640000UI)
-                d(13) = &H2E : d(14) = 1
+                d(13) = If(Mode = eDemoMode.OldFw45, CByte(&H3E), CByte(&H2E)) : d(14) = 1
                 PutText(d, 15, "internet")
                 d(60) = 1 : d(61) = 0 : Put16(d, 64, 60)
                 PutText(d, 66, "demo.example") : Put16(d, 90, 15010)
@@ -144,6 +145,8 @@ Public Module Demo
                     Return eDemoMode.OldBoot
                 Case "--demo:oldfw", "/demo:oldfw"
                     Return eDemoMode.OldFw
+                Case "--demo:oldfw45"
+                    Return eDemoMode.OldFw45
                 Case "--demo:oldfw48", "/demo:oldfw48"
                     Return eDemoMode.OldFw48
                 Case "--demo:two", "/demo:two"
@@ -211,7 +214,7 @@ Partial Public Class clOpros
             Case eDemoMode.NoPorts
             Case eDemoMode.Two
                 list.Add(nextBoard) : list.Add(oldBoard)
-            Case eDemoMode.OldFw48
+            Case eDemoMode.OldFw48, eDemoMode.OldFw45
                 If Demo.LegacyFwStarted Then
                     nextBoard.Port = "COM12" : list.Add(nextBoard)
                 ElseIf demoLegacyBoot Then

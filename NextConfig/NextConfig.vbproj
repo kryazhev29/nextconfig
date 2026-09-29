@@ -115,6 +115,8 @@
     </Compile>
     <Compile Include="clBoot.vb" />
     <Compile Include="OldFirmware.vb" />
+    <Compile Include="OldPhoto.vb" />
+    <Compile Include="OldFirmwarePhotoUI.vb" />
     <Compile Include="OldFirmwareSections.vb" />
     <Compile Include="frmBootDevice.vb" />
     <Compile Include="frmOldFirmware.vb"><SubType>Form</SubType></Compile>

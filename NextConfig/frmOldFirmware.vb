@@ -105,7 +105,7 @@ Public Class frmOldFirmware
         For i = 2 To 4
             grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         Next
-        Dim photos As New PhotoPanel(Nothing, device.Imei, True)
+        Dim photos = BuildOldPhotos()
         grid.Controls.Add(photos, 0, 2) : grid.SetColumnSpan(photos, 2)
         Dim quickExport As New Button()
         SetupButton(quickExport, "Сохранить базу CSV", 190)
@@ -192,6 +192,8 @@ Public Class frmOldFirmware
 
     Private Sub SetBusy(value As Boolean)
         busy = value
+        oldShoot.Enabled = Not value AndAlso device.SupportsPhoto
+        reconnect.Enabled = Not value
         migrate.Enabled = Not value
         readConfig.Enabled = Not value
         readBase.Enabled = Not value
@@ -245,7 +247,8 @@ Public Class frmOldFirmware
                 If message <> "" Then feedback.Text = message
             End If
         Catch ex As Exception
-            feedback.Text = ex.Message
+            feedback.Text = ex.Message & " Можно переподключиться к этой плате в разделе Устройство."
+            reconnect.Visible = True
             If Not authenticate Then
                 monitorTitle.Text = "Состояние · нет свежих данных"
                 poll.Stop()

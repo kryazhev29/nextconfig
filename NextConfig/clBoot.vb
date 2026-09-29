@@ -46,7 +46,7 @@ Public Class clBoot
         Dim image As Byte()
     End Structure
 
-    Private Shared Function Crc16(ByVal data As Byte()) As Integer
+    Friend Shared Function Crc16(ByVal data As Byte()) As Integer
         Dim crc As Integer = &HFFFF
 
         For i As Integer = 0 To data.GetUpperBound(0)
@@ -64,7 +64,7 @@ Public Class clBoot
         Return crc
     End Function
 
-    Private Shared Function Frame(ByVal cmd As Byte, ByVal data As Byte()) As Byte()
+    Friend Shared Function Frame(ByVal cmd As Byte, ByVal data As Byte()) As Byte()
         Dim bodyLen As Integer = 2 + If(data Is Nothing, 0, data.Length)
         Dim body(bodyLen - 1) As Byte
 

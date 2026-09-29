@@ -8,6 +8,7 @@ Imports System.Text
 Public NotInheritable Class OldFirmware
     Private ReadOnly port As ClComPort
     Private ReadOnly demoMode As Boolean
+    Private photoEnabled As Boolean?
     Private ReadOnly stopRead As New Threading.CancellationTokenSource()
     Public ReadOnly Identification As Byte()
     Private Shared ReadOnly Ansi As Encoding = Encoding.GetEncoding(1251)
@@ -25,12 +26,48 @@ Public NotInheritable Class OldFirmware
     Public Shared Function IsFirmware(b As Byte()) As Boolean
         ' FW/board.h:9: DEVICETYPE эталона v5 = 0x8B. Это тип, не ревизия PCB:
         ' старые DIN также могли иметь 0x8B; их совместимость отдельно не заявляется.
-        Return b IsNot Nothing AndAlso b.Length = 26 AndAlso b(0) = &H55 AndAlso b(1) = 0 AndAlso b(2) = 1 AndAlso b(6) = &H8B
+        Return b IsNot Nothing AndAlso b.Length = 26 AndAlso b(0) = &H55 AndAlso b(1) = 0 AndAlso b(2) = 1 AndAlso b(6) = &H8B AndAlso b(5) <> 49
     End Function
 
     Public Shared Function IsBootloader(b As Byte()) As Boolean
         Return b IsNot Nothing AndAlso b.Length = 10 AndAlso b(0) = &H55 AndAlso b(1) = 0 AndAlso b(2) = 0
     End Function
+
+    Public ReadOnly Property SupportsPhoto As Boolean
+        Get
+            Return Identification(5) <> 49
+        End Get
+    End Property
+
+    Public ReadOnly Property PhotoSupportText As String
+        Get
+            Return "Камера 0 · выберите разрешение и папку для JPEG. Поддержка проверяется ответом платы."
+        End Get
+    End Property
+
+    Public Function CapturePhoto(folder As String, resolution As Byte) As String
+        If Not SupportsPhoto Then Throw New InvalidOperationException(PhotoSupportText)
+        If Not photoEnabled.HasValue Then ReadSettings()
+        Dim wire As IPhotoWire = If(demoMode, DirectCast(New OldPhotoDemoWire(Identification(5) = 45), IPhotoWire), New OldPhotoWire(port))
+        Return OldPhotoSession.Capture(wire, folder, Imei, 0, resolution, stopRead.Token, photoEnabled.Value)
+    End Function
+
+    Public Sub Reconnect()
+        stopRead.Token.ThrowIfCancellationRequested()
+        If demoMode Then Return
+        port.EnableEventReceived = False
+        port.Port.Close()
+        Try
+            port.Port.Open()
+            Dim identity = clBoot.IdentifyLegacy(port)
+            If Not IsFirmware(identity) OrElse Not identity.SequenceEqual(Identification) Then
+                Throw New IOException("На порту другая плата или другая прошивка. Закройте окно и выполните новый поиск.")
+            End If
+        Catch
+            port.Port.Close()
+            Throw
+        End Try
+    End Sub
 
     Public Function IdentityText() As String
         Dim b = Identification
@@ -115,7 +152,10 @@ Public NotInheritable Class OldFirmware
     End Function
 
     Public Function ReadSettings() As DataTable
-        Return ParseSettings(Request(&H20, New Byte() {0}))
+        Dim reply = Request(&H20, New Byte() {0})
+        Dim table = ParseSettings(reply)
+        photoEnabled = (reply(19) And 16) <> 0
+        Return table
     End Function
 
     Public Function ReadStatus() As DataTable
