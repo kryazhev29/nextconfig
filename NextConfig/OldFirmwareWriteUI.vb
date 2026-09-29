@@ -96,7 +96,7 @@ Partial Public Class frmOldFirmware
         Dim pin As UShort? = Nothing
         SetBusy(True) : poll.Stop()
         Try
-            pin = GetPassword()
+            pin = GetPassword(requiredAccess)
             Await portGate.WaitAsync()
             Try
                 Await Task.Run(Sub()

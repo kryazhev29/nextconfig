@@ -211,8 +211,16 @@ Public Class frmOldFirmware
         password.Enabled = Not value
     End Sub
 
-    Private Function GetPassword() As UShort?
-        If password.Text.Length = 0 Then Return Nothing
+    ' Пароль из поля в шапке; поле пустое и прав в этом сеансе нет - спросить окном,
+    ' а не отвечать ошибкой «Требуется пароль».
+    Private Function GetPassword(required As Byte) As UShort?
+        If password.Text.Length = 0 Then
+            If device.HasAccess(required) Then Return Nothing
+            Using prompt As New OldPasswordPrompt(If(required = &H20, "администратора", "управляющего или администратора"))
+                If prompt.ShowDialog(Me) <> DialogResult.OK Then Throw New OperationCanceledException("Пароль не введён.")
+                Return prompt.Value
+            End Using
+        End If
         Dim n As UShort
         If Not UShort.TryParse(password.Text, Globalization.NumberStyles.None,
                               Globalization.CultureInfo.InvariantCulture, n) Then
@@ -227,13 +235,15 @@ Public Class frmOldFirmware
     Private Async Function RunRead(action As Func(Of DataTable), apply As Action(Of DataTable),
                                    message As String, Optional authenticate As Boolean = False,
                                    Optional requiredAccess As Byte = 0,
-                                   Optional background As Boolean = False) As Task
+                                   Optional background As Boolean = False,
+                                   Optional retried As Boolean = False) As Task
         If IsDisposed OrElse closePending Then Return
         If background AndAlso (busy OrElse polling) Then Return
         If Not background AndAlso busy Then Return
         Dim pin As UShort? = Nothing
+        Dim askAgain As Boolean = False
         Try
-            If authenticate Then pin = GetPassword()
+            If authenticate Then pin = GetPassword(If(requiredAccess = 0, CByte(&H10), requiredAccess))
             If background Then polling = True Else SetBusy(True)
             If authenticate Then feedback.Text = "Чтение…"
             Await portGate.WaitAsync()
@@ -255,9 +265,15 @@ Public Class frmOldFirmware
                 apply(result)
                 If message <> "" Then feedback.Text = message
             End If
+        Catch ex As OperationCanceledException When Not closePending
+            feedback.Text = ex.Message
         Catch ex As Exception
             feedback.Text = ex.Message
-            If Not TypeOf ex Is NotSupportedException Then
+            ' плата забыла вход: спросить пароль окном и повторить один раз
+            If authenticate AndAlso Not retried AndAlso ex.Message.StartsWith("Требуется пароль") Then
+                device.ForgetAccess()
+                askAgain = True
+            ElseIf Not TypeOf ex Is NotSupportedException Then
                 feedback.Text &= " Можно переподключиться к этой плате в разделе Устройство."
                 reconnect.Visible = True
             End If
@@ -270,6 +286,7 @@ Public Class frmOldFirmware
             If background Then polling = False Else SetBusy(False)
             If closePending AndAlso Not (busy OrElse polling) Then Close()
         End Try
+        If askAgain Then Await RunRead(action, apply, message, authenticate, requiredAccess, background, True)
     End Function
 
     Private Async Function RefreshStatus(Optional background As Boolean = False) As Task
@@ -368,5 +385,46 @@ Public Class frmOldFirmware
             e.Cancel = True
             feedback.Text = "Завершение текущего чтения перед закрытием…"
         End If
+    End Sub
+End Class
+
+' Окно пароля старой платы: открывается само, когда действию нужен вход.
+Public Class OldPasswordPrompt
+    Inherits Form
+    Private ReadOnly box As New TextBox With {.Name = "oldPasswordPrompt", .UseSystemPasswordChar = True, .MaxLength = 5}
+    Private ReadOnly ok As New Button With {.Text = "Войти"}
+    Private ReadOnly cancel As New Button With {.Text = "Отмена"}
+    Private ReadOnly hint As New Label With {.AutoSize = True}
+    Public Property Value As UShort
+
+    Public Sub New(who As String)
+        AutoScaleMode = AutoScaleMode.None : Theme.StyleForm(Me)
+        Text = "Пароль платы"
+        FormBorderStyle = FormBorderStyle.FixedDialog : MaximizeBox = False : MinimizeBox = False
+        StartPosition = FormStartPosition.CenterParent
+        Dim root As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .Padding = New Padding(Theme.GapSection), .AutoSize = True}
+        Dim caption As New Label With {.Text = "Пароль " & who & " (число 0–65535):", .AutoSize = True, .Margin = New Padding(0, 0, 0, Theme.GapLabel)}
+        hint.Font = Theme.FontCaption : hint.ForeColor = Theme.Danger
+        Theme.Primary(ok) : Theme.Secondary(cancel)
+        Dim buttons As New FlowLayoutPanel With {.AutoSize = True, .FlowDirection = FlowDirection.RightToLeft, .Dock = DockStyle.Fill,
+            .Margin = New Padding(0, Theme.GapSection, 0, 0)}
+        buttons.Controls.AddRange({cancel, ok})
+        root.Controls.AddRange({caption, Theme.FieldBox(box, 260), hint, buttons})
+        Controls.Add(root)
+        ClientSize = New Size(Theme.Px(360), Theme.Px(200))
+        AcceptButton = ok : CancelButton = cancel
+        AddHandler box.KeyPress, Sub(s, e)
+                                     If Not Char.IsControl(e.KeyChar) AndAlso Not Char.IsDigit(e.KeyChar) Then e.Handled = True
+                                 End Sub
+        AddHandler ok.Click, Sub()
+                                 Dim n As UShort
+                                 If UShort.TryParse(box.Text, Globalization.NumberStyles.None, Globalization.CultureInfo.InvariantCulture, n) Then
+                                     Value = n : box.Clear() : DialogResult = DialogResult.OK
+                                 Else
+                                     hint.Text = "Введите число от 0 до 65535."
+                                 End If
+                             End Sub
+        AddHandler cancel.Click, Sub() DialogResult = DialogResult.Cancel
+        AddHandler Shown, Sub() box.Focus()
     End Sub
 End Class

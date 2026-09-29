@@ -147,6 +147,16 @@ Public NotInheritable Class OldFirmware
 
     ' FW/User/user_fun.c:495-515; structures.h:18-20; Unit1.cpp:1060-1069.
     ' Пароль UInt16 LE, не строка ASCII. Никаких встроенных паролей.
+    ' Хватает ли прав, полученных в этом сеансе: 0x20 - администратор, 0x10 - управляющий.
+    Public Function HasAccess(required As Byte) As Boolean
+        Return demoMode OrElse accessLevel = &H20 OrElse (required <> &H20 AndAlso accessLevel = &H10)
+    End Function
+
+    ' Плата сама забыла вход (снова просит пароль) - забыть его и здесь.
+    Public Sub ForgetAccess()
+        accessLevel = 0
+    End Sub
+
     Public Function Authenticate(password As UShort) As Byte
         accessLevel = 0
         accessLevel = ParseAuthentication(Request(&H25, BitConverter.GetBytes(password)))
