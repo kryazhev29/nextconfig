@@ -44,6 +44,14 @@ Public Class PhotoSerialWire
     End Function
 End Class
 
+' Ответ 2 на команду 21: плата ещё снимает или готовит память - выгрузку можно повторить.
+Public Class PhotoBusyException
+    Inherits IOException
+    Public Sub New(message As String)
+        MyBase.New(message)
+    End Sub
+End Class
+
 Public Class PhotoProgress
     Public Property Text As String
     Public Property Received As Integer
@@ -113,7 +121,7 @@ Public NotInheritable Class PhotoSession
             If frame(7) <> id OrElse frame(8) <> 11 Then Continue Do
             If frame.Length < 13 OrElse frame(9) <> 7 Then Continue Do
             CheckAnswer(frame(10), False)
-            Tell("Съёмка запущена. Через несколько секунд нажмите «Забрать фото».")
+            Tell("Камера снимает…")
             Return
         Loop While clock.ElapsedMilliseconds < untilTime
         Throw New IOException("Плата не подтвердила съёмку. Повторите запрос после проверки связи.")
@@ -168,7 +176,7 @@ Public NotInheritable Class PhotoSession
             End If
             If now - lastData > 2500 Then
                 retriesWithoutData += 1 : transfer.Retries += 1
-                If retriesWithoutData > 3 Then Throw New IOException("Нет пакетов фото. Принятая часть сохранена; повторите «Забрать фото» в ту же папку.")
+                If retriesWithoutData > 3 Then Throw New IOException("Нет пакетов фото. Повторите снимок.")
                 Tell("Нет пакета. Повтор " & retriesWithoutData & " с байта " & transfer.Received & ".", transfer)
                 id = Send(21, transfer.Cursor()) : lastData = now
             End If
@@ -179,7 +187,9 @@ Public NotInheritable Class PhotoSession
         Select Case code
             Case 0 : Return
             Case 1 : Throw New IOException("Камера не настроена: нужен активный RS-485 и периферия C328 (тип 3) с выбранным адресом.")
-            Case 2 : Throw New IOException(If(downloading, "Плата занята съёмкой, обновлением или подготовкой памяти. Повторите выгрузку позже.", "Плата занята или не может начать съёмку. Проверьте камеру и свободную память."))
+            Case 2
+                If downloading Then Throw New PhotoBusyException("Плата занята съёмкой, обновлением или подготовкой памяти. Повторите выгрузку позже.")
+                Throw New IOException("Плата занята или не может начать съёмку. Проверьте камеру и свободную память.")
             Case 4 : Throw New IOException("Требуется ПИН-код. Переподключитесь к плате и введите ПИН.")
             Case Else : Throw New IOException("Плата отказала в операции с фото: код " & code & ".")
         End Select

@@ -5,7 +5,8 @@ Imports System.Threading.Tasks
 Public Class PhotoPanel
     Inherits TableLayoutPanel
     Private ReadOnly shoot As New Button With {.Text = "Сделать снимок"}
-    Private ReadOnly fetch As New Button With {.Text = "Забрать фото"}
+    ' Снимок забирается сам после «Сделать снимок»; отдельная кнопка скрыта.
+    Private ReadOnly fetch As New Button With {.Text = "Забрать фото", .Visible = False}
     Private ReadOnly stopButton As New Button With {.Text = "Отмена", .Visible = False}
     Private ReadOnly save As New Button With {.Text = "Сохранить…", .Enabled = False}
     Private ReadOnly open As New Button With {.Text = "Открыть крупно", .Enabled = False}
@@ -144,7 +145,10 @@ Public Class PhotoPanel
             Return
         End If
         If Busy OrElse blocked Then Return
-        Dim folder As String = Nothing
+        ' Снимок сразу забирается во временную папку и показывается в рамке; на диск к
+        ' оператору - только кнопкой «Сохранить…».
+        Dim folder As String = If(capture, Path.Combine(Path.GetTempPath(), "NextConfig_photo", imei), Nothing)
+        If folder IsNot Nothing Then Directory.CreateDirectory(folder)
         If Not capture Then
             Using dialog As New FolderBrowserDialog With {.Description = "Папка для фото " & imei, .ShowNewFolderButton = True, .SelectedPath = lastFolder}
                 If dialog.ShowDialog(FindForm()) <> DialogResult.OK Then Return
