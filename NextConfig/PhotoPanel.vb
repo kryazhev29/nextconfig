@@ -10,6 +10,7 @@ Public Class PhotoPanel
     Private ReadOnly save As New Button With {.Text = "Сохранить…", .Enabled = False}
     Private ReadOnly open As New Button With {.Text = "Открыть крупно", .Enabled = False}
     Private ReadOnly addresses As New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList}
+    Private ReadOnly addressCaption As Label
     Private ReadOnly hint As New Label With {.AutoSize = True}
     Private ReadOnly progress As New Label With {.AutoSize = True}
     Private ReadOnly preview As New PhotoFrame With {.Name = "photoFrame"}
@@ -54,7 +55,7 @@ Public Class PhotoPanel
             button.Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
         Next
         addresses.Font = Theme.FontBody : addresses.Width = Theme.Px(220)
-        Dim addressCaption As New Label With {.Text = "Камера · адрес RS-485", .AutoSize = True,
+        addressCaption = New Label With {.Text = "Камера · адрес RS-485", .AutoSize = True,
             .Font = Theme.FontCaption, .ForeColor = Theme.TextMuted,
             .Margin = New Padding(0, Theme.GapRelated, 0, Theme.GapLabel), .Visible = Not legacy}
         actions.Controls.AddRange({shoot, fetch, addressCaption, addresses, save, open, stopButton})
@@ -96,13 +97,24 @@ Public Class PhotoPanel
         If cancellation IsNot Nothing Then cancellation.Cancel()
     End Sub
 
-    Public Sub SetState(config As clOpros.s_config, updating As Boolean, fresh As Boolean)
+    ' camera232 - старая плата MODEM (IP v3): камера одна, на порту 232, как в старой прошивке;
+    ' настройки RS-485 к ней не относятся (прошивка ветки fix/ipv3-photo-rs232).
+    Public Sub SetState(config As clOpros.s_config, updating As Boolean, fresh As Boolean, Optional camera232 As Boolean = False)
         If legacy Then Return
         blocked = updating OrElse Not fresh
         Dim available = {config.periph1, config.periph2, config.periph3, config.periph4,
             config.periph5, config.periph6, config.periph7, config.periph8}.
             Where(Function(p) p.rs485Type = 3).Select(Function(p) p.rs485Adr).Distinct().ToArray()
         configured = config.rs485Mode = 1 AndAlso available.Length > 0
+        addressCaption.Visible = Not camera232 : addresses.Visible = Not camera232
+        If camera232 Then
+            configured = True
+            If Not Busy Then addresses.Items.Clear()
+            hint.Text = If(updating, "Идёт обновление прошивки. Съёмка и выгрузка недоступны.",
+                If(Not fresh, "Ожидание свежего состояния платы…", "Камера C328 · порт 232. Нажмите на фото, чтобы открыть крупнее."))
+            UpdateButtons()
+            Return
+        End If
         If Not Busy Then
             Dim selected = addresses.SelectedItem
             addresses.Items.Clear()

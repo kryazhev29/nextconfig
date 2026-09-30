@@ -128,7 +128,7 @@ Public Class Form2
     End Sub
 
     Private Sub TmrTick()
-        photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds)
+        photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, Camera232)
         If lastStatus = DateTime.MinValue Then
             SetHeadState(Theme.eDot.Waiting, "Ожидание данных")
         ElseIf DateTime.Now.Subtract(lastStatus).TotalSeconds > StaleSeconds Then
@@ -228,7 +228,7 @@ Public Class Form2
 
         status = _status
         lastStatus = DateTime.Now
-        photoCard.SetState(onBoard, status.readyToUpdate, True)
+        photoCard.SetState(onBoard, status.readyToUpdate, True, Camera232)
         Status485()
 
         Theme.SetText(lblTime, DeviceTimeText(status.time))
@@ -300,6 +300,14 @@ Public Class Form2
             Dim saved = FirmwareFiles.SavedTarget(lblIMEI.Text.Trim())
             If saved <> 0 Then Return saved = 140
             Return status.moduleType = clOpros.eModuleType.M_M66 OrElse status.moduleType = clOpros.eModuleType.M_OTHER
+        End Get
+    End Property
+
+    ' Камера на порту 232 - только у старой MODEM (IP v3). Модуль Quectel проверяется и отдельно:
+    ' запомненная цель 139 после перевода делает OldModem ложным.
+    Private ReadOnly Property Camera232 As Boolean
+        Get
+            Return OldModem OrElse status.moduleType = clOpros.eModuleType.M_M66 OrElse status.moduleType = clOpros.eModuleType.M_OTHER
         End Get
     End Property
 
