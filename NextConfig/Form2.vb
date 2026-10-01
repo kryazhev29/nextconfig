@@ -681,6 +681,13 @@ Public Class Form2
     ' Проверка введённого. Ошибку пишем возле того значения, из-за которого
     ' она возникла, и ничего на плату не отправляем.
     Private Function ValidateFields() As Boolean
+        If System.Text.Encoding.UTF8.GetByteCount(txtOperator.Text.Trim()) > 31 Then
+            Using f As New frmInfo("Точка доступа", "Точка доступа, логин и пароль вместе должны занимать не более 31 байта UTF-8.")
+                f.ShowDialog(Me)
+            End Using
+            txtOperator.Focus()
+            Return False
+        End If
         lblServer1Err.Text = ServerError(txtServer1.Text, True)
         lblServer2Err.Text = ServerError(txtServer2.Text, False)
 
@@ -748,6 +755,7 @@ Public Class Form2
     ' Адрес сервера пишется как узел:порт, например 87.244.4.92:15010.
     Private Function ServerError(ByVal text As String, ByVal required As Boolean) As String
         Dim v As String = text.Trim()
+        If System.Text.Encoding.UTF8.GetByteCount(v) > 31 Then Return "Адрес с портом должен занимать не более 31 байта UTF-8"
 
         If v = "" Then
             Return If(required, "Укажите адрес в виде 87.244.4.92:15010", "")

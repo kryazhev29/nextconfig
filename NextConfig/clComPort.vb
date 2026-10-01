@@ -479,7 +479,7 @@ Public Class ClComPort
             Next
 
             Dim crc As Byte() = BitConverter.GetBytes(Convert.ToInt32(Crc16(al.ToArray, 4)))
-            Dim TimeStart As Integer
+            Dim deadline = System.Diagnostics.Stopwatch.StartNew()
             Dim readedBytes As Integer
             Dim len As Integer
 
@@ -493,25 +493,25 @@ Public Class ClComPort
 
             bytes = al.ToArray
 
+            Dim previousWriteTimeout = _port.WriteTimeout
             Try
+                _port.WriteTimeout = Math.Max(1, timeout)
                 _port.DiscardInBuffer()
                 _port.DiscardOutBuffer()
                 _port.Write(bytes, 0, bytes.Length)
 
                 Do While _port.BytesToWrite > 0
+                    If deadline.ElapsedMilliseconds >= timeout Then Return False
                     If withSleep Then Thread.Sleep(1)
                 Loop
-
-                TimeStart = Environment.TickCount
                 al.Clear()
 
-                Do While (Environment.TickCount - TimeStart) < timeout
+                Do While deadline.ElapsedMilliseconds < timeout
                     readedBytes = _port.BytesToRead
                     If readedBytes > 0 Then
                         Dim bBuf(readedBytes - 1) As Byte
 
                         _port.Read(bBuf, 0, readedBytes)
-                        TimeStart = Environment.TickCount
 
                         For Each bt In bBuf
 
@@ -537,6 +537,7 @@ Public Class ClComPort
                                     al.Add(bt)
                                 Case 5
                                     len += CType(bt, UShort) << 8
+                                    If len < 3 Then Return False
                                     al.Add(bt)
                                 Case Else
                                     al.Add(bt)
@@ -575,8 +576,10 @@ Public Class ClComPort
                 Loop
 
             Catch ex As Exception
-                EnableEventReceived = True
                 Return False
+            Finally
+                _port.WriteTimeout = previousWriteTimeout
+                EnableEventReceived = True
             End Try
 
             EnableEventReceived = True

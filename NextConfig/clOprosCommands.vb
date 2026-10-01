@@ -144,31 +144,34 @@ Partial Public Class clOpros
 
     Public Function SetConfig(ByVal _conf As s_config) As Boolean
 
-        Dim bt_conf(511) As Byte
-        If _conf.rawConfig IsNot Nothing Then Array.Copy(_conf.rawConfig, bt_conf, 512)
+        Dim bt_conf = EncodeConfig(_conf)
         If Demo.IsOn Then Return True
         Dim rez As Boolean = False
 
         SyncLock Me
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            bt_conf = EncodeConfig(_conf)
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETCONFIG, bt_conf), 3000) Then
-                If rec(cmdIdx) = eCmd.REC_TIMESHTAMP Then
-                    If rec(payloadIdx) = 4 Then
-                        rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETCONFIG, bt_conf), 3000) Then
+                    If rec(cmdIdx) = eCmd.REC_TIMESHTAMP Then
+                        If rec(payloadIdx) = 4 Then
+                            rez = True
+                        End If
                     End If
                 End If
-            End If
 
-            _isPause = False
+            Catch ex As ArgumentException
+                Return False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -247,6 +250,9 @@ Partial Public Class clOpros
     Public Shared Sub CopyStrToBuffer(ByVal _s As String, ByRef bt_conf As Byte(), ByVal idx As Integer, ByVal sz As Integer)
         Dim old = System.Text.Encoding.UTF8.GetString(bt_conf, idx, sz).Split(ChrW(0))(0)
         If old = If(_s, "") Then Return
+        If System.Text.Encoding.UTF8.GetByteCount(If(_s, "")) >= sz Then
+            Throw New ArgumentException("Значение превышает допустимую длину " & (sz - 1) & " байт.", NameOf(_s))
+        End If
         Array.Clear(bt_conf, idx, sz)
         If _s Is Nothing Then
             bt_conf(idx) = 0
@@ -268,6 +274,77 @@ Partial Public Class clOpros
         End If
     End Sub
 
+    Public Shared Function DecodeConfig(rec As Byte()) As s_config
+        If rec Is Nothing OrElse rec.Length < 523 OrElse rec(8) <> eCmd.CMD_GETCONFIG Then
+            Throw New ArgumentException("Неполный ответ с настройками контроллера.", NameOf(rec))
+        End If
+        Dim parsed As New s_config
+        parsed.rawConfig = New Byte(511) {}
+        Array.Copy(rec, 9, parsed.rawConfig, 0, 512)
+        parsed.time = BitConverter.ToUInt32(rec, 9)
+        parsed.pin = BitConverter.ToUInt32(rec, 13)
+        parsed.server1 = ZStr(rec, 17, 32)
+        parsed.server2 = ZStr(rec, 49, 32)
+        parsed.ntpServer = ZStr(rec, 81, 32)
+        parsed.opType = ZStr(rec, 113, 32)
+        parsed.netType = rec(145)
+        parsed.countryCode = ZStr(rec, 146, 8)
+        parsed.simNumber = ZStr(rec, 154, 16)
+        parsed.ussdBalance = ZStr(rec, 170, 8)
+        parsed.resetTime = rec(178)
+        parsed.fullLog = rec(179)
+        parsed.VoLTE = rec(180)
+        parsed.rs485Mode = rec(181)
+        parsed.enableNTPsync = rec(182)
+        parsed.rs485Baud = rec(183)
+        ' Остальные резервные байты сохраняются.
+        parsed.wiegandType = rec(187)
+        parsed.periph1.rs485Adr = rec(188)
+        parsed.periph1.rs485Type = rec(189)
+        parsed.periph2.rs485Adr = rec(190)
+        parsed.periph2.rs485Type = rec(191)
+        parsed.periph3.rs485Adr = rec(192)
+        parsed.periph3.rs485Type = rec(193)
+        parsed.periph4.rs485Adr = rec(194)
+        parsed.periph4.rs485Type = rec(195)
+        parsed.periph5.rs485Adr = rec(196)
+        parsed.periph5.rs485Type = rec(197)
+        parsed.periph6.rs485Adr = rec(198)
+        parsed.periph6.rs485Type = rec(199)
+        parsed.periph7.rs485Adr = rec(200)
+        parsed.periph7.rs485Type = rec(201)
+        parsed.periph8.rs485Adr = rec(202)
+        parsed.periph8.rs485Type = rec(203)
+        parsed.out1.unBlockUse = rec(204)
+        parsed.out1.outMode = rec(205)
+        parsed.out1.onServerCmd = rec(206)
+        parsed.out1.onWiegand = rec(207)
+        parsed.out1.onCam = rec(208)
+        parsed.out1.onRFID = rec(209)
+        parsed.out1.onOther485 = rec(210)
+        parsed.out1.onRF433 = rec(211)
+        parsed.out1.impulse = rec(212)
+        parsed.out1.pause = rec(213)
+        parsed.out1.repeate = rec(214)
+        parsed.out2.unBlockUse = rec(215)
+        parsed.out2.outMode = rec(216)
+        parsed.out2.onServerCmd = rec(217)
+        parsed.out2.onWiegand = rec(218)
+        parsed.out2.onCam = rec(219)
+        parsed.out2.onRFID = rec(220)
+        parsed.out2.onOther485 = rec(221)
+        parsed.out2.onRF433 = rec(222)
+        parsed.out2.impulse = rec(223)
+        parsed.out2.pause = rec(224)
+        parsed.out2.repeate = rec(225)
+        parsed.in1Func = rec(226)
+        parsed.in2Func = rec(227)
+        parsed.useServer1 = rec(228)
+        parsed.useserver2 = rec(229)
+
+        Return parsed
+    End Function
+
     Public Function GetConfig(ByRef _conf As s_config) As Boolean
         Dim rez As Boolean = False
 
@@ -279,84 +356,28 @@ Partial Public Class clOpros
         SyncLock Me
 
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_GETCONFIG, Nothing), 500) Then
-                If rec(cmdIdx) = eCmd.CMD_GETCONFIG Then
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_GETCONFIG, Nothing), 500) Then
+                    If rec(cmdIdx) = eCmd.CMD_GETCONFIG Then
 
-                    _conf.rawConfig = New Byte(511) {}
-                    Array.Copy(rec, 9, _conf.rawConfig, 0, 512)
-                    _conf.time = BitConverter.ToUInt32(rec, 9)
-                    _conf.pin = BitConverter.ToUInt32(rec, 13)
-                    _conf.server1 = ZStr(rec, 17, 32)
-                    _conf.server2 = ZStr(rec, 49, 32)
-                    _conf.ntpServer = ZStr(rec, 81, 32)
-                    _conf.opType = ZStr(rec, 113, 32)
-                    _conf.netType = rec(145)
-                    _conf.countryCode = ZStr(rec, 146, 8)
-                    _conf.simNumber = ZStr(rec, 154, 16)
-                    _conf.ussdBalance = ZStr(rec, 170, 8)
-                    _conf.resetTime = rec(178)
-                    _conf.fullLog = rec(179)
-                    _conf.VoLTE = rec(180)
-                    _conf.rs485Mode = rec(181)
-                    _conf.enableNTPsync = rec(182)
-                    _conf.rs485Baud = rec(183)
-                    ' Остальные резервные байты сохраняются.
-                    _conf.wiegandType = rec(187)
-                    _conf.periph1.rs485Adr = rec(188)
-                    _conf.periph1.rs485Type = rec(189)
-                    _conf.periph2.rs485Adr = rec(190)
-                    _conf.periph2.rs485Type = rec(191)
-                    _conf.periph3.rs485Adr = rec(192)
-                    _conf.periph3.rs485Type = rec(193)
-                    _conf.periph4.rs485Adr = rec(194)
-                    _conf.periph4.rs485Type = rec(195)
-                    _conf.periph5.rs485Adr = rec(196)
-                    _conf.periph5.rs485Type = rec(197)
-                    _conf.periph6.rs485Adr = rec(198)
-                    _conf.periph6.rs485Type = rec(199)
-                    _conf.periph7.rs485Adr = rec(200)
-                    _conf.periph7.rs485Type = rec(201)
-                    _conf.periph8.rs485Adr = rec(202)
-                    _conf.periph8.rs485Type = rec(203)
-                    _conf.out1.unBlockUse = rec(204)
-                    _conf.out1.outMode = rec(205)
-                    _conf.out1.onServerCmd = rec(206)
-                    _conf.out1.onWiegand = rec(207)
-                    _conf.out1.onCam = rec(208)
-                    _conf.out1.onRFID = rec(209)
-                    _conf.out1.onOther485 = rec(210)
-                    _conf.out1.onRF433 = rec(211)
-                    _conf.out1.impulse = rec(212)
-                    _conf.out1.pause = rec(213)
-                    _conf.out1.repeate = rec(214)
-                    _conf.out2.unBlockUse = rec(215)
-                    _conf.out2.outMode = rec(216)
-                    _conf.out2.onServerCmd = rec(217)
-                    _conf.out2.onWiegand = rec(218)
-                    _conf.out2.onCam = rec(219)
-                    _conf.out2.onRFID = rec(220)
-                    _conf.out2.onOther485 = rec(221)
-                    _conf.out2.onRF433 = rec(222)
-                    _conf.out2.impulse = rec(223)
-                    _conf.out2.pause = rec(224)
-                    _conf.out2.repeate = rec(225)
-                    _conf.in1Func = rec(226)
-                    _conf.in2Func = rec(227)
-                    _conf.useServer1 = rec(228)
-                    _conf.useserver2 = rec(229)
+                        _conf = DecodeConfig(rec)
 
-                    rez = True
+                        rez = True
+                    End If
                 End If
-            End If
 
-            _isPause = False
+            Catch ex As ArgumentException
+                Return False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
