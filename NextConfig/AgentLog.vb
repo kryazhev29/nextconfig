@@ -125,9 +125,15 @@ Public Module AgentLog
                 Case clOpros.eCmd.CMD_AUTORIZE ' ПИН в запросе
                     If outgoing Then AddRange(masked, 9, 4)
                 Case clOpros.eCmd.CMD_SETCONFIG ' ПИН в пакете настроек, байты 4–7
-                    If outgoing Then AddRange(masked, 13, 4)
+                    If outgoing Then
+                        AddRange(masked, 13, 4)
+                        AddRange(masked, 113, 32)
+                    End If
                 Case clOpros.eCmd.CMD_GETCONFIG
-                    If Not outgoing Then AddRange(masked, 13, 4)
+                    If Not outgoing Then
+                        AddRange(masked, 13, 4)
+                        AddRange(masked, 113, 32)
+                    End If
             End Select
         End If
         Return Hex(b, masked)

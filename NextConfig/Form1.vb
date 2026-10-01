@@ -256,6 +256,8 @@ Public Class Form1
                 Exit Sub
             End If
             afterUpdate = f2.PendingCheck
+            pinText = f2.ConfirmedPin
+            txtPIN.Text = pinText
         End Using
         Dim imei = dev.Imei
         BackToList()

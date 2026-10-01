@@ -15,7 +15,7 @@ Public Class PhotoPanel
     Private ReadOnly hint As New Label With {.AutoSize = True}
     Private ReadOnly progress As New Label With {.AutoSize = True}
     Private ReadOnly preview As New PhotoFrame With {.Name = "photoFrame"}
-    Private ReadOnly meter As New Meter()
+    Private ReadOnly meter As New Meter With {.Maximum = 100}
     Private ReadOnly opros As clOpros
     Private ReadOnly imei As String
     Private ReadOnly legacy As Boolean

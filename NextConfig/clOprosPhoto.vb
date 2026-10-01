@@ -8,8 +8,9 @@ Partial Public Class clOpros
                      progress As Action(Of PhotoProgress), cancel As CancellationToken)
         SyncLock Me
             _isPause = True
-            Dim events = Comport.EnableEventReceived
+            Dim events As Boolean
             Try
+                If Comport IsNot Nothing Then events = Comport.EnableEventReceived
                 cancel.ThrowIfCancellationRequested()
                 Dim wire As IPhotoWire
                 If Demo.IsOn Then
@@ -41,8 +42,8 @@ Partial Public Class clOpros
                     session.Download(imei, folder, cancel)
                 End If
             Finally
-                Comport.EnableEventReceived = events
                 _isPause = False
+                If Comport IsNot Nothing Then Comport.EnableEventReceived = events
             End Try
         End SyncLock
     End Sub

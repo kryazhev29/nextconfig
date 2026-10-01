@@ -1,6 +1,7 @@
-﻿# Доработка: Кряжев А., 2026. Проверки только UI, без открытия формы и COM.
+﻿param([string]$AssemblyPath = "$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe")
+# Доработка: Кряжев А., 2026. Проверки только UI, без открытия формы и COM.
 $ErrorActionPreference = 'Stop'
-[void][Reflection.Assembly]::LoadFrom("$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe")
+[void][Reflection.Assembly]::LoadFrom((Resolve-Path $AssemblyPath))
 $editor = New-Object NextConfig.AddressEditor
 foreach ($value in @(0,1,127,255)) {
     $editor.Text = [string]$value

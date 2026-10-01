@@ -18,7 +18,7 @@ Public Class OldPhotoWire
     Public Sub Send(cmd As Byte, payload As Byte(), sequence As Byte) Implements IPhotoWire.Send
         If cmd <> &H30 Then Throw New InvalidOperationException("Канал предназначен только для фото.")
         Dim frame = clBoot.Frame(cmd, payload)
-        port.Port.Write(frame, 0, frame.Length)
+        ClComPort.WriteBounded(port.Port, frame)
         AgentLog.OldPhotoFrame(port.Port.PortName, True, frame)
     End Sub
 

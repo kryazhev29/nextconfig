@@ -3,6 +3,16 @@ Imports System.Threading
 
 Public Class ClComPort
     Implements IDisposable
+    Public Shared Sub WriteBounded(port As System.IO.Ports.SerialPort, bytes As Byte(), Optional timeout As Integer = 2000)
+        Dim previous = port.WriteTimeout
+        Try
+            port.WriteTimeout = Math.Max(1, timeout)
+            port.Write(bytes, 0, bytes.Length)
+        Finally
+            port.WriteTimeout = previous
+        End Try
+    End Sub
+
 
     Public Event ReceiveChar(ByVal value As Char)
     Public Event ReceiveComand(ByVal value As String)
@@ -328,7 +338,7 @@ Public Class ClComPort
                 'log.Write(Now.ToShortTimeString & " S = " & BitConverter.ToString(bytes))
 
                 TimeStart = Environment.TickCount
-                al.Clear()
+                Dim decoder As New SldnStream()
 
                 Do While (Environment.TickCount - TimeStart) < timeout
                     '_port.BytesToRead <> Nothing AndAlso _port.BytesToRead
@@ -336,7 +346,7 @@ Public Class ClComPort
                     If readedBytes > 0 Then
                         Dim bBuf(readedBytes - 1) As Byte
 
-                        _port.Read(bBuf, 0, readedBytes)
+                        Dim got = _port.Read(bBuf, 0, readedBytes)
                         TimeStart = Environment.TickCount
 
                         ' log.Write(Now.ToShortTimeString & " R = " & BitConverter.ToString(bBuf))
@@ -481,7 +491,6 @@ Public Class ClComPort
             Dim crc As Byte() = BitConverter.GetBytes(Convert.ToInt32(Crc16(al.ToArray, 4)))
             Dim deadline = System.Diagnostics.Stopwatch.StartNew()
             Dim readedBytes As Integer
-            Dim len As Integer
 
             If swap_crc = False Then
                 al.Add(crc(0))
@@ -504,71 +513,20 @@ Public Class ClComPort
                     If deadline.ElapsedMilliseconds >= timeout Then Return False
                     If withSleep Then Thread.Sleep(1)
                 Loop
-                al.Clear()
+                Dim decoder As New SldnStream()
 
                 Do While deadline.ElapsedMilliseconds < timeout
                     readedBytes = _port.BytesToRead
                     If readedBytes > 0 Then
                         Dim bBuf(readedBytes - 1) As Byte
 
-                        _port.Read(bBuf, 0, readedBytes)
+                        Dim got = _port.Read(bBuf, 0, readedBytes)
 
-                        For Each bt In bBuf
-
-                            Select Case al.Count
-                                Case 0 'find prefix SLDN
-                                    If bt = 83 Then
-                                        al.Add(bt)
-                                    End If
-                                Case 1
-                                    If bt = 76 Then
-                                        al.Add(bt)
-                                    End If
-                                Case 2
-                                    If bt = 68 Then
-                                        al.Add(bt)
-                                    End If
-                                Case 3
-                                    If bt = 78 Then
-                                        al.Add(bt)
-                                    End If
-                                Case 4
-                                    len = bt
-                                    al.Add(bt)
-                                Case 5
-                                    len += CType(bt, UShort) << 8
-                                    If len < 3 Then Return False
-                                    al.Add(bt)
-                                Case Else
-                                    al.Add(bt)
-                            End Select
-
-                            If al.Count > 6 Then
-                                If al.Count = len + 8 Then
-                                    data_rec = al.ToArray
-
-                                    Dim crc_rec As Integer = data_rec(data_rec.GetUpperBound(0))
-
-                                    crc_rec <<= 8
-                                    crc_rec += data_rec(data_rec.GetUpperBound(0) - 1)
-
-                                    Dim t_data_rec(data_rec.Length - 7) As Byte
-
-                                    Array.Copy(data_rec, 4, t_data_rec, 0, t_data_rec.Length)
-
-                                    Dim crc_16 As Integer = Crc16(t_data_rec)
-
-                                    If crc_16 = crc_rec Then
-                                        EnableEventReceived = True
-                                        If data_rec.Length > 10 AndAlso data_rec(8) = 11 AndAlso data_rec(10) = 4 Then RaiseEvent PinRequired()
-                                        Return True
-                                    Else
-                                        Exit Do
-                                    End If
-
-                                End If
-
-                            End If
+                        For Each frame In decoder.Feed(bBuf.Take(got).ToArray())
+                            If Not SldnStream.MatchesReply(command, frame) Then Continue For
+                            data_rec = frame
+                            If frame(8) = 11 AndAlso frame(10) = 4 Then RaiseEvent PinRequired()
+                            Return True
                         Next
                     End If
 

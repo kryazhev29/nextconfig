@@ -95,44 +95,47 @@ Partial Public Class clOpros
 
         SyncLock Me
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
-            Dim send As Byte()
+                Dim rec As Byte()
+                Dim send As Byte()
 
-            If payload Is Nothing Then
-                ReDim send(0)
-            Else
-                ReDim send(payload.Length)
-                Array.Copy(payload, 0, send, 1, payload.Length)
-            End If
-
-            send(0) = CByte(op)
-
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_MANUALBOOT, send), timeout) Then
-                If rec(cmdIdx) = eCmd.CMD_MANUALBOOT AndAlso rec.Length >= payloadIdx + 8 Then
-                    If rec(payloadIdx) = CByte(op) Then
-                        rez = CType(rec(payloadIdx + 1), eBootStatus)
-                        received = BitConverter.ToUInt32(rec, payloadIdx + 2)
-                        hw = rec(payloadIdx + 6)
-                        armed = rec(payloadIdx + 7)
-                    End If
-                ElseIf rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec.Length > payloadIdx + 1 Then
-                    ' прошивка отказала целиком, причина в коде ответа 11
-                    _bootRefuseCode = rec(payloadIdx + 1)
-                    Select Case _bootRefuseCode
-                        Case 5 : rez = eBootStatus.BOOT_BUSY ' идёт обновление или пробный запуск
-                        Case 4 : rez = eBootStatus.BOOT_NEED_PIN
-                        Case 255 : rez = eBootStatus.BOOT_OLD_FW
-                        Case Else : rez = eBootStatus.BOOT_REFUSED
-                    End Select
+                If payload Is Nothing Then
+                    ReDim send(0)
+                Else
+                    ReDim send(payload.Length)
+                    Array.Copy(payload, 0, send, 1, payload.Length)
                 End If
-            End If
 
-            _isPause = False
+                send(0) = CByte(op)
+
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_MANUALBOOT, send), timeout) Then
+                    If rec(cmdIdx) = eCmd.CMD_MANUALBOOT AndAlso rec.Length >= payloadIdx + 8 + 2 Then
+                        If rec(payloadIdx) = CByte(op) Then
+                            rez = CType(rec(payloadIdx + 1), eBootStatus)
+                            received = BitConverter.ToUInt32(rec, payloadIdx + 2)
+                            hw = rec(payloadIdx + 6)
+                            armed = rec(payloadIdx + 7)
+                        End If
+                    ElseIf rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec.Length > payloadIdx + 1 Then
+                        ' прошивка отказала целиком, причина в коде ответа 11
+                        _bootRefuseCode = rec(payloadIdx + 1)
+                        Select Case _bootRefuseCode
+                            Case 5 : rez = eBootStatus.BOOT_BUSY ' идёт обновление или пробный запуск
+                            Case 4 : rez = eBootStatus.BOOT_NEED_PIN
+                            Case 255 : rez = eBootStatus.BOOT_OLD_FW
+                            Case Else : rez = eBootStatus.BOOT_REFUSED
+                        End Select
+                    End If
+                End If
+
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez

@@ -1,8 +1,8 @@
-﻿param([string]$Output = "$PSScriptRoot\..\..\Стенд_Domovoi\NextConfig_QA\2026-09-29-photo-menu\photo-tests")
+﻿param([string]$AssemblyPath = "$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe", [string]$Output = "$PSScriptRoot\..\..\Стенд_Domovoi\NextConfig_QA\2026-09-29-photo-menu\photo-tests")
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
-[Reflection.Assembly]::LoadFrom((Resolve-Path "$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe")) | Out-Null
+[Reflection.Assembly]::LoadFrom((Resolve-Path $AssemblyPath)) | Out-Null
 $script:checks=0
 function Check($value,$label) { if (-not $value) {throw "FAIL: $label"}; $script:checks++ }
 function Reject([scriptblock]$action,$label) { $failed=$false;try { & $action | Out-Null } catch {$failed=$true};Check $failed $label }

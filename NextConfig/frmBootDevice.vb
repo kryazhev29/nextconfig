@@ -56,8 +56,8 @@
         End If
         ' 140 - признак старой платы MODEM: номер платы у неё тоже 139, сборка - из её папки
         Dim oldModem = target = 140
-        If target = 0 OrElse target = 140 Then target = hardware
-        Dim file = FirmwareFiles.FindFirmware(target, oldModem)
+        Dim firmwareHw = If(target = 0 OrElse target = 140, hardware, target)
+        Dim file = FirmwareFiles.FindFirmware(firmwareHw, oldModem)
         If file Is Nothing Then
             Using dialog As New OpenFileDialog With {.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*",
                 .InitialDirectory = AppDomain.CurrentDomain.BaseDirectory}
@@ -67,7 +67,7 @@
             End Using
         End If
         ' frmFW оставляет существующие проверки файла и подтверждение записи.
-        Using transfer As New frmFW(file, port, version, target)
+        Using transfer As New frmFW(file, port, version, firmwareHw)
             If transfer.ShowDialog(Me) <> DialogResult.OK Then Return
         End Using
         If Demo.IsOn AndAlso version < clBoot.OLD_BOOT_BELOW Then Demo.LegacyFwStarted = True

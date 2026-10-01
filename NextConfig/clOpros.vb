@@ -370,7 +370,7 @@ Partial Public Class clOpros
         Return New System.IO.Ports.SerialPort(name) With {
             .BaudRate = 115200, .DataBits = 8, .Parity = System.IO.Ports.Parity.None,
             .StopBits = System.IO.Ports.StopBits.One, .Handshake = System.IO.Ports.Handshake.None,
-            .ReceivedBytesThreshold = 1, .ReadBufferSize = 1000, .ReadTimeout = 50}
+            .ReceivedBytesThreshold = 1, .ReadBufferSize = 1000, .ReadTimeout = 50, .WriteTimeout = 2000}
     End Function
 
     ' Один проход: каждый порт открыть, спросить, кто там, и закрыть.
@@ -474,9 +474,11 @@ Partial Public Class clOpros
         RaiseEvent onLost()
     End Sub
 
+    Private commandSequence As Integer
     Private Function SetCmd(ByVal cmd As Byte, ByVal payload As Byte()) As Byte()
 
-        Return SldnStream.Command(cmd, payload)
+        commandSequence = (commandSequence + 1) And 255
+        Return SldnStream.Command(cmd, payload, CByte(commandSequence))
     End Function
 
     Private Function ParseRec(ByVal rec As Byte()) As Boolean

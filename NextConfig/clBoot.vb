@@ -129,7 +129,7 @@ Public Class clBoot
         Try
             port.DiscardInBuffer()
             port.DiscardOutBuffer()
-            port.Write(frm, 0, frm.Length)
+            ClComPort.WriteBounded(port, frm, Math.Min(timeout, 2000))
         Catch ex As Exception
             errText = ex.Message
             Return Nothing
@@ -289,7 +289,7 @@ Public Class clBoot
     Private Shared Sub SendOldWithoutReply(comport As ClComPort, cmd As Byte, payload As Byte(), Optional settleMilliseconds As Integer = 100)
         comport.EnableEventReceived = False
         Dim frame = clBoot.Frame(cmd, payload)
-        comport.Port.Write(frame, 0, frame.Length)
+        ClComPort.WriteBounded(comport.Port, frame)
         AgentLog.SlgtExchange(comport.Port.PortName, cmd, frame, Nothing, 0, "Команда без ответа; результат проверяется чтением")
         If settleMilliseconds > 0 Then Thread.Sleep(settleMilliseconds)
     End Sub

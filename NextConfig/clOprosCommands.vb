@@ -18,35 +18,38 @@ Partial Public Class clOpros
 
         SyncLock Me
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            ' Первый байт - источник команды (3 - тест из админки), от него зависит только
-            ' номер события в журнале. Выходом контроллер управляет, если настройки реле
-            ' разрешают команды сервера.
-            ' Полный пакет команды 8: источник, два выхода и 10 байт ID абонента (пустой).
-            Dim p(12) As Byte
-            p(0) = SRC_TEST
-            p(1) = If(_o1, CByte(1), CByte(0))
-            p(2) = If(_o2, CByte(1), CByte(0))
+                ' Первый байт - источник команды (3 - тест из админки), от него зависит только
+                ' номер события в журнале. Выходом контроллер управляет, если настройки реле
+                ' разрешают команды сервера.
+                ' Полный пакет команды 8: источник, два выхода и 10 байт ID абонента (пустой).
+                Dim p(12) As Byte
+                p(0) = SRC_TEST
+                p(1) = If(_o1, CByte(1), CByte(0))
+                p(2) = If(_o2, CByte(1), CByte(0))
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, p), 500) Then
-                If rec(cmdIdx) = eCmd.REC_ANSWER Then
-                    rez = rec(payloadIdx + 1)
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, p), 500) Then
+                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_SETOUT Then
+                        rez = rec(payloadIdx + 1)
+                    End If
                 End If
-            End If
 
-            ' По ТЗ после ТЕСТ сразу запрашивается статус: включение выхода видно на экране,
-            ' даже если импульс короче периода опроса.
-            If rez = 0 AndAlso Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STATUS, Nothing), 500) Then
-                ParseRec(rec)
-            End If
+                ' По ТЗ после ТЕСТ сразу запрашивается статус: включение выхода видно на экране,
+                ' даже если импульс короче периода опроса.
+                If rez = 0 AndAlso Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STATUS, Nothing), 500) Then
+                    ParseRec(rec)
+                End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -58,22 +61,25 @@ Partial Public Class clOpros
         SyncLock Me
 
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_RESET, New Byte() {0}), 500) Then
-                If rec(cmdIdx) = eCmd.REC_ANSWER Then
-                    If rec(payloadIdx + 1) = 0 Then
-                        rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_RESET, New Byte() {0}), 500) Then
+                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_RESET Then
+                        If rec(payloadIdx + 1) = 0 Then
+                            rez = True
+                        End If
                     End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -85,22 +91,25 @@ Partial Public Class clOpros
         SyncLock Me
 
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETDEF, New Byte() {0}), 15000) Then
-                If rec(cmdIdx) = eCmd.REC_ANSWER Then
-                    If rec(payloadIdx + 1) = 0 Then
-                        rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETDEF, New Byte() {0}), 15000) Then
+                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_SETDEF Then
+                        If rec(payloadIdx + 1) = 0 Then
+                            rez = True
+                        End If
                     End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -112,20 +121,23 @@ Partial Public Class clOpros
         SyncLock Me
 
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_TRANSPARENT, New Byte() {0}), 300) Then
-                If rec(cmdIdx) = eCmd.CMD_TRANSPARENT Then
-                    rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_TRANSPARENT, New Byte() {0}), 300) Then
+                    If rec(cmdIdx) = eCmd.CMD_TRANSPARENT Then
+                        rez = True
+                    End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -144,6 +156,7 @@ Partial Public Class clOpros
 
     Public Function SetConfig(ByVal _conf As s_config) As Boolean
 
+        If _conf.rawConfig Is Nothing OrElse _conf.rawConfig.Length <> 512 Then Return False
         Dim bt_conf = EncodeConfig(_conf)
         If Demo.IsOn Then Return True
         Dim rez As Boolean = False
@@ -389,22 +402,25 @@ Partial Public Class clOpros
         SyncLock Me
 
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_CLEARMEM, Nothing), 15000) Then
-                If rec(cmdIdx) = eCmd.CMD_CLEARMEM Then
-                    'If rec(payloadIdx) = 0 Then
-                    rez = True
-                    'End If
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_CLEARMEM, Nothing), 15000) Then
+                    If rec(cmdIdx) = eCmd.CMD_CLEARMEM Then
+                        'If rec(payloadIdx + 1) = 0 Then
+                        rez = True
+                        'End If
+                    End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -416,22 +432,25 @@ Partial Public Class clOpros
         SyncLock Me
 
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETTIME, BitConverter.GetBytes(_t)), 500) Then
-                If rec(cmdIdx) = eCmd.REC_ANSWER Then
-                    If rec(payloadIdx) = 0 Then
-                        rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETTIME, BitConverter.GetBytes(_t)), 500) Then
+                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_SETTIME Then
+                        If rec(payloadIdx + 1) = 0 Then
+                            rez = True
+                        End If
                     End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -475,22 +494,25 @@ Partial Public Class clOpros
         SyncLock Me
 
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_AUTORIZE, BitConverter.GetBytes(pin)), 500) Then
-                If rec(cmdIdx) = eCmd.CMD_AUTORIZE Then
-                    If rec(payloadIdx) <> 0 Then
-                        rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_AUTORIZE, BitConverter.GetBytes(pin)), 500) Then
+                    If rec(cmdIdx) = eCmd.CMD_AUTORIZE Then
+                        If rec(payloadIdx) <> 0 Then
+                            rez = True
+                        End If
                     End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -609,20 +631,23 @@ Partial Public Class clOpros
 
         SyncLock Me
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETMODULE, New Byte() {_o1}), 5000) Then
-                If rec(cmdIdx) = eCmd.CMD_SETMODULE Then
-                    rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETMODULE, New Byte() {_o1}), 5000) Then
+                    If rec(cmdIdx) = eCmd.CMD_SETMODULE Then
+                        rez = True
+                    End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -633,20 +658,23 @@ Partial Public Class clOpros
 
         SyncLock Me
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
+                Dim rec As Byte()
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_ENABLELOG, New Byte() {_o1}), 500) Then
-                If rec(cmdIdx) = eCmd.CMD_ENABLELOG Then
-                    rez = True
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_ENABLELOG, New Byte() {_o1}), 500) Then
+                    If rec(cmdIdx) = eCmd.CMD_ENABLELOG Then
+                        rez = True
+                    End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -658,33 +686,36 @@ Partial Public Class clOpros
 
         SyncLock Me
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
-            Dim send(15) As Byte
-            Dim bts As Byte()
+                Dim rec As Byte()
+                Dim send(15) As Byte
+                Dim bts As Byte()
 
-            bts = BitConverter.GetBytes(fwI.version)
-            Array.Copy(bts, 0, send, 0, 2)
-            bts = BitConverter.GetBytes(fwI.build)
-            Array.Copy(bts, 0, send, 2, 4)
-            bts = BitConverter.GetBytes(fwI.size)
-            Array.Copy(bts, 0, send, 6, 4)
-            bts = BitConverter.GetBytes(fwI.crc)
-            Array.Copy(bts, 0, send, 10, 4)
-            bts = BitConverter.GetBytes(fwI.nBlocks)
-            Array.Copy(bts, 0, send, 14, 2)
+                bts = BitConverter.GetBytes(fwI.version)
+                Array.Copy(bts, 0, send, 0, 2)
+                bts = BitConverter.GetBytes(fwI.build)
+                Array.Copy(bts, 0, send, 2, 4)
+                bts = BitConverter.GetBytes(fwI.size)
+                Array.Copy(bts, 0, send, 6, 4)
+                bts = BitConverter.GetBytes(fwI.crc)
+                Array.Copy(bts, 0, send, 10, 4)
+                bts = BitConverter.GetBytes(fwI.nBlocks)
+                Array.Copy(bts, 0, send, 14, 2)
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STARTUPDATE, send), 3000) Then
-                If rec(cmdIdx) = eCmd.REC_ANSWER Then
-                    rez = rec(payloadIdx + 1)
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STARTUPDATE, send), 3000) Then
+                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_STARTUPDATE Then
+                        rez = rec(payloadIdx + 1)
+                    End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez
@@ -696,27 +727,30 @@ Partial Public Class clOpros
 
         SyncLock Me
             _isPause = True
+            Try
 
-            While _isSending
-                Thread.Sleep(1)
-            End While
+                While _isSending
+                    Thread.Sleep(1)
+                End While
 
-            Dim rec As Byte()
-            Dim send(1025) As Byte
-            Dim bts As Byte()
+                Dim rec As Byte()
+                Dim send(1025) As Byte
+                Dim bts As Byte()
 
-            bts = BitConverter.GetBytes(nBlock)
-            Array.Copy(bts, 0, send, 0, 2)
-            Array.Copy(buf, 0, send, 2, buf.Length)
+                bts = BitConverter.GetBytes(nBlock)
+                Array.Copy(bts, 0, send, 0, 2)
+                Array.Copy(buf, 0, send, 2, buf.Length)
 
-            If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SENDBLOCKUPDATE, send), 3000) Then
-                If rec(cmdIdx) = eCmd.REC_FWSTATUS Then
-                    rez = rec(payloadIdx + 1)
-                    _percent = rec(payloadIdx)
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SENDBLOCKUPDATE, send), 3000) Then
+                    If rec(cmdIdx) = eCmd.REC_FWSTATUS Then
+                        rez = rec(payloadIdx + 1)
+                        _percent = rec(payloadIdx)
+                    End If
                 End If
-            End If
 
-            _isPause = False
+            Finally
+                _isPause = False
+            End Try
         End SyncLock
 
         Return rez

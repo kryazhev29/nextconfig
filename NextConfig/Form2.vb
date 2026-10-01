@@ -10,9 +10,13 @@ Public Class Form2
     Private WithEvents tmr1 As New System.Windows.Forms.Timer
     Private status As clOpros.s_status
     Private config As clOpros.s_config
+    Public ReadOnly Property ConfirmedPin As String
+        Get
+            Return System.Text.Encoding.ASCII.GetString(BitConverter.GetBytes(pinCode))
+        End Get
+    End Property
     Private pinCode As Integer
     Private logBits As Byte = 0
-    Private thread_getInfo As Threading.Thread
 
     ' пока настройки раскладываются по полям, их события не считаем правкой
     Private updatingFields As Boolean = False
@@ -37,6 +41,7 @@ Public Class Form2
 
         ' Этот вызов является обязательным для конструктора.
         InitializeComponent()
+        UpdateWriteAvailability()
 
         ' Добавить код инициализации после вызова InitializeComponent().
         opros = _opros
@@ -112,6 +117,8 @@ Public Class Form2
                 If Not c.IsDisposed Then c.Enabled = True
             Next
             photoDisabled.Clear()
+            UpdateWriteAvailability()
+            TmrTick()
             If photoClosePending Then BeginInvoke(New Action(AddressOf Close))
         End If
     End Sub
@@ -128,13 +135,33 @@ Public Class Form2
     End Sub
 
     Private Sub TmrTick()
+        Dim fresh = StatusIsFresh()
+        btnTestOUT1.Enabled = fresh AndAlso Not busyWithBoard AndAlso HasConfigSnapshot()
+        btnTestOUT2.Enabled = btnTestOUT1.Enabled
+        btnUpdateFW.Enabled = fresh AndAlso Not busyWithBoard
+        btnUpdateBoot.Enabled = btnUpdateFW.Enabled
         photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, Camera232)
         If lastStatus = DateTime.MinValue Then
             SetHeadState(Theme.eDot.Waiting, "Ожидание данных")
         ElseIf DateTime.Now.Subtract(lastStatus).TotalSeconds > StaleSeconds Then
             SetHeadState(Theme.eDot.Bad, "Данные не обновляются")
         End If
+        If Not fresh Then
+            For Each indicator As Label In {dotGSM, dotInt, dotServer, dotIN1, dotIN2, dotOUT1, dotOUT2}
+                Theme.Dot(indicator, Theme.eDot.Idle)
+            Next
+            For Each label In {lblGSM, lblInt, lblServerConnect, lbIN1, lblIN2, lblOUT1, lbOUT2}
+                Theme.DotText(label, Theme.eDot.Idle, "Нет свежих данных")
+            Next
+            lblSig.Text = "Нет свежих данных" : pbSig.Value = 0
+            lblNet.Text = "—"
+            Status485()
+        End If
     End Sub
+
+    Private Function StatusIsFresh() As Boolean
+        Return lastStatus <> DateTime.MinValue AndAlso DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds
+    End Function
 
     Private Sub SetHeadState(ByVal state As Theme.eDot, ByVal text As String)
         Theme.Dot(dotConn, state)
@@ -228,6 +255,7 @@ Public Class Form2
 
         status = _status
         lastStatus = DateTime.Now
+        TmrTick()
         photoCard.SetState(onBoard, status.readyToUpdate, True, Camera232)
         Status485()
 
@@ -253,8 +281,8 @@ Public Class Form2
         SetDot(dotInt, lblInt, status.gprs = 1, "Подключено", "Нет интернета", True)
         SetDot(dotServer, lblServerConnect, status.connectToServer <> 0, "Подключено", "Нет связи с сервером", True)
 
-        Theme.SetText(lblSig, status.signal & " из 31")
-        pbSig.Value = Math.Max(0, Math.Min(CInt(status.signal), pbSig.Maximum))
+        Theme.SetText(lblSig, If(status.signal <= 31, status.signal & " из 31", "Не определён"))
+        pbSig.Value = If(status.signal <= 31, CInt(status.signal), 0)
         Theme.SetText(lblNet, CurrentNetName(status.netType))
 
         Theme.SetText(lblUsedMem, status.usedMem & " из 50 000")
@@ -314,6 +342,7 @@ Public Class Form2
     ' Файл берём сами (самая свежая сборка для этой платы рядом с программой);
     ' нет такого - оператор выбирает, папка запоминается.
     Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
+        If Not StatusIsFresh() OrElse busyWithBoard Then Return
         Dim file As String = FirmwareFiles.FindFirmware(BoardHw, OldModem)
         If file Is Nothing Then
             Using f As New frmInfo("Обновление прошивки", "Рядом с программой нет файла прошивки для этой платы." & vbCrLf &
@@ -348,6 +377,7 @@ Public Class Form2
     End Sub
 
     Private Sub btnUpdateBoot_Click(sender As Object, e As EventArgs) Handles btnUpdateBoot.Click
+        If Not StatusIsFresh() OrElse busyWithBoard Then Return
         Dim file As String = AskBootFile()
         If file <> "" Then ReplaceBoot(file)
     End Sub
@@ -457,6 +487,7 @@ Public Class Form2
     ' Отказ контроллера (пауза реле, запрет в настройках) по ТЗ штатный - без сообщения.
     ' Второму выходу передаётся его текущее состояние: 0 выключил бы его.
     Private Sub btnTestOUT_Click(sender As Object, e As EventArgs) Handles btnTestOUT2.Click, btnTestOUT1.Click
+        If Not StatusIsFresh() OrElse Not HasConfigSnapshot() OrElse busyWithBoard Then Return
         Dim n As Integer = CInt(CType(sender, Control).Tag)
         Dim level As Boolean = If(n = 0, onBoard.out1.outMode, onBoard.out2.outMode) = 1
         Dim want As Boolean = Not (level AndAlso If(n = 0, status.out1, status.out2))
@@ -525,6 +556,7 @@ Public Class Form2
 
     Private Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
 
+        If Not HasConfigSnapshot() Then Return
         If Not ValidateFields() Then
             lblSaveState.Text = "Проверьте отмеченные значения"
             lblSaveState.ForeColor = Theme.Danger
@@ -551,7 +583,7 @@ Public Class Form2
                 Dim str As String
                 If opros.SetConfig(config) Then
                     str = "Настройки сохранены!"
-                    onBoard = config
+                    ConfirmConfigSnapshot()
                     SetSaveState(True)
                 Else
                     str = "Не удалось сохранить настройки!" & vbCrLf & "Повторите операцию!"
@@ -564,6 +596,7 @@ Public Class Form2
     End Sub
 
     Private Sub btnDefault_Click(sender As Object, e As EventArgs) Handles btnDefault.Click
+        If Not HasConfigSnapshot() Then Return
         Using f As New frmInfo("Настройки по умолчанию", "Вы уверены что хотите установить настройки по умолчанию?",, True)
             f.Button1.Text = "Записать"
             f.Button2.Text = "Отмена"
@@ -572,7 +605,7 @@ Public Class Form2
 
                 SetDefaultConfig()
                 If opros.SetConfig(config) Then
-                    onBoard = config
+                    ConfirmConfigSnapshot()
                     str = "Настройки установлены по умолчанию!"
                 Else
                     str = "Не удалось установить настройки!" & vbCrLf & "Повторите операцию!"
@@ -682,6 +715,7 @@ Public Class Form2
     ' она возникла, и ничего на плату не отправляем.
     Private Function ValidateFields() As Boolean
         If System.Text.Encoding.UTF8.GetByteCount(txtOperator.Text.Trim()) > 31 Then
+            ShowConnectionSettings()
             Using f As New frmInfo("Точка доступа", "Точка доступа, логин и пароль вместе должны занимать не более 31 байта UTF-8.")
                 f.ShowDialog(Me)
             End Using
@@ -695,8 +729,16 @@ Public Class Form2
         lblServer1Err.Visible = (lblServer1Err.Text <> "")
         lblServer2Err.Visible = (lblServer2Err.Text <> "")
 
-        Return Not (lblServer1Err.Visible OrElse lblServer2Err.Visible)
+        Dim valid = lblServer1Err.Text = "" AndAlso lblServer2Err.Text = ""
+        If Not valid Then ShowConnectionSettings()
+        Return valid
     End Function
+
+    Private Sub ShowConnectionSettings()
+        tabs.SelectedTab = tabSettings
+        Dim link = TryCast(tabSettings.Controls.Find("settingsSection0", True).FirstOrDefault(), Button)
+        If link IsNot Nothing Then link.PerformClick()
+    End Sub
 
     ' Перенести введённое в настройки. Список, который почему-то не выбран,
     ' оставляем как есть: молча записать вместо него первый пункт нельзя.
@@ -723,10 +765,10 @@ Public Class Form2
         AddChange(list, "Использовать сервер 1", YesNo(onBoard.useServer1), YesNo(config.useServer1))
         AddChange(list, "Адрес сервера 2", onBoard.server2, config.server2)
         AddChange(list, "Использовать сервер 2", YesNo(onBoard.useserver2), YesNo(config.useserver2))
-        AddChange(list, "Точка доступа", ApnText(onBoard.opType), ApnText(config.opType))
+        If onBoard.opType <> config.opType Then list.Add("• Точка доступа: параметры изменены (скрыто)")
         AddChange(list, "Тип сети", opros.NetTypeToString(onBoard.netType), opros.NetTypeToString(config.netType))
         AddChange(list, "VoLTE", OnOff(onBoard.VoLTE), OnOff(config.VoLTE))
-        AddChange(list, "ПИН-код", PinText(onBoard.pin), PinText(config.pin))
+        If onBoard.pin <> config.pin Then list.Add("• ПИН-код: изменён (скрыто)")
 
         Changes485(list)
         Return list
@@ -745,11 +787,11 @@ Public Class Form2
     End Function
 
     Private Function ApnText(ByVal v As String) As String
-        Return If(v = "", "у оператора", v)
+        Return If(v = "", "у оператора", "скрыто")
     End Function
 
     Private Function PinText(ByVal v As UInt32) As String
-        Return System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(v))
+        Return "скрыто"
     End Function
 
     ' Адрес сервера пишется как узел:порт, например 87.244.4.92:15010.
@@ -784,6 +826,21 @@ Public Class Form2
     ' Сравниваем поля с тем, что прочитано с платы. По флагу «идёт заполнение»
     ' полагаться нельзя: список отдаёт своё событие позже, когда вкладку
     ' открывают в первый раз, и окно врало про несохранённые изменения.
+    Private Sub ConfirmConfigSnapshot()
+        onBoard = config
+        pinCode = BitConverter.ToInt32(BitConverter.GetBytes(config.pin), 0)
+        UpdateWriteAvailability()
+    End Sub
+
+    Private Function HasConfigSnapshot() As Boolean
+        Return onBoard.rawConfig IsNot Nothing AndAlso onBoard.rawConfig.Length = 512
+    End Function
+
+    Private Sub UpdateWriteAvailability()
+        btnSave.Enabled = HasConfigSnapshot() AndAlso Not (photoCard IsNot Nothing AndAlso photoCard.Busy)
+        btnDefault.Enabled = btnSave.Enabled
+    End Sub
+
     Private Sub UpdateDirty()
         If updatingFields Then Exit Sub
 
@@ -846,24 +903,18 @@ Public Class Form2
         End Using
     End Sub
 
-    Private Sub btnUpdateObj_Click(sender As Object, e As EventArgs) Handles btnUpdateObj.Click
+    Private Async Sub btnUpdateObj_Click(sender As Object, e As EventArgs) Handles btnUpdateObj.Click
 
-        thread_getInfo = New Threading.Thread(AddressOf tGetInfo)
-        thread_getInfo.Priority = Threading.ThreadPriority.Normal
-        thread_getInfo.Name = "getInfo"
-        thread_getInfo.Start()
+        Await QueryObject(17)
 
     End Sub
 
-    Private Sub btnUnConnect_Click(sender As Object, e As EventArgs) Handles btnUnConnect.Click
+    Private Async Sub btnUnConnect_Click(sender As Object, e As EventArgs) Handles btnUnConnect.Click
         Using f As New frmInfo("Отвязка от объекта", "Вы уверены что хотите отвязать контроллер от объекта?",, True)
             f.Button1.Text = "Отвязать"
             f.Button2.Text = "Отмена"
             If f.ShowDialog() = DialogResult.OK Then
-                thread_getInfo = New Threading.Thread(AddressOf tUnconnectController)
-                thread_getInfo.Priority = Threading.ThreadPriority.Normal
-                thread_getInfo.Name = "UnconnectController"
-                thread_getInfo.Start()
+                Await QueryObject(18)
                 'Dim str As String
                 'If opros.UnConnectObject() Then
                 '    str = "Команда выполнена!"
@@ -933,7 +984,10 @@ Public Class Form2
 
     Private Sub Label16_Click(sender As Object, e As EventArgs) Handles Label16.Click
         ' Контроллер и сервер считают время в UTC; местное время уводило часы на пояс вперёд.
-        opros.SetTime(DateTimeToUnixTimestamp(DateTime.UtcNow))
+        Dim ok = opros.SetTime(DateTimeToUnixTimestamp(DateTime.UtcNow))
+        Using f As New frmInfo("Время контроллера", If(ok, "Время установлено", "Не удалось установить время"))
+            f.ShowDialog(Me)
+        End Using
     End Sub
 
     Private Sub Label19_Click(sender As Object, e As EventArgs) Handles Label19.Click
@@ -970,7 +1024,7 @@ Public Class Form2
     ' Чтение настроек с платы. При открытии окна - молча, по кнопке - с ответом.
     Private Sub ReadConfig(ByVal silent As Boolean)
         If opros.GetConfig(config) Then
-            onBoard = config
+            ConfirmConfigSnapshot()
             snapshotConfig = config
             RefreshSnapshot()
             UpdateConfigFields()
@@ -1060,182 +1114,47 @@ Public Class Form2
         Clipboard.SetText(RichTextBox1.Text)
     End Sub
 
-    Private Sub tGetInfo()
-        Dim socket As New Net.Sockets.TcpClient
-
+    Private Async Function QueryObject(cmd As Byte) As Threading.Tasks.Task
+        Dim imei = lblIMEI.Text.Trim()
+        btnUpdateObj.Enabled = False : btnUnConnect.Enabled = False
         Try
-            socket.Connect("93.189.229.197", 15010)
+            Dim rec = Await Threading.Tasks.Task.Run(Function() SldnStream.QueryServer("93.189.229.197", 15010, cmd, imei))
+            If IsDisposed OrElse Disposing Then Return
+            Dim message As String
+            Select Case rec(9)
+                Case 1
+                    message = "Контроллер отсутствует в базе."
+                Case 2
+                    message = If(cmd = 17, "Контроллер не привязан к объекту.", "Контроллер отвязан от всех объектов.")
+                    lblObjNum.Text = "" : lblObjName.Text = "" : lblObjController.Text = "" : lblAdmin.Text = ""
+                Case 3
+                    If cmd = 17 Then
+                        lblObjNum.Text = System.Text.Encoding.UTF8.GetString(rec, 10, 8).TrimEnd(ChrW(0))
+                        lblObjName.Text = System.Text.Encoding.UTF8.GetString(rec, 18, 128).TrimEnd(ChrW(0))
+                        lblObjController.Text = System.Text.Encoding.UTF8.GetString(rec, 146, 128).TrimEnd(ChrW(0))
+                        lblAdmin.Text = System.Text.Encoding.UTF8.GetString(rec, 274, 16).TrimEnd(ChrW(0))
+                        message = "Данные о привязке получены."
+                    Else
+                        message = "Не удалось отвязать контроллер."
+                    End If
+                Case Else
+                    message = "Сервер не подтвердил выполнение запроса."
+            End Select
+            Using f As New frmInfo("Подключение", message)
+                f.ShowDialog(Me)
+            End Using
         Catch ex As Exception
-            Using f As New frmInfo("Подключение", ex.Message)
-                f.ShowDialog()
-            End Using
-            Exit Sub
+            If Not IsDisposed AndAlso Not Disposing Then
+                Using f As New frmInfo("Подключение", ex.GetBaseException().Message)
+                    f.ShowDialog(Me)
+                End Using
+            End If
+        Finally
+            If Not IsDisposed AndAlso Not Disposing Then
+                btnUpdateObj.Enabled = Not busyWithBoard : btnUnConnect.Enabled = Not busyWithBoard
+            End If
         End Try
-
-        If socket.Connected Then
-
-            Dim imei As Byte() = System.Text.Encoding.UTF8.GetBytes(lblIMEI.Text)
-            Dim send As Byte()
-            Dim len As Integer = 18
-            Dim crc As Integer
-
-            ReDim send(len + 7)
-            'идентификатор
-            send(0) = 83
-            send(1) = 76
-            send(2) = 68
-            send(3) = 78
-            'длина
-            send(4) = len And &HFF
-            send(5) = (len >> 8) And &HFF
-
-            send(6) = &HFF
-            send(7) = 0
-            send(8) = 17
-
-            Array.Copy(imei, 0, send, 9, 15)
-
-            crc = ClComPort.Crc16(send, 4, 20)
-
-            send(24) = crc And &HFF
-            send(25) = (crc >> 8) And &HFF
-
-            Dim tout As Integer = System.Environment.TickCount
-
-            socket.GetStream.Write(send, 0, 26)
-
-            While (System.Environment.TickCount - tout) < 2000
-                If socket.GetStream.DataAvailable Then
-                    Dim rec(1023) As Byte
-
-                    socket.GetStream.Read(rec, 0, 1023)
-
-                    Select Case rec(9)
-                        Case 0
-
-                        Case 1
-                            Using f As New frmInfo("Подключение", "Контроллер " & lblIMEI.Text & vbCrLf &
-                                                               "отсутствует в базе !")
-                                f.ShowDialog()
-                            End Using
-                        Case 2
-                            Using f As New frmInfo("Подключение", "Контроллер " & lblIMEI.Text & vbCrLf &
-                                                               "не привязан ни к одному объекту !")
-                                f.ShowDialog()
-                            End Using
-
-                        Case 3
-                            lblObjNum.Text = System.Text.Encoding.UTF8.GetString(rec, 10, 8)
-                            lblObjName.Text = System.Text.Encoding.UTF8.GetString(rec, 18, 128)
-                            lblObjController.Text = System.Text.Encoding.UTF8.GetString(rec, 146, 128)
-                            lblAdmin.Text = System.Text.Encoding.UTF8.GetString(rec, 274, 16)
-
-                            Using f As New frmInfo("Подключение", "Данные о привязке получены !")
-                                f.ShowDialog()
-                            End Using
-
-                    End Select
-
-                    socket.Close()
-                    Exit Sub
-                End If
-            End While
-
-            socket.Close()
-
-            Using f As New frmInfo("Подключение", "Нет ответа от сервера на запрос" & vbCrLf &
-                                   "команда 17 !")
-                f.ShowDialog()
-            End Using
-        End If
-    End Sub
-
-    Private Sub tUnconnectController()
-        Dim socket As New Net.Sockets.TcpClient
-
-        Try
-            socket.Connect("93.189.229.197", 15010)
-        Catch ex As Exception
-            Using f As New frmInfo("Подключение", ex.Message)
-                f.ShowDialog()
-            End Using
-            Exit Sub
-        End Try
-
-        If socket.Connected Then
-
-            Dim imei As Byte() = System.Text.Encoding.UTF8.GetBytes(lblIMEI.Text)
-            Dim send As Byte()
-            Dim len As Integer = 18
-            Dim crc As Integer
-
-            ReDim send(len + 7)
-            'идентификатор
-            send(0) = 83
-            send(1) = 76
-            send(2) = 68
-            send(3) = 78
-            'длина
-            send(4) = len And &HFF
-            send(5) = (len >> 8) And &HFF
-
-            send(6) = &HFF
-            send(7) = 0
-            send(8) = 18
-
-            Array.Copy(imei, 0, send, 9, 15)
-
-            crc = ClComPort.Crc16(send, 4, 20)
-
-            send(24) = crc And &HFF
-            send(25) = (crc >> 8) And &HFF
-
-            Dim tout As Integer = System.Environment.TickCount
-
-            socket.GetStream.Write(send, 0, 26)
-
-            While (System.Environment.TickCount - tout) < 2000
-                If socket.GetStream.DataAvailable Then
-                    Dim rec(1023) As Byte
-
-                    socket.GetStream.Read(rec, 0, 1023)
-
-                    Select Case rec(9)
-                        Case 0
-
-                        Case 1
-                            Using f As New frmInfo("Подключение", "Контроллер " & lblIMEI.Text & vbCrLf &
-                                                               "отсутствует в базе !")
-                                f.ShowDialog()
-                            End Using
-                        Case 2
-                            Using f As New frmInfo("Подключение", "Контроллер " & lblIMEI.Text & vbCrLf &
-                                                               "отвязан от всех объектов !")
-                                f.ShowDialog()
-                            End Using
-
-                        Case 3
-                            Using f As New frmInfo("Подключение", "Не удалось отвязать контроллер!" & vbCrLf &
-                                                   "Повторите попытку.")
-                                f.ShowDialog()
-                            End Using
-
-                    End Select
-
-                    socket.Close()
-                    Exit Sub
-                End If
-            End While
-
-            socket.Close()
-
-            Using f As New frmInfo("Подключение", "Нет ответа от сервера на запрос" & vbCrLf &
-                                   "команда 17 !")
-                f.ShowDialog()
-            End Using
-        End If
-    End Sub
-
+    End Function
     Private Sub Label21_Click(sender As Object, e As EventArgs) Handles Label21.Click
         Dim socket As New Net.Sockets.TcpClient
         Dim sList As String() = txtServer1.Text.Trim().Split(":"c)

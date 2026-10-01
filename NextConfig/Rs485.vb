@@ -188,6 +188,11 @@ Partial Public Class Form2
     End Function
     Private Sub Status485()
         For i = 0 To 7
+            If state485(i) Is Nothing Then Continue For
+            If Not StatusIsFresh() Then
+                Theme.DotText(state485(i), Theme.eDot.Idle, "Нет свежих данных")
+                Continue For
+            End If
             Dim responds = status.peripheryState IsNot Nothing AndAlso status.peripheryState.Length > i AndAlso status.peripheryState(i) <> 0
             Theme.BusStatus(state485(i), responds, Value485(type485(i), 0) <> 0)
         Next

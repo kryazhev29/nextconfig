@@ -324,6 +324,8 @@ Public Module Theme
 
     Private Sub OnButtonDisposed(ByVal sender As Object, ByVal e As EventArgs)
         Dim b As Button = DirectCast(sender, Button)
+        minWidths.Remove(b)
+        RemoveHandler b.TextChanged, AddressOf OnButtonTextChanged
         normalColors.Remove(b)
         watched.Remove(b)
     End Sub
