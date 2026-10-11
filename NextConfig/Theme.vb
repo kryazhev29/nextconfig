@@ -761,6 +761,67 @@ Public Module Theme
         Return page
     End Function
 
+    Public Function LinkState(dot As Label, state As Label, countdown As Label, refresh As Button) As Control
+        BigValue(state)
+        state.AutoSize = True
+        state.Dock = DockStyle.Fill
+        Caption(countdown)
+        countdown.AutoSize = True
+        countdown.Dock = DockStyle.Fill
+        Secondary(refresh)
+        refresh.Text = "Обновить"
+        refresh.Width = ButtonWidthSmall
+        refresh.Anchor = AnchorStyles.Top Or AnchorStyles.Right
+        Dim row As New TableLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill,
+            .ColumnCount = 3, .Margin = New Padding(0)}
+        row.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(28)))
+        row.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        row.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        dot.Margin = New Padding(0, GapLabel, GapRelated, 0)
+        row.Controls.Add(dot, 0, 0)
+        row.Controls.Add(state, 1, 0)
+        row.Controls.Add(refresh, 2, 0)
+        row.Controls.Add(countdown, 1, 1)
+        Return Card("", row)
+    End Function
+
+    Public Sub LinkDot(dot As Label, state As Integer)
+        Theme.Dot(dot, If(state = 7, eDot.Good, If(state = 0 OrElse state = 6, eDot.Waiting, eDot.Bad)))
+        If state = 0 OrElse state = 6 Then SetColor(dot, Warning)
+    End Sub
+
+    Public Function LinkColumns(details As Control, stages As Control) As Control
+        Dim row As New TableLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Top,
+            .ColumnCount = 2, .Margin = New Padding(0)}
+        row.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
+        row.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
+        details.Margin = New Padding(0, 0, GapRelated, GapSection)
+        stages.Margin = New Padding(GapRelated, 0, 0, GapSection)
+        row.Controls.Add(details, 0, 0)
+        row.Controls.Add(stages, 1, 0)
+        Return row
+    End Function
+
+    Public Sub LinkHistory(grid As DataGridView)
+        ReadOnlyGrid(grid)
+        grid.Dock = DockStyle.Top
+        grid.Height = Px(210)
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+        grid.DefaultCellStyle.WrapMode = DataGridViewTriState.True
+        grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+        grid.ColumnHeadersHeight = Px(48)
+        grid.ScrollBars = ScrollBars.Vertical
+    End Sub
+
+    Public Function LinkSignal(meter As Meter, value As Label) As Control
+        Dim panel As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill, .Margin = New Padding(0)}
+        meter.Size = New Size(Px(90), Px(8))
+        meter.Margin = New Padding(0, GapRelated, GapRelated, 0)
+        panel.Controls.Add(meter)
+        panel.Controls.Add(value)
+        Return panel
+    End Function
+
     Public Function ValueRow(title As String, value As Control) As Control
         Dim row As New TableLayoutPanel With {.ColumnCount = 2, .AutoSize = True,
             .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, GapRow)}

@@ -244,11 +244,18 @@ Public Class Form2
         End If
     End Sub
 
-    Private Delegate Sub delegate_onStatus(ByVal status As clOpros.s_status)
+    Private statusPosted As Integer
 
     Private Sub opros_onStatus(ByVal status As clOpros.s_status)
-        Dim UIUpdater As New delegate_onStatus(AddressOf refOnStatus)
-        Me.BeginInvoke(UIUpdater, status)
+        ' Пока окно рисует статус, не накапливаем очередь, задерживающую кнопки и опрос связи.
+        If Threading.Interlocked.Exchange(statusPosted, 1) <> 0 Then Return
+        Me.BeginInvoke(New Action(Sub()
+                                      Try
+                                          refOnStatus(status)
+                                      Finally
+                                          Threading.Interlocked.Exchange(statusPosted, 0)
+                                      End Try
+                                  End Sub))
     End Sub
 
     Private Sub refOnStatus(ByVal _status As clOpros.s_status)

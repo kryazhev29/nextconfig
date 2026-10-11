@@ -12,7 +12,7 @@ Imports System.Threading
 '   NextConfig.exe --demo:oldboot   на порту старый загрузчик 0x21 (шаг 1 перевода)
 '   NextConfig.exe --demo:oldfw     новая прошивка под старым загрузчиком (шаг 2 перевода)
 '   NextConfig.exe --demo:oldfw48   старая прошивка v5 (чтение и перевод)
-'   NextConfig.exe --demo:two       две платы: NEXT на COM9 и старая v5 на COM12
+'   NextConfig.exe --demo:two       две платы NEXT: на связи и без сети
 Public Enum eDemoMode
     Off = 0
     Found = 1
@@ -287,7 +287,9 @@ Partial Public Class clOpros
         Select Case Demo.Mode
             Case eDemoMode.NoPorts
             Case eDemoMode.Two
-                list.Add(nextBoard) : list.Add(oldBoard)
+                list.Add(nextBoard)
+                list.Add(New FoundDevice With {.Port = "COM12", .Kind = eDeviceKind.NextFw,
+                    .Imei = "867442070217480", .DefaultPin = True})
             Case eDemoMode.OldFw48, eDemoMode.OldFw45
                 If Demo.LegacyFwStarted Then
                     nextBoard.Port = "COM12" : list.Add(nextBoard)
@@ -342,7 +344,47 @@ Partial Public Class clOpros
         s.usedMem = 1274
         s.moduleType = eModuleType.M_SLM336
 
+        If demoNoNetwork Then
+            s.signal = 99
+            s.gsm = 0
+            s.gprs = 0
+            s.connectToServer = 0
+            s.netType = eNetType._Авто
+        End If
+
         Return s
+    End Function
+
+    Private demoNoNetwork As Boolean
+
+    Private Function DemoLinkReply(sequence As Byte) As Byte()
+        Dim frame(92) As Byte
+        Text.Encoding.ASCII.GetBytes("SLDN").CopyTo(frame, 0)
+        frame(4) = 85
+        frame(7) = sequence
+        frame(8) = LinkDiag.Command
+        frame(9) = 3
+        frame(10) = If(demoNoNetwork, CByte(2), CByte(7))
+        frame(12) = If(demoNoNetwork, CByte(99), CByte(26))
+        frame(13) = If(demoNoNetwork, CByte(0), CByte(4))
+        frame(14) = If(demoNoNetwork, CByte(3), CByte(1))
+        If Not demoNoNetwork Then Text.Encoding.ASCII.GetBytes("25001").CopyTo(frame, 15)
+        Dim durations As UInteger() = If(demoNoNetwork,
+            New UInteger() {1200, 2700, 600, 60000, 0, 0},
+            New UInteger() {1200, 2700, 600, 4200, 1500, 800})
+        For i = 0 To 5
+            BitConverter.GetBytes(durations(i)).CopyTo(frame, 26 + 4 * i)
+        Next
+        If demoNoNetwork Then
+            Dim failures As UInteger() = {(65UI << 8) Or (1UI << 3) Or 3UI,
+                (14UI << 8) Or (7UI << 3) Or 3UI, (64UI << 8) Or (7UI << 3) Or 3UI}
+            frame(50) = CByte(failures.Length)
+            For i = 0 To failures.Length - 1
+                BitConverter.GetBytes(failures(i)).CopyTo(frame, 51 + 4 * i)
+            Next
+        End If
+        BitConverter.GetBytes(CUShort(ClComPort.Crc16(frame, 4, 87))).CopyTo(frame, 91)
+        Return frame
     End Function
 
     ' Строки журнала, похожие на настоящие: обычное событие, переписка с
@@ -414,7 +456,7 @@ Partial Public Class clOpros
         c.opType = "internet"
         c.netType = eNetType._Авто
         c.countryCode = "7"
-        c.simNumber = "+7 900 000-00-00"
+        c.simNumber = "+79000000000"
         c.ussdBalance = "*100#"
         c.resetTime = 0
         c.fullLog = 0

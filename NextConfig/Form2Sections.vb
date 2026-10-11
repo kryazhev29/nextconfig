@@ -62,7 +62,8 @@
         tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Объект, диагностика и обслуживание контроллера"),
             shortcuts, objectCard, objectActions, bootCard, snapshotCard, diagnosticsCard, maintenanceCard))
         tabs.TabPages.Clear()
-        tabs.TabPages.AddRange({tabState, tabIds, tabLog, tabSettings, tabObject})
+        ConfigureLinkSection()
+        tabs.TabPages.AddRange({tabState, tabLink, tabIds, tabLog, tabSettings, tabObject})
     End Sub
 
     Private Sub RefreshSnapshot()

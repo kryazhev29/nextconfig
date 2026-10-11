@@ -115,6 +115,8 @@
       <DependentUpon>Form2.vb</DependentUpon>
     </Compile>
     <Compile Include="Form2Sections.vb" />
+    <Compile Include="Form2Link.vb" />
+    <Compile Include="LinkDiag.vb" />
     <Compile Include="ConfigSnapshot.vb" />
     <Compile Include="Form2.vb">
       <SubType>Form</SubType>

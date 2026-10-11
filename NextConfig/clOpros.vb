@@ -442,6 +442,8 @@ Partial Public Class clOpros
                     rejim = eRejim.Search
                     Return False
                 End Try
+            Else
+                demoNoNetwork = Demo.Mode = eDemoMode.Two AndAlso dev.Port = "COM12"
             End If
             AgentLog.Write("device", "event", "open", "port", dev.Port, "kind", dev.Kind.ToString(), "title", dev.Title)
             Select Case dev.Kind

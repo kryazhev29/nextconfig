@@ -358,6 +358,28 @@ Partial Public Class clOpros
         Return parsed
     End Function
 
+    Public Function GetLinkDiag(cancel As CancellationToken) As LinkSnapshot
+        SyncLock Me
+            cancel.ThrowIfCancellationRequested()
+            _isPause = True
+            Try
+                Dim request = SetCmd(LinkDiag.Command, Nothing)
+                Dim reply As Byte() = Nothing
+                If Demo.IsOn Then
+                    reply = DemoLinkReply(request(7))
+                    AgentLog.SldnExchange(If(demoNoNetwork, "COM12", "COM9"), request, reply, 0)
+                ElseIf Not Comport.SendRecCmd(reply, request, 1000) Then
+                    Return Nothing
+                End If
+                Return LinkDiag.Parse(reply)
+            Catch ex As ArgumentException
+                Return Nothing
+            Finally
+                _isPause = False
+            End Try
+        End SyncLock
+    End Function
+
     Public Function GetConfig(ByRef _conf As s_config) As Boolean
         Dim rez As Boolean = False
 
