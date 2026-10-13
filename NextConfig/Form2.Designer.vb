@@ -385,12 +385,7 @@ Partial Class Form2
         Me.tabState.BackColor = Theme.WindowBack
         Me.tabState.AutoScroll = True
         Me.tabState.Controls.Add(Theme.Overview(New Control() {
-            CardBlock("Связь",
-                      CompactRow("Мобильная сеть", DotPair(Me.dotGSM, Me.lblGSM)),
-                      CompactRow("Интернет", DotPair(Me.dotInt, Me.lblInt)),
-                      CompactRow("Соединение с сервером", DotPair(Me.dotServer, Me.lblServerConnect)),
-                      CompactRow("Технология сейчас", Me.lblNet),
-                      CompactRow("Уровень сигнала", Me.sigRow)),
+            CardBlock("", Me.deviceConnection),
             CardBlock("Устройство",
                       CompactRow("Модуль связи", Me.lblModuleType, Me.Label19),
                       CompactRow("Версия платы", Me.lblHW),

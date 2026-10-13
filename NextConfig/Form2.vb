@@ -154,6 +154,12 @@ Public Class Form2
                 Theme.DotText(label, Theme.eDot.Idle, "Нет свежих данных")
             Next
             lblSig.Text = "Нет свежих данных" : pbSig.Value = 0
+            If linkSnapshot IsNot Nothing Then DisplayLink(Nothing)
+            deviceConnection.Signal = LinkDiag.SignalView(Nothing, 99)
+            deviceConnection.Steps = -1 : deviceConnection.Problem = "Нет свежих данных"
+            deviceConnection.Cell = "" : deviceConnection.Details = "Нет свежих данных"
+            deviceConnection.Height = Theme.Px(299)
+            deviceConnection.Invalidate()
             lblNet.Text = "—"
             Status485()
         End If
@@ -189,6 +195,7 @@ Public Class Form2
     ' Контроллер держит время в UTC; показываем его по местному поясу компьютера
     ' и пишем расхождение, когда оно заметное.
     Private Function DeviceTimeText(ByVal unix As UInt32) As String
+        If Not DeviceTimeIsSet(unix) Then Return "Время не задано"
         Dim t As DateTime = DateTime.SpecifyKind(UnixTimestampToDateTime(unix), DateTimeKind.Utc).ToLocalTime()
         Dim text As String = t.ToString("dd.MM.yyyy HH:mm:ss")
         Dim diff As TimeSpan = DateTime.Now.Subtract(t)
@@ -196,6 +203,10 @@ Public Class Form2
         If Math.Abs(diff.TotalMinutes) < 2 Then Return text
 
         Return text & " · расходится с компьютером на " & FormatDiff(diff)
+    End Function
+
+    Private Function DeviceTimeIsSet(unix As UInt32) As Boolean
+        Return unix >= 946684800UI ' До 01.01.2000 — часы ещё не установлены.
     End Function
 
     Private Function FormatDiff(ByVal diff As TimeSpan) As String
@@ -267,6 +278,7 @@ Public Class Form2
         Status485()
 
         Theme.SetText(lblTime, DeviceTimeText(status.time))
+        Theme.SetColor(lblTime, If(DeviceTimeIsSet(status.time), Theme.TextMain, Theme.Danger))
         Theme.SetText(lblFW, status.fw_version & ", сборка " & BuildText(CUInt(status.fw_build)))
         Theme.SetText(lblBoot, "0x" & status.boot_version.ToString("X2"))
         Theme.SetText(lblHW, status.hw_version.ToString())
@@ -288,8 +300,7 @@ Public Class Form2
         SetDot(dotInt, lblInt, status.gprs = 1, "Подключено", "Нет интернета", True)
         SetDot(dotServer, lblServerConnect, status.connectToServer <> 0, "Подключено", "Нет связи с сервером", True)
 
-        Theme.SetText(lblSig, If(status.signal <= 31, status.signal & " из 31", "Не определён"))
-        pbSig.Value = If(status.signal <= 31, CInt(status.signal), 0)
+        UpdateDeviceSignal()
         Theme.SetText(lblNet, CurrentNetName(status.netType))
 
         Theme.SetText(lblUsedMem, status.usedMem & " из 50 000")

@@ -26,6 +26,11 @@ Public Enum eDemoMode
 End Enum
 
 Public Module Demo
+    ' Только демонстрация: десять минут улучшения уровня с небольшими колебаниями.
+    Public Function SignalRsrp(seconds As Double) As Byte
+        Return CByte(103 - Math.Min(8, Math.Max(0, seconds) / 80.0) + Math.Sin(seconds / 45.0) * 2)
+    End Function
+
 
     Public ReadOnly Mode As eDemoMode = ParseArgs()
 
@@ -356,19 +361,26 @@ Partial Public Class clOpros
     End Function
 
     Private demoNoNetwork As Boolean
+    Private demoLinkClock As Diagnostics.Stopwatch
 
     Private Function DemoLinkReply(sequence As Byte) As Byte()
-        Dim frame(92) As Byte
+        If demoLinkClock Is Nothing Then demoLinkClock = Diagnostics.Stopwatch.StartNew()
+        Dim frame(97) As Byte
         Text.Encoding.ASCII.GetBytes("SLDN").CopyTo(frame, 0)
-        frame(4) = 85
+        frame(4) = 90
         frame(7) = sequence
         frame(8) = LinkDiag.Command
-        frame(9) = 3
+        frame(9) = 5
         frame(10) = If(demoNoNetwork, CByte(2), CByte(7))
         frame(12) = If(demoNoNetwork, CByte(99), CByte(26))
         frame(13) = If(demoNoNetwork, CByte(0), CByte(4))
         frame(14) = If(demoNoNetwork, CByte(3), CByte(1))
-        If Not demoNoNetwork Then Text.Encoding.ASCII.GetBytes("25001").CopyTo(frame, 15)
+        If Not demoNoNetwork Then Text.Encoding.ASCII.GetBytes("25002").CopyTo(frame, 15)
+        frame(91) = If(demoNoNetwork, CByte(255), Demo.SignalRsrp(600 + demoLinkClock.Elapsed.TotalSeconds))
+        frame(92) = If(demoNoNetwork, CByte(255), CByte(9))
+        frame(93) = If(demoNoNetwork, CByte(255), CByte(61))
+        frame(94) = If(demoNoNetwork, CByte(255), CByte(7))
+        frame(95) = If(demoNoNetwork, CByte(255), CByte(5))
         Dim durations As UInteger() = If(demoNoNetwork,
             New UInteger() {1200, 2700, 600, 60000, 0, 0},
             New UInteger() {1200, 2700, 600, 4200, 1500, 800})
@@ -383,7 +395,7 @@ Partial Public Class clOpros
                 BitConverter.GetBytes(failures(i)).CopyTo(frame, 51 + 4 * i)
             Next
         End If
-        BitConverter.GetBytes(CUShort(ClComPort.Crc16(frame, 4, 87))).CopyTo(frame, 91)
+        BitConverter.GetBytes(CUShort(ClComPort.Crc16(frame, 4, frame.Length - 6))).CopyTo(frame, frame.Length - 2)
         Return frame
     End Function
 

@@ -1,4 +1,4 @@
-﻿param([string]$AssemblyPath = "$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe")
+﻿param([string]$AssemblyPath = "$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe", [string]$SnapshotDirectory = '')
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 [Reflection.Assembly]::LoadFrom((Resolve-Path $AssemblyPath)) | Out-Null
@@ -57,17 +57,35 @@ foreach ($frame in @($online, $sim, $waiting, $ring)) {
 $v4 = V4 $online
 $s4 = [NextConfig.LinkDiag]::Parse($v4)
 Check ($s4.Version -eq 4 -and $s4.Rsrp -eq 105 -and $s4.Rsrq -eq 10 -and $s4.Sinr -eq 175) 'v4 appended metrics'
-Check ([NextConfig.LinkDiag]::SignalText($s4) -eq "RSRP −105 дБм (плохо),`r`nRSRQ −10 дБ (средне)") 'LTE units and quality without unconfirmed SINR'
-foreach ($case in @(@(89,9,'хорошо','хорошо'), @(90,10,'средне','средне'), @(100,15,'средне','средне'), @(101,16,'плохо','плохо'), @(93,9,'средне','хорошо'), @(100,10,'средне','средне'))) {
-    $text = [NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online $case[0] $case[1] 54)))
-    Check ($text -match ('RSRP .*\(' + $case[2] + '\)') -and $text -match ('RSRQ .*\(' + $case[3] + '\)')) "LTE thresholds $($case[0])/$($case[1])"
+function Signal($frame, [byte]$csq = 20) {
+    $snapshot = if ($null -ne $frame) { [NextConfig.LinkDiag]::Parse($frame) } else { $null }
+    return [NextConfig.LinkDiag]::SignalView($snapshot, $csq)
 }
-Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 255 255 255))) -eq "RSRP нет данных,`r`nRSRQ нет данных") 'LTE unknown does not fall back to CSQ'
-Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 90 255 101))) -eq "RSRP −90 дБм (средне),`r`nRSRQ нет данных") 'independent unknown RSRQ'
-Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 255 9 61))) -eq "RSRP нет данных,`r`nRSRQ −9 дБ (хорошо)") 'independent unknown RSRP'
+$view = Signal $v4
+Check ($view.LevelText -eq 'Плохо · −105 дБм' -and $view.QualityText -eq 'Средне · −10 дБ') 'LTE units and quality'
+foreach ($case in @(@(89,9,'Хорошо','Хорошо'), @(90,10,'Средне','Средне'), @(100,15,'Средне','Средне'), @(101,16,'Плохо','Плохо'), @(93,9,'Средне','Хорошо'), @(100,10,'Средне','Средне'))) {
+    $view = Signal (V4 $online $case[0] $case[1] 54)
+    Check ($view.LevelText -eq "$($case[2]) · −$($case[0]) дБм" -and $view.QualityText -eq "$($case[3]) · −$($case[1]) дБ") "LTE thresholds $($case[0])/$($case[1])"
+}
+$gsm = V4 $online 100 9; $gsm[13] = 1; $gsm = Seal $gsm
+foreach ($frame in @($gsm, $online, (V4 $online 255 255 255), (V4 $online 255 9 61), $null)) {
+    $view = Signal $frame
+    Check ($view.LevelText -eq '20 из 31' -and $view.QualityText -eq '' -and $view.Maximum -eq 31 -and $view.Value -eq 20) '2G/v3/unknown RSRP/no 112 use status CSQ'
+}
+$view = Signal (V4 $online 90 255 101)
+Check ($view.LevelText -eq 'Средне · −90 дБм' -and $view.QualityText -eq 'Нет данных') 'independent unknown RSRQ'
+foreach ($case in @(@(130,0), @(120,0), @(119,1), @(100,20), @(90,30), @(70,50), @(60,50))) {
+    $view = Signal (V4 $online $case[0] 9)
+    Check ($view.Maximum -eq 50 -and $view.Value -eq $case[1]) "RSRP meter $($case[0])"
+}
+foreach ($csq in 0,31,99,255) {
+    $view = Signal $null $csq
+    Check ($view.QualityText -eq '' -and $view.Value -eq $(if ($csq -le 31) {$csq} else {0}) -and $view.LevelText -eq $(if ($csq -le 31) {"$csq из 31"} else {'Не определён'})) "CSQ fallback $csq"
+}
 foreach ($raw in 0,54,61,250,255) {
     $snapshot = [NextConfig.LinkDiag]::Parse((V4 $online 93 9 $raw))
-    Check ($snapshot.Sinr -eq $raw -and [NextConfig.LinkDiag]::SignalText($snapshot) -notmatch 'SINR') "raw SINR $raw preserved but hidden"
+    $view = [NextConfig.LinkDiag]::SignalView($snapshot, 20)
+    Check ($snapshot.Sinr -eq $raw -and $view.LevelText -eq 'Средне · −93 дБм' -and $view.QualityText -eq 'Хорошо · −9 дБ') "raw SINR $raw preserved but hidden"
 }
 foreach ($offset in 91..95) { $b=$v4.Clone(); $b[$offset]=$b[$offset] -bxor 1; Reject $b "v4 corrupt tail $offset" }
 foreach ($version in 2,3,5) { $b=$v4.Clone(); $b[9]=$version; Reject (Seal $b) "v4 length with version $version" }
@@ -138,48 +156,106 @@ try { $poller.GetLinkDiag($cancel.Token) | Out-Null } catch { $rejected = $true 
 Check $rejected 'cancelled query cannot touch missing transport'
 $cancel.Dispose()
 $form = New-Object NextConfig.Form2($poller, 'offline', '000000000000000', 0)
-function Field($name) { return $form.GetType().GetField($name, $flags).GetValue($form) }
-function Display($frame) { $form.GetType().GetMethod('DisplayLink', $flags).Invoke($form, @([NextConfig.LinkDiag]::Parse($frame))) | Out-Null }
+function Field($name) {
+    $field = $form.GetType().GetField($name, $flags)
+    if ($field) { return $field.GetValue($form) }
+    return $form.GetType().GetProperty($name, $flags).GetValue($form, $null)
+}
+function Display($frame) {
+    $snapshot = if ($frame) { [NextConfig.LinkDiag]::Parse($frame) } else { $null }
+    $form.GetType().GetMethod('DisplayLink', $flags).Invoke($form, @($snapshot)) | Out-Null
+}
 try {
-    Check ((Field 'linkTimer').Interval -eq 2000 -and -not (Field 'linkTimer').Enabled) 'hidden screen timer stopped'
+    Check ((Field 'linkTimer').Interval -eq 5000 -and -not (Field 'linkTimer').Enabled) 'hidden screen timer stopped'
     Display $online
-    Check ((Field 'linkState').Text.StartsWith('Связь установлена') -and (Field 'linkDot').ForeColor -eq [NextConfig.Theme]::Ok) 'online phrase and green dot'
+    Check ((Field 'linkState').Text.StartsWith('На связи') -and (Field 'linkBanner').ForeColor -eq [NextConfig.Theme]::Ok) 'online phrase and green banner'
     Check ((Field 'linkSignal').Value -eq 26) 'CSQ meter'
     Display $v4
-    Check ((Field 'linkValues')[1].Text -match 'RSRP −105 дБм \(плохо\)' -and (Field 'linkValues')[1].Text -match 'RSRQ −10 дБ \(средне\)' -and (Field 'linkValues')[1].Text -notmatch 'SINR' -and -not (Field 'linkSignal').Visible -and (Field 'linkSignal').Value -eq 0) 'LTE screen hides SINR and CSQ meter'
-    $gsm = V4 $online 255 255 255; $gsm[13]=1; $gsm=Seal $gsm
+    Check ((Field 'linkRsrp').Raw -eq 105 -and (Field 'linkRsrq').Raw -eq 10) 'LTE gauges use RSRP and RSRQ'
     Display $gsm
-    Check ((Field 'linkValues')[1].Text -eq 'CSQ 26' -and (Field 'linkSignal').Value -eq 26) '2G retains CSQ'
-    Display $online
-    Check ((Field 'linkValues')[1].Text -eq 'CSQ 26') 'v3 LTE retains CSQ'
+    Check ((Field 'linkCsq').Text -eq '26 из 31' -and (Field 'linkSignal').Maximum -eq 31) '2G retains CSQ'
     Display $sim
-    Check ((Field 'linkValues')[1].Text -eq 'нет данных' -and (Field 'linkSignal').Value -eq 0) 'unknown signal never fills meter'
-    Check ((Field 'linkDot').ForeColor -eq [NextConfig.Theme]::Danger) 'error red dot'
+    Check ((Field 'linkCsq').Text -eq 'Не определён' -and (Field 'linkSignal').Value -eq 0) 'unknown CSQ is empty'
+    Check ((Field 'linkBanner').ForeColor -eq [NextConfig.Theme]::Danger) 'error red banner'
     Display $waiting
-    Check ((Field 'linkCountdown').Text -match '6 с$' -and (Field 'linkDot').ForeColor -eq [NextConfig.Theme]::Warning) 'wait yellow dot and rounded countdown'
+    Check ((Field 'linkCountdown').Text -match '6 с$') 'rounded wait countdown'
     Start-Sleep -Milliseconds 1100
     $form.GetType().GetMethod('UpdateLinkCountdown', $flags).Invoke($form, @()) | Out-Null
-    Check ((Field 'linkCountdown').Text -match '5 с$') 'countdown advances between polls'
+    Check ((Field 'linkCountdown').Text -match '5 с$') 'countdown advances'
     Display $ring
-    Check ((Field 'linkFailures').Rows.Count -eq 10 -and (Field 'linkFailures').Rows[0].Cells[2].Value -eq '70 с') 'all failures displayed newest first'
+    Check ((Field 'linkFailures').Rows.Count -eq 10 -and (Field 'linkFailures').Rows[0].Cells[2].Value -eq '70 с') 'history newest first'
     $row = (Field 'linkFailures').Rows[0]
     Display $ring
-    Check ([Object]::ReferenceEquals($row, (Field 'linkFailures').Rows[0])) 'unchanged history is not recreated on every poll'
-    $form.GetType().GetMethod('DisplayLink', $flags).Invoke($form, @($null)) | Out-Null
-    Check ((Field 'linkState').Text -eq 'нет ответа от платы' -and (Field 'linkCountdown').Text -eq '') 'no response clears countdown'
-    Check ((Field 'linkFailures').Rows.Count -eq 0 -and (Field 'linkValues')[3].Text -eq '—') 'no stale operator or failures'
+    Check ([Object]::ReferenceEquals($row, (Field 'linkFailures').Rows[0])) 'unchanged failures are not recreated'
+    Display $null
+    Check ((Field 'linkState').Text.StartsWith('Нет ответа') -and (Field 'linkCountdown').Text -eq '' -and (Field 'linkFailures').Rows.Count -eq 0 -and (Field 'linkCell').Text -eq 'Нет данных') 'timeout clears stale diagnostics'
     $form.GetType().GetField('bootOffered', $flags).SetValue($form, $true)
     $handle = $form.Handle
     $status = New-Object 'NextConfig.clOpros+s_status'
-    $status.signal = 99
-    $status.gsm = 1
-    $status.gprs = 1
-    $status.connectToServer = 1
+    $status.signal = 20; $status.gsm = 1; $status.gprs = 1; $status.connectToServer = 1
+    $status.netType = 4; $status.moduleType = 2; $status.hw_version = 1; $status.fw_version = 50; $status.boot_version = 36
+    $status.usedMem = 3151
     $post = $form.GetType().GetMethod('opros_onStatus', $flags)
     1..100 | ForEach-Object { $post.Invoke($form, @($status)) | Out-Null }
     Check ((Field 'statusPosted') -eq 1) 'status burst has one pending UI update'
     [Windows.Forms.Application]::DoEvents()
-    Check ((Field 'statusPosted') -eq 0) 'status queue released after UI update'
+    Check ((Field 'statusPosted') -eq 0) 'status queue released'
+    # Load удалён, рабочий опрос заблокирован: только синтетические кадры, без COM.
+    $load = [Delegate]::CreateDelegate([EventHandler], $form, $form.GetType().GetMethod('Form2_Load', $flags))
+    $form.remove_Load($load)
+    $form.GetType().GetField('linkLoading', $flags).SetValue($form, $true)
+    $form.ShowInTaskbar = $false
+    $form.Show()
+    [Windows.Forms.Application]::DoEvents()
+    Check ((Field 'linkTimer').Enabled -and (Field 'linkTimer').Interval -eq 5000) 'Device polls every 5 seconds'
+    function Status { $form.GetType().GetMethod('refOnStatus', $flags).Invoke($form, @($status)) | Out-Null }
+    function Snapshot($name) {
+        if (-not $SnapshotDirectory) { return }
+        New-Item -ItemType Directory -Force -Path $SnapshotDirectory | Out-Null
+        $form.PerformLayout(); [Windows.Forms.Application]::DoEvents()
+        $bitmap = New-Object Drawing.Bitmap($form.Width, $form.Height)
+        try {
+            $form.DrawToBitmap($bitmap, (New-Object Drawing.Rectangle(0, 0, $form.Width, $form.Height)))
+            $bitmap.Save((Join-Path $SnapshotDirectory $name), [Drawing.Imaging.ImageFormat]::Png)
+        } finally { $bitmap.Dispose() }
+    }
+    Status
+    $lte = V4 $online 100 9
+    Display $lte
+    $overview = Field 'deviceConnection'
+    Check ($overview.Signal.LevelText -eq 'Средне · −100 дБм' -and $overview.Signal.QualityText -eq 'Хорошо · −9 дБ' -and $overview.Signal.Lte) 'Device LTE v4 text and quality'
+    Check ($overview.Signal.Maximum -eq 50 -and $overview.Signal.Value -eq 20 -and $overview.Steps -eq 4 -and $overview.MemoryUsed -eq 3151) 'Device LTE scale, connection chain and memory'
+    Status
+    Check ($overview.Signal.Lte) 'status 101 cannot overwrite LTE with CSQ'
+    Snapshot 'device_lte.png'
+    (Field 'tabs').SelectedTab = Field 'tabLink'
+    [Windows.Forms.Application]::DoEvents()
+    Check ((Field 'linkTimer').Enabled -and (Field 'linkTimer').Interval -eq 2000) 'Link keeps 2 second poll'
+    Check ((Field 'linkGauges').Visible -and (Field 'linkPlotCard').Visible -and -not (Field 'linkCsqRow').Visible) 'LTE shows gauges and RSRP graph'
+    Check ([Object]::ReferenceEquals($overview.History, (Field 'linkPlot').History)) 'one history shared by both screens'
+    $form.Height = 1050
+    Snapshot 'link_lte.png'
+    (Field 'tabs').SelectedTab = Field 'tabIds'
+    [Windows.Forms.Application]::DoEvents()
+    Check (-not (Field 'linkTimer').Enabled) 'other tabs stop diagnostic poll'
+    (Field 'tabs').SelectedTab = Field 'tabState'
+    [Windows.Forms.Application]::DoEvents()
+    foreach ($frame in @($online, (V4 $online 255 9), $null)) {
+        Display $frame
+        Check (-not $overview.Signal.Lte -and $overview.Signal.LevelText -eq '20 из 31' -and $overview.Signal.Maximum -eq 31) 'v3/unknown RSRP/timeout silently use status CSQ'
+    }
+    Display $lte
+    $status.netType = 1
+    Status
+    Check (-not $overview.Signal.Lte) '2G status immediately discards cached LTE signal'
+    Display $gsm
+    Check ($overview.Details -eq 'CSQ 20 из 31' -and $overview.Signal.Bars -eq 5) 'Device 2G CSQ'
+    Snapshot 'device_2g.png'
+    $status.netType = 4
+    Status; Display $lte
+    $form.GetType().GetField('lastStatus', $flags).SetValue($form, [DateTime]::Now.AddSeconds(-10))
+    $form.GetType().GetMethod('TmrTick', $flags).Invoke($form, @()) | Out-Null
+    Check ($overview.Steps -eq -1 -and $overview.Signal.Bars -eq 0 -and $overview.Problem -eq 'Нет свежих данных') 'stale status clears chain and signal'
 } finally { $form.Dispose() }
 $legacyReader = New-Object NextConfig.OldFirmware($null, [NextConfig.Demo]::OldFirmwareReply(0, $null), $true)
 $legacy = New-Object NextConfig.frmOldFirmware($legacyReader, 'OFFLINE')

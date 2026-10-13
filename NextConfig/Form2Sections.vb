@@ -9,10 +9,6 @@
         Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         Dim deviceCard = DirectCast(grid.GetControlFromPosition(1, 0), TableLayoutPanel)
-        Dim memory As New Label With {.AutoSize = True}
-        Theme.Value(memory)
-        AddHandler lblUsedMem.TextChanged, Sub() memory.Text = lblUsedMem.Text
-        DirectCast(grid.GetControlFromPosition(0, 0), TableLayoutPanel).Controls.Add(CompactRow("Память идентификаторов", memory))
         btnUpdateFW.Text = "Обновить прошивку"
         deviceCard.Controls.Add(btnUpdateFW)
         deviceCard.Controls.Add(lblFwHint)
@@ -79,5 +75,6 @@
     Private Sub ReflowOverview()
         Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
         Theme.ReflowOverview(overview)
+        DirectCast(overview.Controls(1), TableLayoutPanel).GetControlFromPosition(0, 0).Dock = DockStyle.Top
     End Sub
 End Class
