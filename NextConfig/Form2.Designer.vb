@@ -392,10 +392,7 @@ Partial Class Form2
                       CompactRow("Версия прошивки", Me.lblFW),
                       CompactRow("Версия загрузчика", Me.lblBoot),
                       CompactRow("Время устройства", Me.lblTime, Me.Label16)),
-            CardBlock("Входы и выходы", Theme.SignalGrid(
-                New Control() {DotPair(Me.dotIN1, Me.lbIN1), DotPair(Me.dotIN2, Me.lblIN2),
-                               DotPair(Me.dotOUT1, Me.lblOUT1), DotPair(Me.dotOUT2, Me.lbOUT2)},
-                New Button() {Nothing, Nothing, Me.btnTestOUT1, Me.btnTestOUT2}))}))
+            CardBlock("Входы и выходы", IoBlock())}))
 
         ' ---- вкладка «Настройки» ----
         Me.txtServer1.Name = "txtServer1"

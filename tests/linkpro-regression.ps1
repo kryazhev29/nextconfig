@@ -152,5 +152,37 @@ try {
     Check ((Field 'linkFailures').Visible -and (Field 'linkFailures').Rows.Count -eq 10) 'failures expand'
     $form.GetType().GetMethod('ToggleLinkFailures',$flags).Invoke($form,@()) | Out-Null
     Check (-not (Field 'linkFailures').Visible) 'failures collapse'
+
+    # Входы и выходы (владелец 13.10): строка на канал, выключенное серым, отказ платы виден под выходом.
+    (Field 'tabs').SelectedTab = Field 'tabState'
+    $cfg = $demoConfig
+    $o1 = $cfg.out1; $o1.unBlockUse = 0; $o1.outMode = 0; $o1.onServerCmd = 1; $o1.impulse = 1; $cfg.out1 = $o1
+    $o2 = $cfg.out2; $o2.unBlockUse = 0; $o2.outMode = 0; $o2.onServerCmd = 0; $o2.impulse = 0; $cfg.out2 = $o2
+    $cfg.in1Func = 8; $cfg.in2Func = 0
+    $form.GetType().GetField('onBoard', $flags).SetValue($form, $cfg)
+    $status.gsm = 1; $status.gprs = 1; $status.connectToServer = 1; $status.netType = 4; $status.signal = 23
+    $status.in1 = $false; $status.in2 = $false; $status.out1 = $false; $status.out2 = $false; Status
+    $purpose = Field 'ioPurpose'; $note = Field 'ioNote'
+    Check ($purpose[0].Text -eq 'Открытие · импульс 1 с' -and $purpose[1].Text -eq 'Открытие · импульс не задан') 'output purpose from relay settings'
+    Check ($purpose[2].Text -eq 'Датчик ворот' -and $purpose[3].Text -eq 'Функция не задана') 'input purpose from input function'
+    Check ((Field 'lblOUT1').Text -eq 'Выключен' -and (Field 'lblOUT1').ForeColor -ne [NextConfig.Theme]::Danger) 'off output is grey, not red'
+    Check ((Field 'lbIN1').Text -eq 'Ворота открыты' -and (Field 'lblIN2').Text -eq 'Не активен' -and (Field 'lblIN2').ForeColor -ne [NextConfig.Theme]::Danger) 'input words, grey when inactive'
+    Check (-not $note[0].Visible -and $note[1].Visible -and $note[1].Text -match 'Команда сервера') 'blocked output explains why before click'
+    Check ((Field 'btnTestOUT1').Text -eq 'Проверить') 'short test caption'
+    Snapshot 'device_io.png'
+    $show = $form.GetType().GetMethod('ShowOutTestResult', $flags)
+    $show.Invoke($form, @(0, 0)) | Out-Null
+    Check ((Field 'btnTestOUT1').Text -eq 'Идёт… 1 с') 'test countdown on the button'
+    $status.out1 = $true; $status.in1 = $true; Status
+    Check ((Field 'lblOUT1').Text -eq 'Включён' -and (Field 'lblOUT1').ForeColor -eq [NextConfig.Theme]::OkText -and (Field 'lbIN1').Text -eq 'Ворота закрыты') 'on output green, gate closed'
+    Snapshot 'device_io_test.png'
+    $show.Invoke($form, @(1, 2)) | Out-Null
+    Check ($note[1].Visible -and $note[1].Text.StartsWith('Не сработал') -and $note[1].Text -match 'Команда сервера') 'refusal reason shown under output'
+    $o1.outMode = 1; $cfg.out1 = $o1; $form.GetType().GetField('onBoard', $flags).SetValue($form, $cfg)
+    $form.GetType().GetField('ioTestUntil', $flags).GetValue($form)[0] = [DateTime]::MinValue
+    Status
+    Check ($purpose[0].Text -eq 'Открытие · уровень' -and (Field 'btnTestOUT1').Text -eq 'Выключить') 'level output toggles'
+    $o2.unBlockUse = 1; $cfg.out2 = $o2; $form.GetType().GetField('onBoard', $flags).SetValue($form, $cfg); Status
+    Check ($purpose[1].Text -eq 'Разблокировка') 'unlock relay named'
 } finally { $form.Dispose() }
 Write-Output "PASS: $script:checks linkpro checks (offline, no COM)"

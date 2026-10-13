@@ -138,6 +138,7 @@ Public Class Form2
         Dim fresh = StatusIsFresh()
         btnTestOUT1.Enabled = fresh AndAlso Not busyWithBoard AndAlso HasConfigSnapshot()
         btnTestOUT2.Enabled = btnTestOUT1.Enabled
+        UpdateIoButtons()
         btnUpdateFW.Enabled = fresh AndAlso Not busyWithBoard
         btnUpdateBoot.Enabled = btnUpdateFW.Enabled
         photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, Camera232)
@@ -290,11 +291,8 @@ Public Class Form2
         Theme.SetText(lblHeadFW, "Прошивка " & status.fw_version)
         Theme.SetText(lblHeadBoot, "Загрузчик 0x" & status.boot_version.ToString("X2"))
 
-        ' ТЗ: индикатор входа и выхода зелёный - активен, красный - не активен
-        SetDot(dotIN1, lbIN1, status.in1, "Включён", "Выключен", True)
-        SetDot(dotIN2, lblIN2, status.in2, "Включён", "Выключен", True)
-        SetDot(dotOUT1, lblOUT1, status.out1, "Включён", "Выключен", True)
-        SetDot(dotOUT2, lbOUT2, status.out2, "Включён", "Выключен", True)
+        ' Решение владельца 13.10.2026 (отступление от ТЗ): выключенное серым, красный — только неисправность.
+        UpdateIo()
 
         SetDot(dotGSM, lblGSM, status.gsm = 1, "Подключено", "Нет сети", True)
         SetDot(dotInt, lblInt, status.gprs = 1, "Подключено", "Нет интернета", True)
@@ -502,11 +500,12 @@ Public Class Form2
 
     ' Кнопка ТЕСТ по ТЗ: запускает алгоритм выхода по его настройкам (команда 8, значение 1)
     ' и сразу запрашивает статус. В режиме УРОВЕНЬ включённый выход выключает (значение 0).
-    ' Отказ контроллера (пауза реле, запрет в настройках) по ТЗ штатный - без сообщения.
+    ' Отказ контроллера (пауза реле, запрет в настройках) штатный: без окна, причина пишется под выходом.
     ' Второму выходу передаётся его текущее состояние: 0 выключил бы его.
     Private Sub btnTestOUT_Click(sender As Object, e As EventArgs) Handles btnTestOUT2.Click, btnTestOUT1.Click
         If Not StatusIsFresh() OrElse Not HasConfigSnapshot() OrElse busyWithBoard Then Return
         Dim n As Integer = CInt(CType(sender, Control).Tag)
+        If Date.Now < ioTestUntil(n) Then Return
         Dim level As Boolean = If(n = 0, onBoard.out1.outMode, onBoard.out2.outMode) = 1
         Dim want As Boolean = Not (level AndAlso If(n = 0, status.out1, status.out2))
         Dim code As Integer
@@ -521,6 +520,9 @@ Public Class Form2
             Using f As New frmInfo("Выходы", "Контроллер не ответил на команду.")
                 f.ShowDialog()
             End Using
+        Else
+            ' Отказ платы раньше молча проглатывался — теперь под выходом написано почему.
+            ShowOutTestResult(n, code)
         End If
     End Sub
     Private Sub btnTranspMode_Click(sender As Object, e As EventArgs) Handles btnTranspMode.Click
