@@ -98,12 +98,9 @@ Public Module LinkDiag
         End If
         Dim rsrp = If(snapshot.Rsrp = 255, "нет данных",
             "−" & snapshot.Rsrp & " дБм (" & If(snapshot.Rsrp < 90, "хорошо", If(snapshot.Rsrp <= 100, "средне", "плохо")) & ")")
-        Dim rsrq = If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ")
-        ' Common V2.24: прошивка передаёт сырой SINR, формулу подтвердить AT-логом платы.
-        Dim db = snapshot.Sinr / 5.0 - 20
-        Dim sinr = If(snapshot.Sinr = 255, "нет данных",
-            db.ToString("0.#", CultureInfo.GetCultureInfo("ru-RU")) & " дБ (" & If(db > 10, "хорошо", If(db >= 0, "средне", "плохо")) & ")")
-        Return "RSRP " & rsrp & "," & vbCrLf & "RSRQ " & rsrq & "," & vbCrLf & "SINR " & sinr
+        Dim rsrq = If(snapshot.Rsrq = 255, "нет данных",
+            "−" & snapshot.Rsrq & " дБ (" & If(snapshot.Rsrq < 10, "хорошо", If(snapshot.Rsrq <= 15, "средне", "плохо")) & ")")
+        Return "RSRP " & rsrp & "," & vbCrLf & "RSRQ " & rsrq
     End Function
 
     Public Function StateText(state As Byte) As String

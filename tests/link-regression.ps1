@@ -57,13 +57,18 @@ foreach ($frame in @($online, $sim, $waiting, $ring)) {
 $v4 = V4 $online
 $s4 = [NextConfig.LinkDiag]::Parse($v4)
 Check ($s4.Version -eq 4 -and $s4.Rsrp -eq 105 -and $s4.Rsrq -eq 10 -and $s4.Sinr -eq 175) 'v4 appended metrics'
-Check ([NextConfig.LinkDiag]::SignalText($s4) -eq "RSRP −105 дБм (плохо),`r`nRSRQ −10 дБ,`r`nSINR 15 дБ (хорошо)") 'LTE units and raw SINR conversion'
-foreach ($case in @(@(89,151,'хорошо','хорошо'), @(90,150,'средне','средне'), @(100,100,'средне','средне'), @(101,99,'плохо','плохо'), @(105,0,'плохо','плохо'), @(85,250,'хорошо','хорошо'))) {
-    $text = [NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online $case[0] 10 $case[1])))
-    Check ($text -match ('RSRP .*\(' + $case[2] + '\)') -and $text -match ('SINR .*\(' + $case[3] + '\)')) "LTE thresholds $($case[0])/$($case[1])"
+Check ([NextConfig.LinkDiag]::SignalText($s4) -eq "RSRP −105 дБм (плохо),`r`nRSRQ −10 дБ (средне)") 'LTE units and quality without unconfirmed SINR'
+foreach ($case in @(@(89,9,'хорошо','хорошо'), @(90,10,'средне','средне'), @(100,15,'средне','средне'), @(101,16,'плохо','плохо'), @(93,9,'средне','хорошо'), @(100,10,'средне','средне'))) {
+    $text = [NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online $case[0] $case[1] 54)))
+    Check ($text -match ('RSRP .*\(' + $case[2] + '\)') -and $text -match ('RSRQ .*\(' + $case[3] + '\)')) "LTE thresholds $($case[0])/$($case[1])"
 }
-Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 255 255 255))) -eq "RSRP нет данных,`r`nRSRQ нет данных,`r`nSINR нет данных") 'LTE unknown does not fall back to CSQ'
-Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 90 255 101))) -match 'SINR 0,2 дБ') 'fractional SINR and independent unknown RSRQ'
+Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 255 255 255))) -eq "RSRP нет данных,`r`nRSRQ нет данных") 'LTE unknown does not fall back to CSQ'
+Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 90 255 101))) -eq "RSRP −90 дБм (средне),`r`nRSRQ нет данных") 'independent unknown RSRQ'
+Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 255 9 61))) -eq "RSRP нет данных,`r`nRSRQ −9 дБ (хорошо)") 'independent unknown RSRP'
+foreach ($raw in 0,54,61,250,255) {
+    $snapshot = [NextConfig.LinkDiag]::Parse((V4 $online 93 9 $raw))
+    Check ($snapshot.Sinr -eq $raw -and [NextConfig.LinkDiag]::SignalText($snapshot) -notmatch 'SINR') "raw SINR $raw preserved but hidden"
+}
 foreach ($offset in 91..95) { $b=$v4.Clone(); $b[$offset]=$b[$offset] -bxor 1; Reject $b "v4 corrupt tail $offset" }
 foreach ($version in 2,3,5) { $b=$v4.Clone(); $b[9]=$version; Reject (Seal $b) "v4 length with version $version" }
 $b=$online.Clone(); $b[9]=4; Reject (Seal $b) 'v3 length with v4 version'
@@ -141,7 +146,7 @@ try {
     Check ((Field 'linkState').Text.StartsWith('Связь установлена') -and (Field 'linkDot').ForeColor -eq [NextConfig.Theme]::Ok) 'online phrase and green dot'
     Check ((Field 'linkSignal').Value -eq 26) 'CSQ meter'
     Display $v4
-    Check ((Field 'linkValues')[1].Text -match 'RSRP −105' -and (Field 'linkValues')[1].Text -match 'SINR 15' -and (Field 'linkSignal').Value -eq 0) 'LTE screen does not use CSQ'
+    Check ((Field 'linkValues')[1].Text -match 'RSRP −105 дБм \(плохо\)' -and (Field 'linkValues')[1].Text -match 'RSRQ −10 дБ \(средне\)' -and (Field 'linkValues')[1].Text -notmatch 'SINR' -and -not (Field 'linkSignal').Visible -and (Field 'linkSignal').Value -eq 0) 'LTE screen hides SINR and CSQ meter'
     $gsm = V4 $online 255 255 255; $gsm[13]=1; $gsm=Seal $gsm
     Display $gsm
     Check ((Field 'linkValues')[1].Text -eq 'CSQ 26' -and (Field 'linkSignal').Value -eq 26) '2G retains CSQ'
