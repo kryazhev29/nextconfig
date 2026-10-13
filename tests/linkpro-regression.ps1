@@ -82,6 +82,10 @@ try {
 } finally { $image.Dispose(); $plot.Dispose() }
 $history.Clear()
 Check ($history.Points.Count -eq 0) 'history clear'
+$history.Observe(100,90); $history.Observe(130,95)
+Check ([NextConfig.LinkDrawing]::PlotWindow($history,130) -eq 60 -and [NextConfig.LinkDrawing]::PlotWindow($history,400) -eq 300 -and [NextConfig.LinkDrawing]::PlotWindow($history,1000) -eq 600) 'time axis follows collected history up to ten minutes'
+Check ([NextConfig.LinkDrawing]::AgoText(300) -eq '−5 мин' -and [NextConfig.LinkDrawing]::AgoText(60) -eq '−60 с') 'time axis caption'
+$history.Clear()
 $phases=New-Object NextConfig.ConnectionPhases
 try {
     $phases.Width=1000

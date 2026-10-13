@@ -72,10 +72,20 @@ Public Module LinkDrawing
         TextRenderer.DrawText(g, value, font, bounds, color, flags Or TextFormatFlags.VerticalCenter)
     End Sub
 
+    ' Пока истории меньше 10 минут, ось времени идёт от первой точки: линия видна сразу во всю ширину.
+    Public Function PlotWindow(history As LinkHistory, now As Double) As Double
+        If history Is Nothing OrElse history.Points.Count = 0 Then Return 600
+        Return Math.Max(60, Math.Min(600, now - history.Points(0).Seconds))
+    End Function
+
+    Public Function AgoText(seconds As Double) As String
+        Return If(seconds >= 120, "−" & Math.Round(seconds / 60).ToString("0") & " мин", "−" & Math.Round(seconds).ToString("0") & " с")
+    End Function
+
     Public Sub Plot(g As Graphics, bounds As Rectangle, history As LinkHistory, now As Double, zones As Boolean)
         If bounds.Width <= 0 OrElse bounds.Height <= 0 Then Return
         g.SmoothingMode = SmoothingMode.AntiAlias
-        Dim ymin = LinkDiag.RsrpMinimum, ymax = LinkDiag.RsrpMaximum
+        Dim ymin = LinkDiag.RsrpMinimum, ymax = LinkDiag.RsrpMaximum, window = PlotWindow(history, now)
         If zones Then
             Dim limits = New Integer() {ymin, LinkDiag.RsrpPoorThreshold, LinkDiag.RsrpGoodThreshold, ymax}
             For grade = 0 To 2
@@ -87,19 +97,26 @@ Public Module LinkDrawing
             Next
         End If
         Dim points As New List(Of PointF)
+        Dim x = Function(seconds As Double) CSng(bounds.Left + Math.Max(0, seconds - now + window) / window * bounds.Width)
         For Each sample In history.Points
-            If sample.Seconds < now - 600 Then Continue For
+            If sample.EndSeconds < now - window Then Continue For
             Dim y = CSng(bounds.Bottom - Math.Max(0, Math.Min(ymax - ymin, -CInt(sample.Rsrp) - ymin)) / CDbl(ymax - ymin) * bounds.Height)
-            points.Add(New PointF(CSng(bounds.Left + (sample.Seconds - now + 600) / 600 * bounds.Width), y))
-            If sample.EndSeconds > sample.Seconds Then points.Add(New PointF(CSng(bounds.Left + (sample.EndSeconds - now + 600) / 600 * bounds.Width), y))
+            points.Add(New PointF(x(sample.Seconds), y))
+            If sample.EndSeconds > sample.Seconds Then points.Add(New PointF(x(sample.EndSeconds), y))
         Next
         If points.Count = 0 Then Return
-        Dim latestX = CSng(bounds.Left + (history.LatestSeconds - now + 600) / 600 * bounds.Width)
+        Dim latestX = x(history.LatestSeconds)
         If latestX > points.Last().X Then points.Add(New PointF(latestX, points.Last().Y))
         Using pen As New Pen(Theme.Accent, Theme.Px(10) / 4.0F), brush As New SolidBrush(Theme.Accent)
             If points.Count > 1 Then g.DrawLines(pen, points.ToArray())
-            Dim last = points.Last(), radius = Theme.Px(3)
+            Dim last = points.Last(), radius = Theme.Px(If(zones, 4, 3))
             g.FillEllipse(brush, last.X - radius, last.Y - radius, radius * 2, radius * 2)
+            ' На большом графике у последней точки — текущий уровень, чтобы не сверять со шкалой.
+            If zones AndAlso history.Points.Count > 0 Then
+                Dim label = "−" & history.Points.Last().Rsrp & " дБм", w = Theme.Px(80)
+                DrawLabel(g, label, Theme.FontBodyBold, Theme.TextMain,
+                    New Rectangle(CInt(last.X) - w - Theme.Px(6), CInt(last.Y) - Theme.Px(26), w, Theme.Px(22)), ContentAlignment.MiddleRight)
+            End If
         End Using
     End Sub
 End Module
@@ -249,12 +266,12 @@ Public Class SignalPlot
         Dim g = e.Graphics, area As New Rectangle(Theme.Px(50), Theme.Px(32), Math.Max(1, Width - Theme.Px(65)), Height - Theme.Px(58))
         LinkDrawing.DrawLabel(g, If(Version >= 5, "точка раз в 2 с", "точка раз в 30 с"), Theme.FontCaption, Theme.TextMuted, New Rectangle(0, 0, Width, Theme.Px(25)), ContentAlignment.MiddleRight)
         LinkDrawing.Plot(g, area, History, Seconds, True)
-        If Collecting Then LinkDrawing.DrawLabel(g, "собираю данные…", Theme.FontCaption, Theme.TextMuted, area, ContentAlignment.MiddleCenter)
+        If History.Points.Count = 0 Then LinkDrawing.DrawLabel(g, "собираю данные…", Theme.FontCaption, Theme.TextMuted, area, ContentAlignment.MiddleCenter)
         For Each mark In New Integer() {LinkDiag.RsrpMaximum, LinkDiag.RsrpGoodThreshold, LinkDiag.RsrpPoorThreshold, LinkDiag.RsrpMinimum}
             Dim y = area.Bottom - CInt((mark - LinkDiag.RsrpMinimum) / CDbl(LinkDiag.RsrpMaximum - LinkDiag.RsrpMinimum) * area.Height)
             LinkDrawing.DrawLabel(g, "−" & Math.Abs(mark), Theme.FontCaption, Theme.TextMuted, New Rectangle(0, y - Theme.Px(10), Theme.Px(44), Theme.Px(20)))
         Next
-        LinkDrawing.DrawLabel(g, "−10 мин", Theme.FontCaption, Theme.TextMuted, New Rectangle(area.Left, area.Bottom, Theme.Px(70), Theme.Px(24)))
+        LinkDrawing.DrawLabel(g, LinkDrawing.AgoText(LinkDrawing.PlotWindow(History, Seconds)), Theme.FontCaption, Theme.TextMuted, New Rectangle(area.Left, area.Bottom, Theme.Px(70), Theme.Px(24)))
         LinkDrawing.DrawLabel(g, "сейчас", Theme.FontCaption, Theme.TextMuted, New Rectangle(area.Right - Theme.Px(70), area.Bottom, Theme.Px(70), Theme.Px(24)), ContentAlignment.MiddleRight)
     End Sub
 End Class

@@ -120,14 +120,16 @@ Public Module LinkDiag
     End Function
 
     Public Function SignalView(snapshot As LinkSnapshot, csq As Byte) As LinkSignalView
-        If snapshot IsNot Nothing AndAlso snapshot.Version >= 4 AndAlso snapshot.Network = 4 AndAlso snapshot.Rsrp <> 255 Then
+        ' Вид 4G выбирается по типу сети: пропущенный замер (255) даёт «нет данных», а не переключение экрана на CSQ.
+        If snapshot IsNot Nothing AndAlso snapshot.Version >= 4 AndAlso snapshot.Network = 4 Then
+            Dim known = snapshot.Rsrp <> 255
             Dim grade = RsrpGrade(snapshot.Rsrp)
-            If snapshot.Rsrq <> 255 Then grade = Math.Min(grade, RsrqGrade(snapshot.Rsrq))
+            If known AndAlso snapshot.Rsrq <> 255 Then grade = Math.Min(grade, RsrqGrade(snapshot.Rsrq))
             Return New LinkSignalView With {
                 .LevelText = MetricText(snapshot.Rsrp, RsrpGrade(snapshot.Rsrp), "дБм"),
                 .QualityText = MetricText(snapshot.Rsrq, RsrqGrade(snapshot.Rsrq), "дБ"),
-                .Maximum = RsrpMaximum - RsrpMinimum, .Value = Math.Max(0, Math.Min(RsrpMaximum - RsrpMinimum, -CInt(snapshot.Rsrp) - RsrpMinimum)),
-                .Grade = grade, .Bars = If(snapshot.Rsrp <= 80, 5, If(snapshot.Rsrp <= 90, 4, If(snapshot.Rsrp <= 100, 3, If(snapshot.Rsrp <= 110, 2, 1)))), .Lte = True}
+                .Maximum = RsrpMaximum - RsrpMinimum, .Value = If(known, Math.Max(0, Math.Min(RsrpMaximum - RsrpMinimum, -CInt(snapshot.Rsrp) - RsrpMinimum)), 0),
+                .Grade = grade, .Bars = If(Not known, 0, If(snapshot.Rsrp <= 80, 5, If(snapshot.Rsrp <= 90, 4, If(snapshot.Rsrp <= 100, 3, If(snapshot.Rsrp <= 110, 2, 1))))), .Lte = True}
         End If
         Return New LinkSignalView With {.LevelText = If(csq <= 31, csq & " из 31", "Не определён"),
             .QualityText = "", .Maximum = 31, .Value = If(csq <= 31, CInt(csq), 0),

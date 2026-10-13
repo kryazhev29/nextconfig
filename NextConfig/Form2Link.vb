@@ -48,7 +48,7 @@ Partial Public Class Form2
         linkBanner = New LinkBannerPanel(linkRefresh)
         linkGauges = Theme.LinkColumns(Theme.Card("", linkRsrp), Theme.Card("", linkRsrq))
         linkCsqRow = Theme.Card("Уровень сигнала", Theme.LinkSignal(linkSignal, linkCsq))
-        linkPlotCard = Theme.Card("Уровень за 10 минут", linkPlot)
+        linkPlotCard = Theme.Card("Уровень сигнала", linkPlot)
         linkGauges.Visible = False : linkPlotCard.Visible = False
         tabLink.Controls.Add(Theme.CardPage(linkBanner, linkGauges, linkCsqRow, linkPlotCard,
             Theme.LinkColumns(Theme.Card("", linkPhases), Theme.Card("Сота", linkCell)),
@@ -95,7 +95,8 @@ Partial Public Class Form2
         Catch ex As Exception
             If Not cancellation.IsCancellationRequested AndAlso Not IsDisposed Then
                 AgentLog.Failure("link", ex)
-                DisplayLink(Nothing)
+                ' Один сорвавшийся ответ не сбрасывает экран: прошлый снимок держится до 10 с.
+                If linkSnapshot Is Nothing OrElse linkAge.Elapsed.TotalSeconds >= 10 Then DisplayLink(Nothing)
             End If
         Finally
             linkLoading = False : linkCancellation = Nothing
@@ -159,8 +160,10 @@ Partial Public Class Form2
         deviceConnection.Height = Theme.Px(If(deviceConnection.Problem = "", 255, 299))
         deviceConnection.Cell = LinkDiag.CellText(linkSnapshot, CByte(status.netType))
         deviceConnection.NetworkLabel = If(status.netType = 0, "Сеть", "Сеть " & LinkDiag.NetworkText(CByte(status.netType)))
-        deviceConnection.Details = If(signal.Lte, "уровень −" & If(snapshot Is Nothing, 255, snapshot.Rsrp) & " дБм · качество " &
-            If(snapshot Is Nothing OrElse snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), "CSQ " & signal.LevelText)
+        ' Две строки: уровень и качество не переносятся посередине числа в узкой карточке.
+        deviceConnection.Details = If(signal.Lte,
+            "уровень " & If(snapshot.Rsrp = 255, "нет данных", "−" & snapshot.Rsrp & " дБм") & vbLf &
+            "качество " & If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), "CSQ " & signal.LevelText)
         deviceConnection.MemoryUsed = status.usedMem : deviceConnection.Seconds = linkClock.Elapsed.TotalSeconds
         deviceConnection.Invalidate()
     End Sub

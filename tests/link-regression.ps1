@@ -68,9 +68,14 @@ foreach ($case in @(@(89,9,'Хорошо','Хорошо'), @(90,10,'Средне
     Check ($view.LevelText -eq "$($case[2]) · −$($case[0]) дБм" -and $view.QualityText -eq "$($case[3]) · −$($case[1]) дБ") "LTE thresholds $($case[0])/$($case[1])"
 }
 $gsm = V4 $online 100 9; $gsm[13] = 1; $gsm = Seal $gsm
-foreach ($frame in @($gsm, $online, (V4 $online 255 255 255), (V4 $online 255 9 61), $null)) {
+foreach ($frame in @($gsm, $online, $null)) {
     $view = Signal $frame
-    Check ($view.LevelText -eq '20 из 31' -and $view.QualityText -eq '' -and $view.Maximum -eq 31 -and $view.Value -eq 20) '2G/v3/unknown RSRP/no 112 use status CSQ'
+    Check ($view.LevelText -eq '20 из 31' -and $view.QualityText -eq '' -and $view.Maximum -eq 31 -and $view.Value -eq 20) '2G/v3/no 112 use status CSQ'
+}
+# Плата №1, 13.10: пропуск одного замера в 4G не переключает экран на CSQ (было мигание).
+foreach ($frame in @((V4 $online 255 255 255), (V4 $online 255 9 61))) {
+    $view = Signal $frame
+    Check ($view.Lte -and $view.LevelText -eq 'Нет данных' -and $view.Bars -eq 0 -and $view.Value -eq 0 -and $view.Grade -eq -1) 'LTE with unknown RSRP keeps LTE view'
 }
 $view = Signal (V4 $online 90 255 101)
 Check ($view.LevelText -eq 'Средне · −90 дБм' -and $view.QualityText -eq 'Нет данных') 'independent unknown RSRQ'
@@ -240,10 +245,12 @@ try {
     Check (-not (Field 'linkTimer').Enabled) 'other tabs stop diagnostic poll'
     (Field 'tabs').SelectedTab = Field 'tabState'
     [Windows.Forms.Application]::DoEvents()
-    foreach ($frame in @($online, (V4 $online 255 9), $null)) {
+    foreach ($frame in @($online, $null)) {
         Display $frame
-        Check (-not $overview.Signal.Lte -and $overview.Signal.LevelText -eq '20 из 31' -and $overview.Signal.Maximum -eq 31) 'v3/unknown RSRP/timeout silently use status CSQ'
+        Check (-not $overview.Signal.Lte -and $overview.Signal.LevelText -eq '20 из 31' -and $overview.Signal.Maximum -eq 31) 'v3/timeout silently use status CSQ'
     }
+    Display (V4 $online 255 9)
+    Check ($overview.Signal.Lte -and $overview.Details -eq "уровень нет данных`nкачество −9 дБ") 'unknown RSRP keeps LTE card'
     Display $lte
     $status.netType = 1
     Status
