@@ -64,11 +64,11 @@ Partial Class frmPIN
         Theme.Caption(Me.Label2)
 
         Me.txtOldPIN.Name = "txtOldPIN"
-        Me.txtOldPIN.MaxLength = 4
+        Me.txtOldPIN.MaxLength = 5
         Me.txtNewPIN.Name = "txtNewPIN"
-        Me.txtNewPIN.MaxLength = 4
+        Me.txtNewPIN.MaxLength = 5
         Me.txtNewPIN2.Name = "txtNewPIN2"
-        Me.txtNewPIN2.MaxLength = 4
+        Me.txtNewPIN2.MaxLength = 5
 
         Me.boxOld.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRow)
         Me.boxNew.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRow)

@@ -184,5 +184,16 @@ try {
     Check ($purpose[0].Text -eq 'Открытие · уровень' -and (Field 'btnTestOUT1').Text -eq 'Выключить') 'level output toggles'
     $o2.unBlockUse = 1; $cfg.out2 = $o2; $form.GetType().GetField('onBoard', $flags).SetValue($form, $cfg); Status
     Check ($purpose[1].Text -eq 'Разблокировка') 'unlock relay named'
+
+    # ПИН (плата №1, 13.10): прошивка хранит число 4321, экран показывал мусор вместо цифр.
+    $ascii = [BitConverter]::ToUInt32([Text.Encoding]::ASCII.GetBytes('4321'), 0)
+    Check ([NextConfig.PinFormat]::Digits(4321) -eq '4321' -and [NextConfig.PinFormat]::Digits(123) -eq '0123' -and [NextConfig.PinFormat]::Digits(98765) -eq '98765') 'numeric PIN shown as digits'
+    Check ([NextConfig.PinFormat]::Digits($ascii) -eq '4321' -and [NextConfig.PinFormat]::Digits([uint32]4000000000) -eq '') 'ASCII PIN shown, junk hidden'
+    Check ([NextConfig.PinFormat]::ToStored('4321') -eq $ascii -and [NextConfig.PinFormat]::ToStored('12345') -eq 12345) '4 digits stored as before, 5 digits as number'
+    Check ([NextConfig.PinFormat]::Matches('0123', 123) -and [NextConfig.PinFormat]::Matches('4321', $ascii) -and -not [NextConfig.PinFormat]::Matches('4322', 4321)) 'PIN compare ignores storage form'
+    Check (-not [NextConfig.PinFormat]::IsValid('123') -and -not [NextConfig.PinFormat]::IsValid('123456') -and -not [NextConfig.PinFormat]::IsValid('12a4') -and [NextConfig.PinFormat]::IsValid('12345')) 'PIN is 4 or 5 digits'
+    $cfg.pin = 4321; $form.GetType().GetField('config', $flags).SetValue($form, $cfg)
+    $form.GetType().GetMethod('UpdateConfigFields', $flags).Invoke($form, @()) | Out-Null
+    Check ((Field 'lblPIN').Text -eq '4321') 'settings page shows numeric PIN from firmware'
 } finally { $form.Dispose() }
 Write-Output "PASS: $script:checks linkpro checks (offline, no COM)"

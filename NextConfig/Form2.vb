@@ -12,7 +12,7 @@ Public Class Form2
     Private config As clOpros.s_config
     Public ReadOnly Property ConfirmedPin As String
         Get
-            Return System.Text.Encoding.ASCII.GetString(BitConverter.GetBytes(pinCode))
+            Return PinFormat.Digits(CUInt(pinCode))
         End Get
     End Property
     Private pinCode As Integer
@@ -47,7 +47,7 @@ Public Class Form2
         opros = _opros
         lblPortInfo.Text = _info
         lblIMEI.Text = _imei
-        lblPIN.Text = System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(_pin))
+        lblPIN.Text = PinFormat.Digits(CUInt(_pin))
         pinCode = _pin
         photoCard = New PhotoPanel(opros, _imei)
         Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
@@ -568,7 +568,7 @@ Public Class Form2
     Private Sub btnChangePIN_Click(sender As Object, e As EventArgs) Handles btnChangePIN.Click
         Using f As New frmPIN(pinCode)
             If f.ShowDialog = DialogResult.OK Then
-                config.pin = f.nPin
+                config.pin = CUInt(f.nPin)
                 UpdateConfigFields()
             End If
         End Using
@@ -714,7 +714,8 @@ Public Class Form2
         updatingFields = True
 
         With config
-            lblPIN.Text = System.Text.Encoding.UTF8.GetString(BitConverter.GetBytes(.pin))
+            ' Прошивка хранит ПИН числом, а не четырьмя буквами — иначе на экране мусор.
+            lblPIN.Text = PinFormat.Digits(.pin)
             txtServer1.Text = .server1
             txtServer2.Text = .server2
             chServer1.Checked = .useServer1

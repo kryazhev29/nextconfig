@@ -508,7 +508,8 @@ Partial Public Class clOpros
     '    Return False
     'End Function
 
-    Public Function Autorize(ByVal pin As UInteger) As Boolean
+    ' ПИН уходит текстом, 4 или 5 цифр: так его разбирает прошивка (user_parse_pin).
+    Public Function Autorize(ByVal pin As String) As Boolean
         Dim rez As Boolean = False
 
         If Demo.IsOn Then Return True
@@ -524,7 +525,7 @@ Partial Public Class clOpros
 
                 Dim rec As Byte()
 
-                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_AUTORIZE, BitConverter.GetBytes(pin)), 500) Then
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_AUTORIZE, System.Text.Encoding.ASCII.GetBytes(pin)), 500) Then
                     If rec(cmdIdx) = eCmd.CMD_AUTORIZE Then
                         If rec(payloadIdx) <> 0 Then
                             rez = True

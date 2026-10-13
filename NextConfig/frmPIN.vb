@@ -24,18 +24,18 @@ Public Class frmPIN
 
         ' Длину проверяем до перевода в число: на коротком коде BitConverter
         ' читал за концом массива и ронял программу.
-        If txtOldPIN.Text.Length <> 4 Then
-            ShowError("Текущий ПИН-код состоит из четырёх цифр.", txtOldPIN)
+        If Not PinFormat.IsValid(txtOldPIN.Text) Then
+            ShowError("Текущий ПИН-код — 4 или 5 цифр.", txtOldPIN)
             Exit Sub
         End If
 
-        If PinOf(txtOldPIN.Text) <> pin Then
+        If Not PinFormat.Matches(txtOldPIN.Text, CUInt(pin)) Then
             ShowError("Текущий ПИН-код не совпадает.", txtOldPIN)
             Exit Sub
         End If
 
-        If txtNewPIN.Text.Length <> 4 Then
-            ShowError("Новый ПИН-код состоит из четырёх цифр.", txtNewPIN)
+        If Not PinFormat.IsValid(txtNewPIN.Text) Then
+            ShowError("Новый ПИН-код — 4 или 5 цифр.", txtNewPIN)
             Exit Sub
         End If
 
@@ -44,15 +44,10 @@ Public Class frmPIN
             Exit Sub
         End If
 
-        nPin = PinOf(txtNewPIN.Text)
+        nPin = CInt(PinFormat.ToStored(txtNewPIN.Text))
         DialogResult = DialogResult.OK
         Me.Close()
     End Sub
-
-    ' ПИН-код хранится как четыре знака одним числом.
-    Private Shared Function PinOf(ByVal text As String) As Integer
-        Return BitConverter.ToUInt32(System.Text.Encoding.UTF8.GetBytes(text), 0)
-    End Function
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
         DialogResult = DialogResult.Cancel

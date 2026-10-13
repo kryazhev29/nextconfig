@@ -135,8 +135,8 @@ Public Class Form1
         ElseIf dev.Kind = clOpros.eDeviceKind.NextFw Then
             If txtIMEI.Text.Trim() = "" Then
                 reason = "Не заполнен серийный номер."
-            ElseIf txtPIN.Text.Length <> 4 Then
-                reason = "ПИН-код состоит из четырёх цифр."
+            ElseIf Not PinFormat.IsValid(txtPIN.Text) Then
+                reason = "ПИН-код — 4 или 5 цифр."
             End If
         End If
 
@@ -231,10 +231,9 @@ Public Class Form1
     End Sub
 
     Private Sub ConnectNext(dev As clOpros.FoundDevice)
-        Dim bt() As Byte = System.Text.Encoding.UTF8.GetBytes(txtPIN.Text)
-        Dim pin As Integer = BitConverter.ToUInt32(bt, 0)
+        Dim pin As Integer = CInt(PinFormat.ToStored(txtPIN.Text))
 
-        If Not opros.Autorize(pin) Then
+        If Not opros.Autorize(txtPIN.Text) Then
             opros.Release()
             SetStatus(Theme.eDot.Bad, "ПИН-код не принят")
             UpdateConnectState()

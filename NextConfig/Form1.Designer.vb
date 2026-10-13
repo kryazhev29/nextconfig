@@ -121,7 +121,7 @@ Partial Class Form1
         Me.boxPIN.Name = "boxPIN"
         Me.boxPIN.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
         Me.txtPIN.Name = "txtPIN"
-        Me.txtPIN.MaxLength = 4
+        Me.txtPIN.MaxLength = 5
         '
         'lnkDefault
         '

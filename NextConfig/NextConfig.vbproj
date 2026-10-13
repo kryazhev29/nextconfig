@@ -117,6 +117,7 @@
     <Compile Include="Form2Sections.vb" />
     <Compile Include="Form2Link.vb" />
     <Compile Include="Form2IO.vb" />
+    <Compile Include="PinFormat.vb" />
     <Compile Include="LinkDiag.vb" />
     <Compile Include="LinkGraphics.vb" />
     <Compile Include="ConfigSnapshot.vb" />
