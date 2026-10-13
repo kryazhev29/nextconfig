@@ -102,8 +102,9 @@ Partial Public Class Form2
             Theme.SetText(linkState, LinkDiag.StateText(snapshot.State))
             Theme.LinkDot(linkDot, snapshot.State)
             Theme.SetText(linkValues(0), If(snapshot.Channel = 0, "GSM", "WiFi"))
-            Theme.SetText(linkValues(1), If(snapshot.Csq = 99, "нет данных", "CSQ " & snapshot.Csq))
-            linkSignal.Value = If(snapshot.Csq = 99, 0, CInt(snapshot.Csq))
+            Theme.SetText(linkValues(1), LinkDiag.SignalText(snapshot))
+            linkSignal.Visible = snapshot.Version <> 4 OrElse snapshot.Network <> 4
+            linkSignal.Value = If(snapshot.Csq = 99 OrElse (snapshot.Version = 4 AndAlso snapshot.Network = 4), 0, CInt(snapshot.Csq))
             Theme.SetText(linkValues(2), LinkDiag.NetworkText(snapshot.Network))
             Theme.SetText(linkValues(3), LinkDiag.OperatorText(snapshot.Plmn))
             Theme.SetText(linkValues(4), LinkDiag.ProbeText(snapshot.Probe))

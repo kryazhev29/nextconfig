@@ -17,15 +17,23 @@ function Bytes($hex) {
 }
 function Seal([byte[]]$frame) {
     $crc = 65535
-    foreach ($b in $frame[4..90]) {
+    foreach ($b in $frame[4..($frame.Length - 3)]) {
         $crc = $crc -bxor $b
         for ($i = 0; $i -lt 8; $i++) {
             if ($crc -band 1) { $crc = ($crc -shr 1) -bxor 40961 } else { $crc = $crc -shr 1 }
         }
     }
-    $frame[91] = $crc -band 255
-    $frame[92] = $crc -shr 8
+    $frame[$frame.Length - 2] = $crc -band 255
+    $frame[$frame.Length - 1] = $crc -shr 8
     return ,$frame
+}
+
+function V4([byte[]]$frame, [byte]$rsrp = 105, [byte]$rsrq = 10, [byte]$sinr = 175) {
+    $result = New-Object byte[] 96
+    [Array]::Copy($frame, $result, 91)
+    $result[4] = 88; $result[9] = 4
+    $result[91] = $rsrp; $result[92] = $rsrq; $result[93] = $sinr
+    return ,(Seal $result)
 }
 
 # Независимые побайтовые образцы протокола v3, CRC зафиксированы в кадрах.
@@ -46,6 +54,21 @@ foreach ($frame in @($online, $sim, $waiting, $ring)) {
     Check ([Convert]::ToBase64String($received[0]) -eq [Convert]::ToBase64String($frame)) 'all 93 bytes preserved'
     Check ([NextConfig.LinkDiag]::Parse($received[0]).State -eq $frame[10]) 'fragmented response parsed'
 }
+$v4 = V4 $online
+$s4 = [NextConfig.LinkDiag]::Parse($v4)
+Check ($s4.Version -eq 4 -and $s4.Rsrp -eq 105 -and $s4.Rsrq -eq 10 -and $s4.Sinr -eq 175) 'v4 appended metrics'
+Check ([NextConfig.LinkDiag]::SignalText($s4) -eq "RSRP −105 дБм (плохо),`r`nRSRQ −10 дБ,`r`nSINR 15 дБ (хорошо)") 'LTE units and raw SINR conversion'
+foreach ($case in @(@(89,151,'хорошо','хорошо'), @(90,150,'средне','средне'), @(100,100,'средне','средне'), @(101,99,'плохо','плохо'), @(105,0,'плохо','плохо'), @(85,250,'хорошо','хорошо'))) {
+    $text = [NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online $case[0] 10 $case[1])))
+    Check ($text -match ('RSRP .*\(' + $case[2] + '\)') -and $text -match ('SINR .*\(' + $case[3] + '\)')) "LTE thresholds $($case[0])/$($case[1])"
+}
+Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 255 255 255))) -eq "RSRP нет данных,`r`nRSRQ нет данных,`r`nSINR нет данных") 'LTE unknown does not fall back to CSQ'
+Check ([NextConfig.LinkDiag]::SignalText([NextConfig.LinkDiag]::Parse((V4 $online 90 255 101))) -match 'SINR 0,2 дБ') 'fractional SINR and independent unknown RSRQ'
+foreach ($offset in 91..95) { $b=$v4.Clone(); $b[$offset]=$b[$offset] -bxor 1; Reject $b "v4 corrupt tail $offset" }
+foreach ($version in 2,3,5) { $b=$v4.Clone(); $b[9]=$version; Reject (Seal $b) "v4 length with version $version" }
+$b=$online.Clone(); $b[9]=4; Reject (Seal $b) 'v3 length with v4 version'
+Reject ([byte[]]$v4[0..94]) 'truncated v4'
+Reject (V4 $online 105 10 251) 'invalid raw SINR'
 $s = [NextConfig.LinkDiag]::Parse($online)
 Check ($s.State -eq 7 -and $s.Channel -eq 0 -and $s.Csq -eq 26 -and $s.Network -eq 4 -and $s.Probe -eq 1) 'online fields'
 Check ($s.Plmn -eq '25001' -and $s.Failures.Count -eq 0 -and $s.RetryMilliseconds -eq 0) 'online operator and empty history'
@@ -117,6 +140,13 @@ try {
     Display $online
     Check ((Field 'linkState').Text.StartsWith('Связь установлена') -and (Field 'linkDot').ForeColor -eq [NextConfig.Theme]::Ok) 'online phrase and green dot'
     Check ((Field 'linkSignal').Value -eq 26) 'CSQ meter'
+    Display $v4
+    Check ((Field 'linkValues')[1].Text -match 'RSRP −105' -and (Field 'linkValues')[1].Text -match 'SINR 15' -and (Field 'linkSignal').Value -eq 0) 'LTE screen does not use CSQ'
+    $gsm = V4 $online 255 255 255; $gsm[13]=1; $gsm=Seal $gsm
+    Display $gsm
+    Check ((Field 'linkValues')[1].Text -eq 'CSQ 26' -and (Field 'linkSignal').Value -eq 26) '2G retains CSQ'
+    Display $online
+    Check ((Field 'linkValues')[1].Text -eq 'CSQ 26') 'v3 LTE retains CSQ'
     Display $sim
     Check ((Field 'linkValues')[1].Text -eq 'нет данных' -and (Field 'linkSignal').Value -eq 0) 'unknown signal never fills meter'
     Check ((Field 'linkDot').ForeColor -eq [NextConfig.Theme]::Danger) 'error red dot'

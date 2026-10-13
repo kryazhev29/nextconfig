@@ -8,6 +8,10 @@ Public Structure LinkFailure
 End Structure
 
 Public Class LinkSnapshot
+    Public Version As Byte
+    Public Rsrp As Byte = 255
+    Public Rsrq As Byte = 255
+    Public Sinr As Byte = 255
     Public State As Byte
     Public Channel As Byte
     Public Csq As Byte
@@ -47,11 +51,11 @@ Public Module LinkDiag
     }
 
     Public Function Parse(frame As Byte()) As LinkSnapshot
-        If frame Is Nothing OrElse frame.Length <> 93 Then Throw New ArgumentException("Длина ответа 112")
+        If frame Is Nothing OrElse (frame.Length <> 93 AndAlso frame.Length <> 96) Then Throw New ArgumentException("Длина ответа 112")
         If Encoding.ASCII.GetString(frame, 0, 4) <> "SLDN" OrElse
-            BitConverter.ToUInt16(frame, 4) <> 85 OrElse frame(6) <> 0 OrElse
-            frame(8) <> Command OrElse frame(9) <> 3 Then Throw New ArgumentException("Формат ответа 112")
-        If ClComPort.Crc16(frame, 4, 87) <> BitConverter.ToUInt16(frame, 91) Then Throw New ArgumentException("CRC ответа 112")
+            BitConverter.ToUInt16(frame, 4) <> frame.Length - 8 OrElse frame(6) <> 0 OrElse
+            frame(8) <> Command OrElse Not ((frame(9) = 3 AndAlso frame.Length = 93) OrElse (frame(9) = 4 AndAlso frame.Length = 96)) Then Throw New ArgumentException("Формат ответа 112")
+        If ClComPort.Crc16(frame, 4, frame.Length - 6) <> BitConverter.ToUInt16(frame, frame.Length - 2) Then Throw New ArgumentException("CRC ответа 112")
         If frame(10) > 7 OrElse frame(11) > 1 OrElse
             (frame(12) > 31 AndAlso frame(12) <> 99) OrElse
             Not New Byte() {0, 1, 3, 4}.Contains(frame(13)) OrElse frame(14) > 3 OrElse frame(50) > 10 Then
@@ -67,9 +71,13 @@ Public Module LinkDiag
             End If
         Next
         Dim snapshot As New LinkSnapshot With {
-            .State = frame(10), .Channel = frame(11), .Csq = frame(12), .Network = frame(13),
+            .Version = frame(9), .State = frame(10), .Channel = frame(11), .Csq = frame(12), .Network = frame(13),
             .Probe = frame(14), .Plmn = Encoding.ASCII.GetString(frame, 15, plmnLength),
             .RetryMilliseconds = BitConverter.ToUInt32(frame, 22), .StageMilliseconds = New UInteger(5) {}}
+        If snapshot.Version = 4 Then
+            If frame(93) > 250 AndAlso frame(93) <> 255 Then Throw New ArgumentException("SINR ответа 112")
+            snapshot.Rsrp = frame(91) : snapshot.Rsrq = frame(92) : snapshot.Sinr = frame(93)
+        End If
         For i = 0 To 5
             snapshot.StageMilliseconds(i) = BitConverter.ToUInt32(frame, 26 + i * 4)
         Next
@@ -82,6 +90,20 @@ Public Module LinkDiag
             snapshot.Failures.Add(failure)
         Next
         Return snapshot
+    End Function
+
+    Public Function SignalText(snapshot As LinkSnapshot) As String
+        If snapshot.Version <> 4 OrElse snapshot.Network <> 4 Then
+            Return If(snapshot.Csq = 99, "нет данных", "CSQ " & snapshot.Csq)
+        End If
+        Dim rsrp = If(snapshot.Rsrp = 255, "нет данных",
+            "−" & snapshot.Rsrp & " дБм (" & If(snapshot.Rsrp < 90, "хорошо", If(snapshot.Rsrp <= 100, "средне", "плохо")) & ")")
+        Dim rsrq = If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ")
+        ' Common V2.24: прошивка передаёт сырой SINR, формулу подтвердить AT-логом платы.
+        Dim db = snapshot.Sinr / 5.0 - 20
+        Dim sinr = If(snapshot.Sinr = 255, "нет данных",
+            db.ToString("0.#", CultureInfo.GetCultureInfo("ru-RU")) & " дБ (" & If(db > 10, "хорошо", If(db >= 0, "средне", "плохо")) & ")")
+        Return "RSRP " & rsrp & "," & vbCrLf & "RSRQ " & rsrq & "," & vbCrLf & "SINR " & sinr
     End Function
 
     Public Function StateText(state As Byte) As String
