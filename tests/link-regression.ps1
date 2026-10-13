@@ -251,6 +251,8 @@ try {
     }
     Display (V4 $online 255 9)
     Check ($overview.Signal.Lte -and $overview.Details -eq "уровень нет данных`nкачество −9 дБ") 'unknown RSRP keeps LTE card'
+    Display (V4 $online 100 9); Display (V4 $online 255 255)
+    Check ($overview.Details -eq "уровень −100 дБм`nкачество −9 дБ") 'single missed LTE sample holds last values'
     Display $lte
     $status.netType = 1
     Status

@@ -105,7 +105,22 @@ Partial Public Class Form2
         End Try
     End Sub
 
+    ' Модем изредка отвечает на QENG ошибкой (плата №1: 2 из 40 опросов) — последний замер держится до 10 с.
+    Private lastLte As LinkSnapshot
+    Private ReadOnly lastLteAge As New Diagnostics.Stopwatch
+
+    Private Sub HoldLastLte(snapshot As LinkSnapshot)
+        If snapshot Is Nothing OrElse snapshot.Version < 4 OrElse snapshot.Network <> 4 Then lastLte = Nothing : Return
+        If snapshot.Rsrp <> 255 Then
+            lastLte = snapshot : lastLteAge.Restart()
+        ElseIf lastLte IsNot Nothing AndAlso lastLteAge.Elapsed.TotalSeconds < 10 Then
+            snapshot.Rsrp = lastLte.Rsrp : snapshot.Rsrq = lastLte.Rsrq
+            snapshot.Band = lastLte.Band : snapshot.Bandwidth = lastLte.Bandwidth
+        End If
+    End Sub
+
     Private Sub DisplayLink(snapshot As LinkSnapshot)
+        HoldLastLte(snapshot)
         Dim historyChanged = snapshot Is Nothing OrElse linkSnapshot Is Nothing OrElse Not snapshot.Failures.SequenceEqual(linkSnapshot.Failures)
         linkSnapshot = snapshot : linkAge.Restart()
         If historyChanged Then linkFailures.Rows.Clear()

@@ -128,11 +128,14 @@ Public Class SignalGauge
 
     Public Sub New()
         SetStyle(ControlStyles.AllPaintingInWmPaint Or ControlStyles.UserPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
-        Height = Theme.Px(140) : Dock = DockStyle.Top : BackColor = Theme.Surface
+        Height = Theme.Px(168) : Dock = DockStyle.Top : BackColor = Theme.Surface
     End Sub
 
     Protected Overrides Sub OnPaint(e As PaintEventArgs)
         Dim g = e.Graphics, pad = Theme.Px(6), barY = Theme.Px(93), barHeight = Theme.Px(10)
+        ' Монтажнику — что значит шкала, без терминов.
+        LinkDrawing.DrawLabel(g, If(Quality, "Насколько чистый сигнал: мешают соседние вышки и загрузка", "Насколько сильно слышна вышка"),
+            Theme.FontCaption, Theme.TextMuted, New Rectangle(pad, barY + Theme.Px(44), Width - 2 * pad, Theme.Px(24)))
         Dim minimum = If(Quality, LinkDiag.RsrqMinimum, LinkDiag.RsrpMinimum), maximum = If(Quality, LinkDiag.RsrqMaximum, LinkDiag.RsrpMaximum)
         Dim grade = If(Quality, LinkDiag.RsrqGrade(Raw), LinkDiag.RsrpGrade(Raw))
         LinkDrawing.DrawLabel(g, If(Quality, "Качество (RSRQ)", "Уровень (RSRP)"), Theme.FontBody, Theme.TextMuted, New Rectangle(pad, 0, Width - 2 * pad, Theme.Px(24)))
