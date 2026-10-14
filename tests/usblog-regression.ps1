@@ -52,7 +52,7 @@ foreach($s in $samples) {
 $event=New-Object byte[] 32
 $event[0]=7; $event[8]=38; $event[9]=49; $event[10]=50
 Check ($format.Format((Frame 32 $event))[0].Contains('Низкий уровень сигнала')) 'event name'
-Check ($format.Format((Frame 32 $event))[0].Contains('(запись № 7), ID 12')) 'event fields'
+Check ($format.Format((Frame 32 $event))[0].Contains('Низкий уровень сигнала, ID 12')) 'event fields'
 Check (-not $format.Format((Frame 32 $event))[0].Contains('значение')) 'empty event value hidden'
 Check ($format.Format((Frame 4 ([byte[]](1,0,0))))[0].Contains('← ERROR')) 'plain ERROR'
 $lost=$format.Format((Frame 1 ([byte[]](65)) 37))

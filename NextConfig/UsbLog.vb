@@ -135,7 +135,7 @@ Public Class UsbLog
                 ' До синхронизации часов плата пишет время от старта, его не показываем.
                 Dim written = BitConverter.ToUInt32(frame, 20)
                 Dim arg2 = BitConverter.ToUInt32(frame, 35)
-                text = "Событие: " & name & " (запись № " & BitConverter.ToUInt32(frame, 16).ToString(Ru) & ")"
+                text = "Событие: " & name
                 If written >= 1600000000UI Then text &= ", " & New DateTime(1970, 1, 1).AddSeconds(written).ToString("dd.MM.yyyy HH:mm:ss", Ru)
                 If id <> "" Then text &= ", ID " & id
                 If arg2 <> 0 Then text &= ", значение " & arg2.ToString(Ru)
