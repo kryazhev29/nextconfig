@@ -65,6 +65,7 @@ Partial Public Class clOpros
     Private _isPause As Boolean = False
     Private _isSending As Boolean = False
     Private _stopGetStatus As Boolean = False
+    Public Property LogBits As Byte
 
     Public Enum eCommandType
         Bin

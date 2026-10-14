@@ -401,19 +401,35 @@ Partial Public Class clOpros
 
     ' Строки журнала, похожие на настоящие: обычное событие, переписка с
     ' модемом, предупреждение и ошибка - чтобы было видно разметку цветом.
-    Private ReadOnly demoLog As String() = {
-        "USER: status sent, conn=1",
-        "AT+CSQ",
-        "+CSQ: 24,99",
-        "GSM: registered in network",
-        "AT+QIOPEN=1,0,""TCP"",""87.244.4.92"",15010,0,1",
-        "USER: server answer 24",
-        "GSM: WARN low signal level",
-        "USER: ERROR not answer to status"
-    }
-
     Private Function DemoLogLine() As String
-        Return demoLog((demoTick \ 4) Mod demoLog.Length) & vbCrLf
+        Dim body As Byte()
+        Dim kind As Byte
+        Select Case (demoTick \ 4) Mod 9
+            Case 0
+                kind = 1 : body = Text.Encoding.ASCII.GetBytes("AT+CEREG?")
+            Case 1
+                kind = 2 : body = Text.Encoding.ASCII.GetBytes("+CEREG: 0,1")
+            Case 2
+                kind = 3 : body = Text.Encoding.ASCII.GetBytes("RING")
+            Case 3
+                kind = 4 : body = New Byte() {0, 0, 0}
+            Case 4
+                kind = 5 : body = New Byte() {1, 128, 0}
+            Case 5
+                kind = 16 : body = New Byte() {4, 0, 156, 24, 0, 0, 3}
+            Case 6
+                kind = 17 : body = New Byte() {0, 0, 0, 0, 0}
+            Case 7
+                kind = 18 : body = New Byte() {1, 96, 234, 0, 0}
+            Case Else
+                kind = 32 : body = New Byte(31) {}
+                body(0) = 7 : body(8) = 38 : body(9) = 49 : body(10) = 50
+        End Select
+        Dim payload = New Byte(6) {}
+        payload(0) = kind
+        BitConverter.GetBytes(CUInt(demoTick * 500)).CopyTo(payload, 1)
+        If kind = 32 Then payload(5) = 37
+        Return String.Join(vbCrLf, New UsbLog().Format(SldnStream.Frame(109, payload.Concat(body).ToArray()))) & vbCrLf
     End Function
 
     ' Обновление прошивки в демонстрационном режиме: блоки уходят «в никуда»,

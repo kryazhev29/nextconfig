@@ -677,6 +677,10 @@ Partial Public Class clOpros
     End Function
 
     Public Function EnableLog(ByVal _o1 As Byte) As Boolean
+        If Demo.IsOn Then
+            LogBits = CByte(_o1 And 7)
+            Return True
+        End If
         Dim rez As Boolean = False
 
         SyncLock Me
@@ -700,6 +704,7 @@ Partial Public Class clOpros
             End Try
         End SyncLock
 
+        LogBits = If(rez, CByte(_o1 And 7), CByte(0))
         Return rez
     End Function
 

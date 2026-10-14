@@ -31,7 +31,9 @@ Public Class ClComPort
     Private ReadOnly log As New ClLog
     Private WithEvents _port As SerialPort
     Public EnableEventReceived As Boolean = False
-    Private sCommand As String = vbNullString
+    Private ReadOnly rxGate As New Object
+    Private ReadOnly receiver As New SldnStream()
+    Private ReadOnly journal As New UsbLog()
 
     Public Sub New(ByVal _SerialPort As SerialPort, ByVal enable_log As Boolean)
 
@@ -478,6 +480,7 @@ Public Class ClComPort
 
         If _port IsNot Nothing AndAlso _port.IsOpen Then
 
+            SyncLock rxGate
             EnableEventReceived = False
 
             'формируем команду
@@ -505,29 +508,23 @@ Public Class ClComPort
             Dim previousWriteTimeout = _port.WriteTimeout
             Try
                 _port.WriteTimeout = Math.Max(1, timeout)
-                _port.DiscardInBuffer()
-                _port.DiscardOutBuffer()
+                ReadReceived(Nothing)
                 _port.Write(bytes, 0, bytes.Length)
 
                 Do While _port.BytesToWrite > 0
                     If deadline.ElapsedMilliseconds >= timeout Then Return False
                     If withSleep Then Thread.Sleep(1)
                 Loop
-                Dim decoder As New SldnStream()
 
                 Do While deadline.ElapsedMilliseconds < timeout
                     readedBytes = _port.BytesToRead
                     If readedBytes > 0 Then
-                        Dim bBuf(readedBytes - 1) As Byte
-
-                        Dim got = _port.Read(bBuf, 0, readedBytes)
-
-                        For Each frame In decoder.Feed(bBuf.Take(got).ToArray())
-                            If Not SldnStream.MatchesReply(command, frame) Then Continue For
+                        Dim frame = ReadReceived(command)
+                        If frame IsNot Nothing Then
                             data_rec = frame
                             If frame(8) = 11 AndAlso frame(10) = 4 Then RaiseEvent PinRequired()
                             Return True
-                        Next
+                        End If
                     End If
 
                     If withSleep Then Thread.Sleep(1)
@@ -539,6 +536,7 @@ Public Class ClComPort
                 _port.WriteTimeout = previousWriteTimeout
                 EnableEventReceived = True
             End Try
+            End SyncLock
 
             EnableEventReceived = True
         Else
@@ -550,105 +548,46 @@ Public Class ClComPort
         Return False
     End Function
 
-    Private Sub Port_DataReceived(ByVal sender As Object, ByVal e As System.IO.Ports.SerialDataReceivedEventArgs) Handles _port.DataReceived
-        If EnableEventReceived = False Then Exit Sub
-
-        Dim iPnt As Int32, Buffer() As Byte = {0, 13, 16}
-        Dim oEnc As System.Text.Encoding = System.Text.Encoding.GetEncoding("ASCII") '1252)
-        '-------------------------------------------------------------
-        If e.EventType = IO.Ports.SerialData.Chars Then
-
-            Try
-                If CType(sender, IO.Ports.SerialPort).BytesToRead > 0 Then
-                    ReDim Buffer(CType(sender, IO.Ports.SerialPort).BytesToRead - 1)
-                    CType(sender, IO.Ports.SerialPort).Read(Buffer, 0, CType(sender, IO.Ports.SerialPort).BytesToRead)
-                End If
-            Catch
-            End Try
-
-            Debug.WriteLine(Buffer.ToString)
-
-            'проверим на наличие команды
-            CheckReceivedBytes(Buffer)
-
-            Dim ch As Char
-
-            For iPnt = 0 To Buffer.Length - 1
-                ch = oEnc.GetString(Buffer, iPnt, 1)
-
-                If ch = vbCr Then
-                    If sCommand.Trim() <> "" Then AgentLog.Write("boardtext", "port", _port.PortName, "line", sCommand.Trim())
-                    RaiseEvent ReceiveComand(sCommand)
-                    sCommand = vbNullString
-                Else
-                    sCommand &= ch
-                End If
-
-                RaiseEvent ReceiveChar(ch)
-            Next
-
-        End If
-
-    End Sub
-
-    Public Sub CheckReceivedBytes(ByVal buffer As Byte())
-        Dim al As New List(Of Byte)
-        Dim len As Integer
-        Dim data_rec As Byte()
-
-        al.Clear()
-
-        For Each bt In buffer
-
-            Select Case al.Count
-                Case 0 'find prefix SLDN
-                    If bt = 83 Then
-                        al.Add(bt)
-                    End If
-                Case 1
-                    If bt = 76 Then
-                        al.Add(bt)
-                    End If
-                Case 2
-                    If bt = 68 Then
-                        al.Add(bt)
-                    End If
-                Case 3
-                    If bt = 78 Then
-                        al.Add(bt)
-                    End If
-                Case 4
-                    len = bt
-                    al.Add(bt)
-                Case 5
-                    len += CType(bt, UShort) << 8
-                    al.Add(bt)
-                Case Else
-                    al.Add(bt)
-            End Select
-
-            If al.Count > 6 Then
-                If al.Count = len + 8 Then
-                    data_rec = al.ToArray
-
-                    Dim crc_rec As Integer = data_rec(data_rec.GetUpperBound(0))
-
-                    crc_rec <<= 8
-                    crc_rec += data_rec(data_rec.GetUpperBound(0) - 1)
-
-                    Dim t_data_rec(data_rec.Length - 7) As Byte
-
-                    Array.Copy(data_rec, 4, t_data_rec, 0, t_data_rec.Length)
-
-                    Dim crc_16 As Integer = Crc16(t_data_rec)
-
-                    If crc_16 = crc_rec Then
-                        RaiseEvent ReceiveBytes(data_rec)
-                    End If
-                End If
+    ' Один декодер обслуживает простой и обмен командой. Весь кусок разбирается до конца.
+    Friend Function ProcessReceived(buffer As Byte(), request As Byte()) As Byte()
+        Dim answer As Byte() = Nothing
+        For Each frame In receiver.Feed(buffer)
+            If frame(8) = 109 Then
+                For Each line In journal.Format(frame)
+                    AgentLog.Write("boardtext", "port", If(_port Is Nothing, "", _port.PortName), "line", line)
+                    RaiseEvent ReceiveComand(line & vbCrLf)
+                Next
+            ElseIf request IsNot Nothing AndAlso SldnStream.MatchesReply(request, frame) Then
+                If answer Is Nothing Then answer = frame
+            Else
+                RaiseEvent ReceiveBytes(frame)
             End If
         Next
+        Return answer
+    End Function
 
+    Private Function ReadReceived(request As Byte()) As Byte()
+        Dim count = _port.BytesToRead
+        If count = 0 Then Return Nothing
+        Dim buffer(count - 1) As Byte
+        Dim got = _port.Read(buffer, 0, count)
+        Return ProcessReceived(buffer.Take(got).ToArray(), request)
+    End Function
+
+    Private Sub Port_DataReceived(sender As Object, e As SerialDataReceivedEventArgs) Handles _port.DataReceived
+        SyncLock rxGate
+            If Not EnableEventReceived OrElse e.EventType <> SerialData.Chars Then Return
+            Try
+                ReadReceived(Nothing)
+            Catch
+            End Try
+        End SyncLock
+    End Sub
+
+    Public Sub CheckReceivedBytes(buffer As Byte())
+        SyncLock rxGate
+            ProcessReceived(buffer, Nothing)
+        End SyncLock
     End Sub
 
 #Region " IDisposable Support "

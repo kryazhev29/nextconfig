@@ -16,7 +16,7 @@ Public Class Form2
         End Get
     End Property
     Private pinCode As Integer
-    Private logBits As Byte = 0
+    Private updatingLog As Boolean
 
     ' пока настройки раскладываются по полям, их события не считаем правкой
     Private updatingFields As Boolean = False
@@ -80,6 +80,7 @@ Public Class Form2
         AddHandler opros.GetComPort.ReceiveComand, AddressOf OnRecStr
         opros.StopGetStatus(False)
 
+        RestoreLogSelection()
         ReadConfig(True)
         If names485.Notice <> "" Then RichTextBox1.AppendText(names485.Notice & vbCrLf)
         AddHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
@@ -95,9 +96,9 @@ Public Class Form2
         RemoveHandler opros.onStatus, AddressOf opros_onStatus
         RemoveHandler opros.onLost, AddressOf OnErrorPort
 
-        CheckBox1.Checked = False
-        CheckBox2.Checked = False
-        CheckBox3.Checked = False
+        RemoveHandler opros.GetComPort.ReceiveComand, AddressOf OnRecStr
+        RemoveHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
+        RemoveHandler opros.GetComPort.PinRequired, AddressOf OnPinRequired
     End Sub
 
     ' На маленьком экране или при крупном масштабе Windows окно нужного размера
@@ -992,11 +993,12 @@ Public Class Form2
         Dim t As String = line.Trim()
         Dim l As String = t.ToUpperInvariant()
 
-        If l.Contains("ERROR") OrElse l.Contains("FAIL") OrElse l.Contains("ОШИБ") Then Return Theme.Danger
+        If l.Contains("ERROR") OrElse l.Contains("FAIL") OrElse l.Contains("ОШИБ") OrElse l.Contains("СБОЙ") OrElse l.Contains("НЕ ОТВЕТ") OrElse l.Contains("ПОТЕРЯ") OrElse l.Contains("ОТКАЗ") Then Return Theme.Danger
         If l.Contains("WARN") OrElse l.Contains("ПРЕДУПРЕ") Then Return Theme.Warning
 
         ' переписка с модемом - подробность, а не событие: команды, ответы,
         ' незапрошенные сообщения модуля и разделители
+        If t.Contains("→") OrElse t.Contains("←") Then Return Theme.TextMuted
         If t.StartsWith("+") OrElse t.StartsWith(">") OrElse t.StartsWith("<") OrElse
            t.StartsWith("AT") OrElse t.StartsWith("-----") OrElse l = "OK" Then Return Theme.TextMuted
 
@@ -1068,43 +1070,24 @@ Public Class Form2
 
 
 
-    Private Sub CheckBox1_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox1.CheckedChanged
-        If CheckBox1.Checked Then
-            logBits = logBits Or 1
-        Else
-            logBits = logBits And 254
-        End If
-        If Not opros.EnableLog(logBits) Then
-            If CheckBox1.Checked Then
-                CheckBox1.Checked = False
-            End If
-        End If
+    ' После ПИН/переподключения плата снова получает текущий выбор.
+    Private Sub RestoreLogSelection()
+        ShowLogSelection(opros.LogBits)
+        If Not opros.EnableLog(opros.LogBits) Then ShowLogSelection(0)
     End Sub
 
-    Private Sub CheckBox2_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox2.CheckedChanged
-        If CheckBox2.Checked Then
-            logBits = logBits Or 2
-        Else
-            logBits = logBits And 253
-        End If
-        If Not opros.EnableLog(logBits) Then
-            If CheckBox2.Checked Then
-                CheckBox2.Checked = False
-            End If
-        End If
+    Private Sub ShowLogSelection(bits As Byte)
+        updatingLog = True
+        CheckBox1.Checked = (bits And 1) <> 0
+        CheckBox2.Checked = (bits And 2) <> 0
+        CheckBox3.Checked = (bits And 4) <> 0
+        updatingLog = False
     End Sub
 
-    Private Sub CheckBox3_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBox3.CheckedChanged
-        If CheckBox3.Checked Then
-            logBits = logBits Or 4
-        Else
-            logBits = logBits And 251
-        End If
-        If Not opros.EnableLog(logBits) Then
-            If CheckBox3.Checked Then
-                CheckBox3.Checked = False
-            End If
-        End If
+    Private Sub LogSelectionChanged(sender As Object, e As EventArgs) Handles CheckBox1.CheckedChanged, CheckBox2.CheckedChanged, CheckBox3.CheckedChanged
+        If updatingLog Then Return
+        Dim bits = CByte(If(CheckBox1.Checked, 1, 0) Or If(CheckBox2.Checked, 2, 0) Or If(CheckBox3.Checked, 4, 0))
+        If Not opros.EnableLog(bits) Then ShowLogSelection(0)
     End Sub
 
     Private Sub Label20_Click(sender As Object, e As EventArgs) Handles Label20.Click
