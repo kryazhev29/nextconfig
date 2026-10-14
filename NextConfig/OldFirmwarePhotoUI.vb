@@ -186,7 +186,7 @@ Public Class PhotoFrame
         Else
             Dim text = If(status <> "", status, Placeholder)
             Dim color = If(failed, Theme.Danger, If(status <> "", Theme.TextMain, Theme.TextMuted))
-            Using f As New Font(Theme.FontBody.FontFamily, Theme.FontBody.Size * 1.15F, If(status = "", FontStyle.Regular, FontStyle.Bold))
+            Using f As Font = AppFonts.Create(Theme.FontBody.Size * 1.15F, If(status = "", FontStyle.Regular, FontStyle.Bold))
                 Dim area = New Rectangle(Theme.Px(24), 0, Width - Theme.Px(48), Height)
                 TextRenderer.DrawText(g, text, f, area, color,
                     TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.WordBreak)

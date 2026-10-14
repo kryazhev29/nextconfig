@@ -21,7 +21,6 @@ Partial Class Form1
     ' карточка по центру, поля и главная кнопка одной ширины.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
-        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(Form1))
 
         Me.root = New System.Windows.Forms.TableLayoutPanel()
         Me.card = New System.Windows.Forms.TableLayoutPanel()
@@ -53,7 +52,8 @@ Partial Class Form1
         '
         'picLogo
         '
-        Me.picLogo.Image = Theme.LogoHorizontal(CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image))
+        Me.picLogo.Image = Theme.NavisetLogo()
+        AddHandler Me.picLogo.Disposed, Sub() Me.picLogo.Image.Dispose()
         Me.picLogo.Name = "picLogo"
         Me.picLogo.Size = New System.Drawing.Size(Theme.Px(100), Theme.Px(40))
         Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Top

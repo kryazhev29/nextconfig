@@ -20,7 +20,6 @@ Partial Class Form2
     ' Собрано на контейнерах: окно тянется, содержимое вкладок прокручивается.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
-        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(Form2))
         Me.components = New System.ComponentModel.Container()
 
         ' ---- создание ----
@@ -158,19 +157,23 @@ Partial Class Form2
         Me.SuspendLayout()
 
         ' ---- шапка ----
-        Me.picLogo.Image = Theme.LogoHorizontal(CType(resources.GetObject("PictureBox1.Image"), System.Drawing.Image))
+        Me.picLogo.Image = Theme.NavisetLogo(True)
+        Me.picLogo.BackColor = Color.Transparent
         Me.picLogo.Name = "picLogo"
-        Me.picLogo.Size = New System.Drawing.Size(Theme.Px(88), Theme.Px(28))
+        Me.picLogo.Size = New System.Drawing.Size(Theme.Px(112), Theme.Px(34))
         Me.picLogo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
-        Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.Left
-        Me.picLogo.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapSection, 0)
+        Me.picLogo.Anchor = System.Windows.Forms.AnchorStyles.None
+        Me.picLogo.Margin = New System.Windows.Forms.Padding(0)
         Me.picLogo.TabStop = False
+        AddHandler Me.picLogo.Disposed, Sub() Me.picLogo.Image.Dispose()
 
         Me.lblIMEICap.AutoSize = True
-        Me.lblIMEICap.Text = "Устройство"
-        Me.lblIMEICap.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
+        Me.lblIMEICap.Text = "Домовой NEXT"
+        Me.lblIMEICap.Margin = New System.Windows.Forms.Padding(0, 0, Theme.Px(16), 0)
         Me.lblIMEICap.Anchor = System.Windows.Forms.AnchorStyles.Left
         Theme.Caption(Me.lblIMEICap)
+        Me.lblIMEICap.ForeColor = Theme.BrandMuted
+        Me.lblIMEICap.BackColor = Color.Transparent
 
         Me.lblIMEI.AutoSize = True
         Me.lblIMEI.Name = "lblIMEI"
@@ -178,7 +181,9 @@ Partial Class Form2
         Me.lblIMEI.Margin = New System.Windows.Forms.Padding(0)
         Me.lblIMEI.Anchor = System.Windows.Forms.AnchorStyles.Left
         Theme.Value(Me.lblIMEI)
-        Me.lblIMEI.Font = Theme.FontBodyBold
+        Me.lblIMEI.Font = Theme.FontGroup
+        Me.lblIMEI.ForeColor = Color.White
+        Me.lblIMEI.BackColor = Color.Transparent
 
         Me.lblHeadModel.AutoSize = True
         Me.lblHeadModel.Name = "lblHeadModel"
@@ -204,19 +209,34 @@ Partial Class Form2
         Me.lblHeadBoot.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblHeadBoot)
 
+        For Each detail As Label In New Label() {Me.lblHeadModel, Me.lblHeadHW, Me.lblHeadFW, Me.lblHeadBoot}
+            detail.Padding = New Padding(Theme.Px(9), Theme.Px(4), Theme.Px(9), Theme.Px(4))
+            detail.Margin = New Padding(0)
+            detail.ForeColor = Theme.BrandMuted
+            detail.BackColor = Color.Transparent
+        Next
+
         Me.headVersions.AutoSize = True
         Me.headVersions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.headVersions.WrapContents = False
-        Me.headVersions.Margin = New System.Windows.Forms.Padding(0, Theme.GapLabel, 0, 0)
-        Me.headVersions.Controls.Add(Me.lblHeadModel)
-        Me.headVersions.Controls.Add(Me.lblHeadHW)
-        Me.headVersions.Controls.Add(Me.lblHeadFW)
-        Me.headVersions.Controls.Add(Me.lblHeadBoot)
+        Me.headVersions.WrapContents = True
+        Me.headVersions.Dock = DockStyle.Top
+        Me.headVersions.BackColor = Color.Transparent
+        Me.headVersions.Margin = New Padding(0, Theme.Px(8), 0, 0)
+        For Each detail As Label In New Label() {Me.lblHeadModel, Me.lblHeadHW, Me.lblHeadFW, Me.lblHeadBoot}
+            Dim chip As New TableLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                .ColumnCount = 1, .RowCount = 1, .Margin = New Padding(0, 0, Theme.Px(6), Theme.Px(4))}
+            Theme.HeaderPill(chip)
+            chip.Padding = New Padding(0)
+            chip.Controls.Add(detail)
+            Me.headVersions.Controls.Add(chip)
+        Next
 
         Dim imeiRow As New System.Windows.Forms.FlowLayoutPanel()
         imeiRow.AutoSize = True
         imeiRow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         imeiRow.WrapContents = False
+        imeiRow.Dock = DockStyle.Fill
+        imeiRow.BackColor = Color.Transparent
         imeiRow.Margin = New System.Windows.Forms.Padding(0)
         imeiRow.Controls.Add(Me.lblIMEICap)
         imeiRow.Controls.Add(Me.lblIMEI)
@@ -224,60 +244,89 @@ Partial Class Form2
         Me.headDevice.AutoSize = True
         Me.headDevice.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.headDevice.ColumnCount = 1
-        Me.headDevice.Margin = New System.Windows.Forms.Padding(0)
-        Me.headDevice.Anchor = System.Windows.Forms.AnchorStyles.Left
+        Me.headDevice.RowCount = 2
+        Me.headDevice.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Me.headDevice.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Me.headDevice.BackColor = Color.Transparent
+        Me.headDevice.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        Me.headDevice.Margin = New Padding(Theme.Px(24), 0, Theme.Px(24), 0)
+        Me.headDevice.Anchor = AnchorStyles.Left Or AnchorStyles.Right
         Me.headDevice.Controls.Add(imeiRow)
         Me.headDevice.Controls.Add(Me.headVersions)
 
+        Me.dotConn.Tag = "brand"
         Theme.Dot(Me.dotConn, Theme.eDot.Waiting)
         Me.dotConn.Name = "dotConn"
-        Me.dotConn.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapLabel, 0)
+        Me.dotConn.Margin = New Padding(0, 0, Theme.Px(6), 0)
+        Me.dotConn.Anchor = AnchorStyles.Left
 
         Me.lblConnState.AutoSize = True
         Me.lblConnState.Name = "lblConnState"
-        Me.lblConnState.Margin = New System.Windows.Forms.Padding(0, 3, Theme.GapSection, 0)
+        Me.lblConnState.Margin = New Padding(0)
+        Me.lblConnState.Anchor = AnchorStyles.Left
+        Me.lblConnState.Tag = "brand"
         Theme.DotText(Me.lblConnState, Theme.eDot.Waiting, "Ожидание данных")
 
         Me.lblPortInfo.AutoSize = True
         Me.lblPortInfo.Name = "lblPortInfo"
-        Me.lblPortInfo.Margin = New System.Windows.Forms.Padding(0, 3, 0, 0)
+        Me.lblPortInfo.Margin = New Padding(0, Theme.Px(5), Theme.Px(12), 0)
+        Me.lblPortInfo.Anchor = AnchorStyles.Right
+        Me.lblPortInfo.TextAlign = ContentAlignment.MiddleRight
         Theme.Caption(Me.lblPortInfo)
+        Me.lblPortInfo.ForeColor = Theme.BrandMuted
+        Me.lblPortInfo.BackColor = Color.Transparent
+
+        Dim connectionBadge As New TableLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            .ColumnCount = 2, .RowCount = 1, .Margin = New Padding(0), .Name = "connectionBadge"}
+        connectionBadge.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        connectionBadge.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        Theme.HeaderPill(connectionBadge)
+        connectionBadge.Padding = New Padding(Theme.Px(12), Theme.Px(5), Theme.Px(12), Theme.Px(5))
+        connectionBadge.Controls.Add(Me.dotConn, 0, 0)
+        connectionBadge.Controls.Add(Me.lblConnState, 1, 0)
 
         Me.headState.AutoSize = True
         Me.headState.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.headState.WrapContents = False
+        Me.headState.FlowDirection = FlowDirection.TopDown
+        Me.headState.BackColor = Color.Transparent
         Me.headState.Anchor = System.Windows.Forms.AnchorStyles.Right
         Me.headState.Margin = New System.Windows.Forms.Padding(0)
-        Me.headState.Controls.Add(Me.dotConn)
-        Me.headState.Controls.Add(Me.lblConnState)
+        Me.headState.Controls.Add(connectionBadge)
         Me.headState.Controls.Add(Me.lblPortInfo)
 
         Me.headRow.AutoSize = True
         Me.headRow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.headRow.ColumnCount = 3
         Me.headRow.RowCount = 1
-        Me.headRow.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize))
+        Me.headRow.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Theme.Px(176)))
         Me.headRow.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.headRow.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize))
         Me.headRow.Dock = System.Windows.Forms.DockStyle.Top
         Me.headRow.Margin = New System.Windows.Forms.Padding(0)
+        Me.headRow.BackColor = Color.Transparent
         Me.headRow.Controls.Add(Me.picLogo, 0, 0)
         Me.headRow.Controls.Add(Me.headDevice, 1, 0)
         Me.headRow.Controls.Add(Me.headState, 2, 0)
+        AddHandler Me.headRow.Paint, Sub(sender, e)
+            Dim x = Me.headRow.GetColumnWidths()(0) - 1
+            Using pen As New Pen(Color.FromArgb(45, Color.White))
+                e.Graphics.DrawLine(pen, x, Theme.ControlPx(Me.headRow, 4), x, Me.headRow.Height - Theme.ControlPx(Me.headRow, 4))
+            End Using
+        End Sub
 
-        Me.headLine.BackColor = Theme.Border
+        Me.headLine.BackColor = Theme.BrandEnd
         Me.headLine.Dock = System.Windows.Forms.DockStyle.Bottom
         Me.headLine.Height = 1
 
         Me.pnlHead.AutoSize = True
         Me.pnlHead.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.pnlHead.BackColor = Theme.Surface
+        Theme.HeaderSurface(Me.pnlHead)
         Me.pnlHead.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.pnlHead.Padding = New System.Windows.Forms.Padding(Theme.GapSection, Theme.GapBlock, Theme.GapSection, Theme.GapBlock)
+        Me.pnlHead.Padding = New Padding(0, Theme.Px(16), Theme.Px(24), Theme.Px(14))
         Me.pnlHead.Margin = New System.Windows.Forms.Padding(0)
         Me.pnlHead.Name = "pnlHead"
         Me.pnlHead.Controls.Add(Me.headRow)
-        Me.pnlHead.Controls.Add(Me.headLine)
 
         ' ---- вкладка «Состояние» ----
         Theme.Dot(Me.dotGSM, Theme.eDot.Idle)

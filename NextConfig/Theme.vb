@@ -7,35 +7,38 @@ Imports System.Drawing.Drawing2D
 Public Module Theme
 
     ' ---- цвета ----
-    Public ReadOnly Accent As Color = Color.FromArgb(&H25, &H63, &HEB)       ' основной синий
-    Public ReadOnly AccentHover As Color = Color.FromArgb(&H16, &H78, &HD2)  ' синий при наведении
-    Public ReadOnly AccentDown As Color = Color.FromArgb(&H12, &H62, &HAD)   ' синий при нажатии
+    Public ReadOnly Accent As Color = Color.FromArgb(&H44, &H4D, &H91)
+    Public ReadOnly AccentHover As Color = Color.FromArgb(&H53, &H5D, &HA4)
+    Public ReadOnly AccentDown As Color = Color.FromArgb(&H34, &H3C, &H76)
+    Public ReadOnly BrandStart As Color = Color.FromArgb(&H42, &H4B, &H8E)
+    Public ReadOnly BrandEnd As Color = Color.FromArgb(&H22, &H27, &H4D)
+    Public ReadOnly BrandMuted As Color = Color.FromArgb(&HDC, &HDF, &HF2)
     Public ReadOnly Ok As Color = Color.FromArgb(&H22, &HA0, &H60)           ' зелёный индикатора
     Public ReadOnly OkText As Color = Color.FromArgb(&H23, &H7A, &H32)       ' зелёный текста
     Public ReadOnly Danger As Color = Color.FromArgb(&HDC, &H35, &H45)       ' красный
     Public ReadOnly DangerHover As Color = Color.FromArgb(&HBD, &H2D, &H3B)
     Public ReadOnly Warning As Color = Color.FromArgb(&H8A, &H61, &H00)      ' тёмный янтарный
-    Public ReadOnly WindowBack As Color = Color.FromArgb(&HF4, &HF7, &HFB)   ' фон окна
+    Public ReadOnly WindowBack As Color = Color.FromArgb(&HF5, &HF6, &HFA)   ' фон окна
     Public ReadOnly Surface As Color = Color.White                           ' поверхность блоков
-    Public ReadOnly SurfaceHover As Color = Color.FromArgb(&HEE, &HF3, &HFA)
-    Public ReadOnly TextMain As Color = Color.FromArgb(&H20, &H2B, &H3A)     ' основной текст
-    Public ReadOnly TextMuted As Color = Color.FromArgb(&H52, &H60, &H73)    ' второстепенный текст
-    Public ReadOnly Border As Color = Color.FromArgb(&HDC, &HE4, &HEE)       ' границы
+    Public ReadOnly SurfaceHover As Color = Color.FromArgb(&HEC, &HEE, &HF8)
+    Public ReadOnly TextMain As Color = Color.FromArgb(&H34, &H38, &H47)     ' основной текст
+    Public ReadOnly TextMuted As Color = Color.FromArgb(&H6E, &H72, &H82)    ' второстепенный текст
+    Public ReadOnly Border As Color = Color.FromArgb(&HE0, &HE2, &HEA)       ' границы
     Public ReadOnly Idle As Color = Color.FromArgb(&H9A, &HA6, &HB6)         ' серая точка
-    Public ReadOnly Disabled As Color = Color.FromArgb(&HEB, &HEF, &HF5)     ' фон недоступного
+    Public ReadOnly Disabled As Color = Color.FromArgb(&HED, &HEE, &HF2)     ' фон недоступного
 
     ' ---- шрифты ----
-    Public Const Family As String = "Segoe UI"
+    Public Const Family As String = "Montserrat"
     Public Const FamilyMono As String = "Consolas"
 
     Public ReadOnly FontProduct As Font = MakeFont(Family, 18.0F, FontStyle.Regular)      ' название программы
-    Public ReadOnly FontTitle As Font = MakeFont(Family, 15.0F, FontStyle.Regular)        ' заголовок раздела, диалога
+    Public ReadOnly FontTitle As Font = MakeFont(Family, 15.0F, FontStyle.Bold)           ' заголовок раздела, диалога
     Public ReadOnly FontGroup As Font = MakeFont(Family, 11.0F, FontStyle.Bold)           ' заголовок группы
     Public ReadOnly FontBody As Font = MakeFont(Family, 10.0F, FontStyle.Regular)         ' основной текст и поля
     Public ReadOnly FontBodyBold As Font = MakeFont(Family, 10.0F, FontStyle.Bold)        ' важное в основном тексте
     Public ReadOnly FontCaption As Font = MakeFont(Family, 9.0F, FontStyle.Regular)       ' подписи и пояснения
     Public ReadOnly FontValueBig As Font = MakeFont(Family, 16.0F, FontStyle.Bold)        ' крупное значение состояния
-    Public ReadOnly FontDot As Font = MakeFont(Family, 12.0F, FontStyle.Regular)          ' точка индикатора
+    Public ReadOnly FontDot As Font = MakeFont("Segoe UI", 12.0F, FontStyle.Regular)      ' точка индикатора
     Public ReadOnly FontMono As Font = MakeFont(FamilyMono, 9.5F, FontStyle.Regular)      ' журнал
 
     ' ---- масштаб Windows ----
@@ -56,6 +59,7 @@ Public Module Theme
                 size *= DemoScale() * 96.0F / g.DpiX
             End Using
         End If
+        If family = Theme.Family Then Return AppFonts.Create(size, style)
         Return New Font(family, size, style)
     End Function
 
@@ -104,14 +108,52 @@ Public Module Theme
         Waiting = 3  ' ожидание данных
     End Enum
 
-    ' Логотип заказчика в исходниках вертикальный: надпись читается снизу вверх,
-    ' он стоял полосой вдоль левого края окна. Для шапки разворачиваем в строку.
-    Public Function LogoHorizontal(ByVal src As Image) As Image
-        If src Is Nothing Then Return Nothing
-        Dim b As New Bitmap(src)
-        b.RotateFlip(RotateFlipType.Rotate90FlipNone)
-        Return b
+    ' Исходный горизонтальный логотип владельца, без поворота и промежуточного уменьшения.
+    Public Function NavisetLogo(Optional light As Boolean = False) As Image
+        Using stream = GetType(Form1).Assembly.GetManifestResourceStream("NextConfig.naviset-logo.jpg"),
+              source = Image.FromStream(stream)
+            If Not light Then Return New Bitmap(source)
+            ' Белая версия той же эмблемы: фон JPEG становится прозрачным.
+            Dim result As New Bitmap(source.Width, source.Height, Imaging.PixelFormat.Format32bppArgb)
+            Using g = Graphics.FromImage(result), attributes As New Imaging.ImageAttributes()
+                attributes.SetColorMatrix(New Imaging.ColorMatrix(New Single()() {
+                    New Single() {0, 0, 0, -1.4F, 0}, New Single() {0, 0, 0, 0, 0},
+                    New Single() {0, 0, 0, 0, 0}, New Single() {0, 0, 0, 0, 0},
+                    New Single() {1, 1, 1, 1.4F, 1}}))
+                g.DrawImage(source, New Rectangle(0, 0, result.Width, result.Height),
+                    0, 0, source.Width, source.Height, GraphicsUnit.Pixel, attributes)
+            End Using
+            Return result
+        End Using
     End Function
+
+    Public Sub HeaderSurface(panel As Panel)
+        panel.BackColor = BrandStart
+        EnableDoubleBuffer(panel)
+        AddHandler panel.Paint, Sub(sender, e)
+            If panel.Width < 1 OrElse panel.Height < 1 Then Return
+            Using brush As New LinearGradientBrush(panel.ClientRectangle, BrandStart, BrandEnd, LinearGradientMode.Horizontal)
+                e.Graphics.FillRectangle(brush, panel.ClientRectangle)
+            End Using
+        End Sub
+        AddHandler panel.SizeChanged, Sub() panel.Invalidate(True)
+    End Sub
+
+    Public Sub HeaderPill(panel As TableLayoutPanel)
+        panel.BackColor = Color.Transparent
+        EnableDoubleBuffer(panel)
+        AddHandler panel.Paint, Sub(sender, e)
+            If panel.Width < 2 OrElse panel.Height < 2 Then Return
+            Dim saved = e.Graphics.Save()
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias
+            Using path = RoundedPath(New RectangleF(0.5F, 0.5F, panel.Width - 1.0F, panel.Height - 1.0F), ControlPx(panel, 10)),
+                  fill As New SolidBrush(Color.FromArgb(18, Color.White)), pen As New Pen(Color.FromArgb(35, Color.White))
+                e.Graphics.FillPath(fill, path) : e.Graphics.DrawPath(pen, path)
+            End Using
+            e.Graphics.Restore(saved)
+        End Sub
+        AddHandler panel.SizeChanged, Sub() panel.Invalidate()
+    End Sub
 
     ' ---- форма ----
 
@@ -154,8 +196,7 @@ Public Module Theme
         header.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(112)))
         header.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         header.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, If(actions Is Nothing, 0, actions.Width)))
-        Dim resource As New System.ComponentModel.ComponentResourceManager(GetType(Form1))
-        Dim logo As New PictureBox With {.Image = LogoHorizontal(DirectCast(resource.GetObject("PictureBox1.Image"), Image)),
+        Dim logo As New PictureBox With {.Image = NavisetLogo(),
             .Size = New Size(Px(96), Px(30)), .SizeMode = PictureBoxSizeMode.Zoom, .Anchor = AnchorStyles.Left}
         AddHandler logo.Disposed, Sub() logo.Image.Dispose()
         header.Controls.Add(logo, 0, 0)
@@ -304,9 +345,15 @@ Public Module Theme
         If Not button.UseMnemonic Then flags = flags Or TextFormatFlags.NoPrefix
         TextRenderer.DrawText(e.Graphics, button.Text, button.Font, textBounds, button.ForeColor, flags)
         If button.Focused AndAlso button.Enabled Then
-            Dim focus = button.ClientRectangle
-            focus.Inflate(-5, -5)
-            ControlPaint.DrawFocusRectangle(e.Graphics, focus, button.ForeColor, fillColor)
+            Dim inset = ControlPx(button, 4)
+            Dim focusState = e.Graphics.Save()
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias
+            Using path = RoundedPath(New RectangleF(inset, inset, button.Width - inset * 2, button.Height - inset * 2), ControlPx(button, 6)),
+                  pen As New Pen(Color.FromArgb(150, button.ForeColor))
+                pen.DashStyle = DashStyle.Dot
+                e.Graphics.DrawPath(pen, path)
+            End Using
+            e.Graphics.Restore(focusState)
         End If
     End Sub
 
@@ -505,7 +552,12 @@ Public Module Theme
             l.BackColor = Color.Transparent
         End If
 
-        SetColor(l, DotColor(state))
+        If Equals(l.Tag, "brand") Then
+            SetColor(l, If(state = eDot.Good, Color.FromArgb(98, 224, 169),
+                If(state = eDot.Bad, Color.FromArgb(255, 153, 161), BrandMuted)))
+        Else
+            SetColor(l, DotColor(state))
+        End If
     End Sub
 
     ' Текст состояния рядом с точкой. Цветом выделяем только успех и ошибку.
@@ -516,6 +568,11 @@ Public Module Theme
         End If
 
         SetText(l, text)
+
+        If Equals(l.Tag, "brand") Then
+            SetColor(l, Color.White)
+            Return
+        End If
 
         Select Case state
             Case eDot.Good : SetColor(l, OkText)
@@ -624,12 +681,14 @@ Public Module Theme
                 .FlatStyle = FlatStyle.Flat, .TextAlign = ContentAlignment.MiddleLeft, .Padding = New Padding(Px(10), 0, 0, 0),
                 .Font = FontBody, .Margin = New Padding(0, 0, 0, Px(4)), .Cursor = Cursors.Hand, .UseVisualStyleBackColor = False}
             link.FlatAppearance.BorderSize = 0
+            link.FlatAppearance.MouseOverBackColor = SurfaceHover
+            AddHandler link.Paint, AddressOf PaintButton
             links.Add(link)
             nav.Controls.Add(link)
             AddHandler link.Click, Sub(sender, e)
                 For j = 0 To hosts.Count - 1
                     hosts(j).Visible = j = index
-                    links(j).BackColor = If(j = index, Color.FromArgb(222, 235, 252), WindowBack)
+                    links(j).BackColor = If(j = index, SurfaceHover, WindowBack)
                     links(j).ForeColor = If(j = index, Accent, TextMain)
                     links(j).Font = If(j = index, FontBodyBold, FontBody)
                 Next
@@ -672,7 +731,7 @@ Public Module Theme
         ' Начальный раздел задаём до показа формы.
         hosts(1).Visible = True
         hosts(1).BringToFront()
-        links(1).BackColor = Color.FromArgb(222, 235, 252)
+        links(1).BackColor = SurfaceHover
         links(1).ForeColor = Accent
         links(1).Font = FontBodyBold
         Return shell
@@ -719,14 +778,23 @@ Public Module Theme
         eye.SendToBack()
     End Sub
 
-    Public Sub PeripheryCombo(c As ComboBox)
+    Private Sub StyleComboItems(c As ComboBox)
         ' Нативный DropDownList игнорирует ForeColor в закрытой части на некоторых темах Windows.
         c.DrawMode = DrawMode.OwnerDrawFixed
+        Dim sizeItems As EventHandler = Sub(sender, e)
+            c.ItemHeight = TextRenderer.MeasureText("Аg", c.Font).Height + ControlPx(c, 6)
+        End Sub
+        AddHandler c.HandleCreated, sizeItems
+        AddHandler c.FontChanged, sizeItems
+        AddHandler c.DpiChangedAfterParent, sizeItems
+        sizeItems(c, EventArgs.Empty)
         AddHandler c.DrawItem, Sub(sender, e)
-            e.DrawBackground()
+            Dim selected = (e.State And DrawItemState.Selected) <> 0
+            Using brush As New SolidBrush(If(selected, SurfaceHover, c.BackColor))
+                e.Graphics.FillRectangle(brush, e.Bounds)
+            End Using
             If e.Index >= 0 Then
-                Dim selected = (e.State And DrawItemState.Selected) <> 0
-                Dim color = If(Not c.Enabled, SystemColors.GrayText, If(selected, SystemColors.HighlightText, c.ForeColor))
+                Dim color = If(Not c.Enabled, TextMuted, If(selected, Accent, c.ForeColor))
                 Dim bounds = e.Bounds
                 bounds.Inflate(-Px(3), 0)
                 TextRenderer.DrawText(e.Graphics, c.GetItemText(c.Items(e.Index)), c.Font, bounds, color,
@@ -748,8 +816,7 @@ Public Module Theme
             .Margin = New Padding(0, 0, 0, Px(24)), .Padding = New Padding(0, 0, 0, Px(16))}
         line.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         line.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
-        Dim resource As New System.ComponentModel.ComponentResourceManager(GetType(Form1))
-        Dim logo As New PictureBox With {.Image = LogoHorizontal(DirectCast(resource.GetObject("PictureBox1.Image"), Image)),
+        Dim logo As New PictureBox With {.Image = NavisetLogo(),
             .Size = New Size(Px(104), Px(30)), .SizeMode = PictureBoxSizeMode.Zoom, .Margin = New Padding(0)}
         AddHandler logo.Disposed, Sub(sender, e)
             If logo.Image IsNot Nothing Then logo.Image.Dispose()
@@ -806,10 +873,10 @@ Public Module Theme
             End If
             Dim chrome = form.Size - form.ClientSize
             Dim width = Math.Min(area.Width - chrome.Width, Math.Max(form.ClientSize.Width,
-                Math.Max(content.PreferredSize.Width, actions.PreferredSize.Width + Px(56))))
+                Math.Max(content.PreferredSize.Width, actions.PreferredSize.Width + actions.Margin.Horizontal)))
             form.ClientSize = New Size(width, form.ClientSize.Height)
             content.PerformLayout()
-            Dim height = content.GetPreferredSize(New Size(width, 0)).Height + actions.PreferredSize.Height + Px(20)
+            Dim height = content.GetPreferredSize(New Size(width, 0)).Height + actions.PreferredSize.Height + actions.Margin.Vertical
             form.MinimumSize = New Size(Math.Min(form.MinimumSize.Width, area.Width), Math.Min(form.MinimumSize.Height, area.Height))
             form.ClientSize = New Size(width, Math.Min(area.Height - chrome.Height, height))
             Dim bounds = Screen.FromControl(form).WorkingArea
@@ -974,7 +1041,7 @@ Public Module Theme
     ' Одно меню для NEXT, старой прошивки и загрузчика. Карточки остаются на своих TabPage.
     Public Function MainNavigation(tabs As TabControl) As Control
         Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 2, .RowCount = 1, .Margin = New Padding(0)}
-        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(144)))
+        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(176)))
         shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.TopDown,
@@ -984,23 +1051,28 @@ Public Module Theme
         For i = 0 To tabs.TabPages.Count - 1
             Dim index = i
             Dim link As New Button With {.Text = tabs.TabPages(i).Text, .Name = "mainSection" & i, .FlatStyle = FlatStyle.Flat,
-                .Font = FontBody, .Height = Px(48), .Width = Px(128), .TextAlign = ContentAlignment.MiddleLeft,
-                .Padding = New Padding(Px(12), 0, 0, 0), .Margin = New Padding(0, 0, 0, Px(4)),
+                .Font = FontBody, .Height = Px(46), .Width = Px(160), .TextAlign = ContentAlignment.MiddleLeft,
+                .Padding = New Padding(Px(40), 0, Px(8), 0), .Margin = New Padding(0, 0, 0, Px(4)),
                 .BackColor = Surface, .ForeColor = TextMuted, .Cursor = Cursors.Hand}
             link.FlatAppearance.BorderSize = 0
             link.FlatAppearance.MouseOverBackColor = SurfaceHover
             AddHandler link.Click, Sub(sender, e) tabs.SelectedIndex = index
             AddHandler link.Paint, AddressOf PaintButton
+            AddHandler link.Paint, Sub(sender, e)
+                Dim size = ControlPx(link, 19)
+                NavIcons.Draw(e.Graphics, New Rectangle(ControlPx(link, 12), (link.Height - size) \ 2, size, size), link.Text, link.ForeColor)
+            End Sub
             links.Add(link) : nav.Controls.Add(link)
         Next
         AddHandler tabs.SelectedIndexChanged, Sub(sender, e)
             For i = 0 To links.Count - 1
                 links(i).ForeColor = If(i = tabs.SelectedIndex, Accent, TextMuted)
-                links(i).BackColor = If(i = tabs.SelectedIndex, WindowBack, Surface)
+                links(i).BackColor = If(i = tabs.SelectedIndex, SurfaceHover, Surface)
+                links(i).Font = If(i = tabs.SelectedIndex, FontBodyBold, FontBody)
                 links(i).Invalidate()
             Next
         End Sub
-        If links.Count > 0 Then links(0).ForeColor = Accent : links(0).BackColor = WindowBack
+        If links.Count > 0 Then links(0).ForeColor = Accent : links(0).BackColor = SurfaceHover : links(0).Font = FontBodyBold
         tabs.Appearance = TabAppearance.FlatButtons
         tabs.SizeMode = TabSizeMode.Fixed : tabs.ItemSize = New Size(1, 1)
         tabs.Padding = New Point(0, 0) : tabs.Dock = DockStyle.None
@@ -1020,7 +1092,7 @@ Public Module Theme
         root.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(335)))
         root.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         root.Controls.Remove(card)
-        Dim intro As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .Padding = New Padding(Px(30), Px(44), Px(26), Px(30)), .Margin = New Padding(0), .BackColor = Color.FromArgb(232, 240, 252)}
+        Dim intro As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 1, .Padding = New Padding(Px(30), Px(44), Px(26), Px(30)), .Margin = New Padding(0), .BackColor = SurfaceHover}
         intro.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         intro.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         intro.RowStyles.Add(New RowStyle(SizeType.AutoSize))
@@ -1137,6 +1209,7 @@ Public Module Theme
         c.ForeColor = TextMain
         c.BackColor = Surface
         c.Width = Px(width)
+        StyleComboItems(c)
 
         ' Колесо мыши над списком меняет значение настройки, а человек всего лишь
         ' прокручивал страницу. Для настроек контроллера это недопустимо.

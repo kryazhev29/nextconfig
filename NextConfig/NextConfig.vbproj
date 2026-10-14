@@ -86,10 +86,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Theme.vb" />
+    <Compile Include="NavIcons.vb" />
+    <Compile Include="AppFonts.vb" />
     <Compile Include="AgentLog.vb" />
     <Compile Include="AgentChannel.vb" />
     <Compile Include="ApplicationEvents.vb" />
     <EmbeddedResource Include="naviset.ico"><LogicalName>NextConfig.naviset.ico</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\naviset-logo.jpg"><LogicalName>NextConfig.naviset-logo.jpg</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\Fonts\Montserrat-Regular.ttf"><LogicalName>NextConfig.Montserrat-Regular.ttf</LogicalName></EmbeddedResource>
+    <EmbeddedResource Include="Assets\Fonts\Montserrat-SemiBold.ttf"><LogicalName>NextConfig.Montserrat-SemiBold.ttf</LogicalName></EmbeddedResource>
+    <Content Include="Assets\Fonts\OFL.txt"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
     <Compile Include="Rs485.vb" />
     <EmbeddedResource Include="periphery.ini"><LogicalName>NextConfig.periphery.ini</LogicalName><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></EmbeddedResource>
     <Compile Include="clComPort.vb" />

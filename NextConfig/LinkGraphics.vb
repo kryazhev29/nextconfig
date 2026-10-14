@@ -173,8 +173,8 @@ End Class
 Public Class LinkBannerPanel
     Inherits Control
     Private ReadOnly refresh As Button
-    Private ReadOnly titleFont As New Font(Theme.FontBody.FontFamily, Theme.FontBody.Size * 1.2F, FontStyle.Bold)
-    Private ReadOnly detailFont As New Font(Theme.FontBody.FontFamily, Theme.FontBody.Size * 0.975F, FontStyle.Regular)
+    Private ReadOnly titleFont As Font = AppFonts.Create(Theme.FontBody.Size * 1.2F, FontStyle.Bold)
+    Private ReadOnly detailFont As Font = AppFonts.Create(Theme.FontBody.Size * 0.975F, FontStyle.Regular)
     Public Heading As String = "Чтение состояния связи…"
     Public Detail As String = ""
     Public Grade As Integer = -1

@@ -62,7 +62,6 @@ Partial Public Class Form2
     Private Function Combo485(section As String) As ComboBox
         Dim c As New ComboBox
         Theme.Combo(c, 300)
-        If section = "types" Then Theme.PeripheryCombo(c)
         For Each item In names485.Sections(section)
             c.Items.Add(New IndexedName(item.Key, item.Value))
         Next
