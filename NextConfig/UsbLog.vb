@@ -65,10 +65,24 @@ Public Class UsbLog
         {139, "Запуск таймера ограничения по времени на объекте"}
     }
 
+    ' Начало длинной строки модема: куски с битом 7 ждут последнего куска.
+    Private ReadOnly pending As New StringBuilder()
+    Private pendingKind As Integer
+    Private pendingStamp As String
+
     Public Function Format(frame As Byte()) As String()
         If frame Is Nothing OrElse frame.Length < 18 OrElse frame(8) <> 109 OrElse frame(7) <> 0 Then Return {}
         Dim kind = frame(9) And 127
         Dim n = frame.Length - 18
+        Dim stamp = (BitConverter.ToUInt32(frame, 10) / 1000.0).ToString("0.000", Ru).PadLeft(9) & "  "
+        Dim lost = BitConverter.ToUInt16(frame, 14)
+        Dim lines As New List(Of String)
+        ' Хвост строки пропал вместе с потерей: показываем начатое как есть.
+        If pending.Length > 0 AndAlso (lost <> 0 OrElse kind <> pendingKind) Then
+            lines.Add(pendingStamp & ModemPrefix(pendingKind) & pending.ToString() & " … [конец строки потерян]")
+            pending.Clear()
+        End If
+        If lost <> 0 Then lines.Add("— пропущено " & lost.ToString(Ru) & " записей журнала: USB был занят —")
         Dim text As String
         Select Case kind
             Case 1, 2, 3
@@ -76,8 +90,11 @@ Public Class UsbLog
                 For i = 0 To chars.Length - 1
                     If Char.IsControl(chars(i)) Then chars(i) = "."c
                 Next
-                text = If(kind = 1, "→ ", If(kind = 2, "← ", "← уведомление: ")) & New String(chars)
-                If (frame(9) And 128) <> 0 Then text &= " … [обрезано]"
+                If pending.Length = 0 Then pendingKind = kind : pendingStamp = stamp
+                pending.Append(chars)
+                If (frame(9) And 128) <> 0 Then Return lines.ToArray()
+                text = ModemPrefix(kind) & pending.ToString()
+                pending.Clear()
             Case 4
                 If n <> 3 Then Return {}
                 Dim result = frame(16)
@@ -161,10 +178,11 @@ Public Class UsbLog
             Case Else
                 Return {}
         End Select
-        Dim lines As New List(Of String)
-        Dim lost = BitConverter.ToUInt16(frame, 14)
-        If lost <> 0 Then lines.Add("— пропущено " & lost.ToString(Ru) & " записей журнала: USB был занят —")
-        lines.Add((BitConverter.ToUInt32(frame, 10) / 1000.0).ToString("0.000", Ru).PadLeft(9) & "  " & text)
+        lines.Add(stamp & text)
         Return lines.ToArray()
+    End Function
+
+    Private Shared Function ModemPrefix(kind As Integer) As String
+        Return If(kind = 1, "→ ", If(kind = 2, "← ", "← уведомление: "))
     End Function
 End Class

@@ -64,7 +64,13 @@ Check (-not $format.Format((Frame 32 $event))[0].Contains('значение')) '
 Check ($format.Format((Frame 4 ([byte[]](1,0,0))))[0].Contains('← ERROR')) 'plain ERROR'
 $lost=$format.Format((Frame 1 ([byte[]](65)) 37))
 Check ($lost.Count -eq 2 -and $lost[0] -eq '— пропущено 37 записей журнала: USB был занят —') 'loss visible'
-Check ($format.Format((Frame 129 ([byte[]](65))))[0].Contains('[обрезано]')) 'truncation visible'
+$glue=New-Object NextConfig.UsbLog
+Check ($glue.Format((Frame 130 ([Text.Encoding]::ASCII.GetBytes('+QENG: "servingcell"')))).Count -eq 0) 'continuation waits'
+$line=$glue.Format((Frame 2 ([Text.Encoding]::ASCII.GetBytes(',"CONNECT","LTE"'))))
+Check ($line.Count -eq 1 -and $line[0].EndsWith('← +QENG: "servingcell","CONNECT","LTE"')) 'continuation glued'
+Check ($glue.Format((Frame 130 ([byte[]](65)))).Count -eq 0) 'next long line waits'
+$cut=$glue.Format((Frame 1 ([byte[]](66)) 3))
+Check ($cut.Count -eq 3 -and $cut[0].EndsWith('← A … [конец строки потерян]') -and $cut[1].Contains('пропущено 3') -and $cut[2].EndsWith('→ B')) 'lost tail visible'
 Check (-not $format.Format((Frame 2 ([byte[]](65,13,10,0,66))))[0].Contains("`n")) 'control bytes sanitized'
 Check ($format.Format((Frame 16 ([byte[]](99,0,0,0,0,0,0)))).Count -eq 0) 'invalid phase rejected'
 
