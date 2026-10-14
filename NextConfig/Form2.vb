@@ -52,9 +52,9 @@ Public Class Form2
         photoCard = New PhotoPanel(opros, _imei)
         Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
-        grid.RowCount = 3
+        grid.RowCount = 4
         grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        grid.Controls.Add(photoCard, 0, 2) : grid.SetColumnSpan(photoCard, 2)
+        grid.Controls.Add(photoCard, 0, 3) : grid.SetColumnSpan(photoCard, 2)
         grid.AutoSize = True : grid.Dock = DockStyle.Top
         grid.RowStyles(0).SizeType = SizeType.AutoSize
         overview.RowStyles(1).SizeType = SizeType.AutoSize
@@ -160,7 +160,7 @@ Public Class Form2
             deviceConnection.Signal = LinkDiag.SignalView(Nothing, 99)
             deviceConnection.Steps = -1 : deviceConnection.Problem = "Нет свежих данных"
             deviceConnection.Cell = "" : deviceConnection.Details = "Нет свежих данных"
-            deviceConnection.Height = Theme.Px(299)
+            deviceConnection.Height = Theme.ControlPx(deviceConnection, 299)
             deviceConnection.Invalidate()
             lblNet.Text = "—"
             Status485()

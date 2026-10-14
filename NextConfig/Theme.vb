@@ -1,5 +1,6 @@
 ﻿Imports System.Drawing
 Imports System.Windows.Forms
+Imports System.Drawing.Drawing2D
 
 ' Единое оформление всей программы: цвета, шрифты, отступы и виды кнопок.
 ' Формы своих цветов и размеров не держат - только зовут отсюда.
@@ -39,8 +40,8 @@ Public Module Theme
 
     ' ---- масштаб Windows ----
     ' Размеры в оформлении и в формах записаны для обычного масштаба (100 %),
-    ' а на экране считаются через Px. Автомасштаб форм выключен: два механизма
-    ' сразу давали двойной пересчёт и окно не по размеру.
+    ' а исходная раскладка считается через Px. После загрузки формы WinForms
+    ' масштабирует её относительно этой базы при смене DPI монитора.
     Private ReadOnly uiScale As Single = ReadScale()
 
     Private Function DemoScale() As Single
@@ -71,6 +72,15 @@ Public Module Theme
 
     Public Function Px(ByVal value As Integer) As Integer
         Return CInt(Math.Round(value * uiScale))
+    End Function
+
+    ' Текущие размеры рисуемого контрола, а не исходный масштаб конструктора.
+    Public Function ControlPx(control As Control, value As Integer) As Integer
+        Return CInt(Math.Round(value * If(DemoScale() > 0, DemoScale(), control.DeviceDpi / 96.0F)))
+    End Function
+
+    Public Function DrawingPx(graphics As Graphics, value As Integer) As Integer
+        Return CInt(Math.Round(value * If(DemoScale() > 0, DemoScale(), graphics.DpiX / 96.0F)))
     End Function
 
     ' ---- отступы (записаны для масштаба 100 %) ----
@@ -114,6 +124,17 @@ Public Module Theme
         End Using
         ' все окна программы проходят здесь: журнал работы видит каждое
         AgentLog.WatchForm(f)
+        AddHandler f.Load, AddressOf EnableMonitorScaling
+    End Sub
+
+    Private Sub EnableMonitorScaling(sender As Object, e As EventArgs)
+        If DemoScale() > 0 Then Return ' Фиксированный масштаб только для снимков демо.
+        Dim form = DirectCast(sender, Form)
+        form.SuspendLayout()
+        form.AutoScaleMode = AutoScaleMode.Dpi
+        form.AutoScaleDimensions = New SizeF(96.0F * uiScale, 96.0F * uiScale)
+        form.ResumeLayout(True)
+        FitBoardWindow(form)
     End Sub
 
     Public Sub FitBoardWindow(form As Form)
@@ -187,7 +208,8 @@ Public Module Theme
     Public Sub ReflowOverview(overview As TableLayoutPanel)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         Dim cards = grid.Controls.Cast(Of Control)().ToArray()
-        Dim narrow = overview.ClientSize.Width < Theme.Px(940)
+        Dim narrow = overview.ClientSize.Width < ControlPx(overview, 940)
+        Dim gap = ControlPx(overview, 8)
         Dim wanted = If(narrow, 1, 2)
         If grid.ColumnCount = wanted AndAlso CInt(If(grid.Tag, -1)) = cards.Length Then Return
         grid.SuspendLayout()
@@ -205,8 +227,8 @@ Public Module Theme
             grid.Controls.Add(cards(i), column, row)
             grid.SetColumnSpan(cards(i), If(Not narrow AndAlso i >= 2, 2, 1))
             cards(i).Dock = DockStyle.Fill
-            cards(i).Margin = New Padding(If(Not narrow AndAlso i = 1, Theme.GapRelated, 0), 0,
-                If(Not narrow AndAlso i = 0, Theme.GapRelated, 0), Theme.GapRelated)
+            cards(i).Margin = New Padding(If(Not narrow AndAlso i = 1, gap, 0), 0,
+                If(Not narrow AndAlso i = 0, gap, 0), gap)
         Next
         grid.Tag = cards.Length : grid.ResumeLayout(True)
     End Sub
@@ -214,10 +236,79 @@ Public Module Theme
     Public Function Card() As Panel
         Dim p As New Panel()
         p.BackColor = Surface
-        p.BorderStyle = BorderStyle.FixedSingle
+        p.BorderStyle = BorderStyle.None
         p.Padding = New Padding(GapBlock)
+        EnableDoubleBuffer(p)
+        AddHandler p.Paint, AddressOf PaintCard
+        AddHandler p.SizeChanged, Sub() p.Invalidate()
         Return p
     End Function
+
+    Private Function RoundedPath(bounds As RectangleF, radius As Single) As GraphicsPath
+        Dim path As New GraphicsPath()
+        Dim diameter = Math.Min(radius * 2, Math.Min(bounds.Width, bounds.Height))
+        path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90)
+        path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90)
+        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90)
+        path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90)
+        path.CloseFigure()
+        Return path
+    End Function
+
+    Private Sub PaintCard(sender As Object, e As PaintEventArgs)
+        Dim card = DirectCast(sender, Control)
+        If card.Width < 2 OrElse card.Height < 2 Then Return
+        Dim saved = e.Graphics.Save()
+        e.Graphics.Clear(If(card.Parent Is Nothing, WindowBack, card.Parent.BackColor))
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias
+        Using path = RoundedPath(New RectangleF(0.5F, 0.5F, card.Width - 1.0F, card.Height - 1.0F), 14.0F * card.DeviceDpi / 96.0F),
+              fill As New SolidBrush(card.BackColor), pen As New Pen(Border)
+            e.Graphics.FillPath(fill, path)
+            e.Graphics.DrawPath(pen, path)
+        End Using
+        e.Graphics.Restore(saved)
+    End Sub
+
+    ' Рисуем геометрию в текущем DPI; текст остаётся нативным GDI, без растяжения bitmap.
+    Private Sub PaintButton(sender As Object, e As PaintEventArgs)
+        Dim button = DirectCast(sender, Button)
+        If button.Width < 2 OrElse button.Height < 2 Then Return
+        Dim fillColor = button.BackColor
+        If button.Enabled AndAlso button.ClientRectangle.Contains(button.PointToClient(Control.MousePosition)) Then
+            Dim hover = If(button.Capture, button.FlatAppearance.MouseDownBackColor, button.FlatAppearance.MouseOverBackColor)
+            If Not hover.IsEmpty Then fillColor = hover
+        End If
+        Dim saved = e.Graphics.Save()
+        e.Graphics.Clear(If(button.Parent Is Nothing, Surface, button.Parent.BackColor))
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias
+        Using path = RoundedPath(New RectangleF(0.5F, 0.5F, button.Width - 1.0F, button.Height - 1.0F), 9.0F * button.DeviceDpi / 96.0F),
+              fill As New SolidBrush(fillColor)
+            e.Graphics.FillPath(fill, path)
+            If button.FlatAppearance.BorderSize > 0 Then
+                Using pen As New Pen(button.FlatAppearance.BorderColor)
+                    e.Graphics.DrawPath(pen, path)
+                End Using
+            End If
+        End Using
+        e.Graphics.Restore(saved)
+        Dim textBounds = Rectangle.FromLTRB(button.Padding.Left, button.Padding.Top,
+            button.Width - button.Padding.Right, button.Height - button.Padding.Bottom)
+        Dim flags = TextFormatFlags.VerticalCenter Or TextFormatFlags.SingleLine Or TextFormatFlags.EndEllipsis
+        If button.TextAlign = ContentAlignment.MiddleLeft Then
+            flags = flags Or TextFormatFlags.Left
+        ElseIf button.TextAlign = ContentAlignment.MiddleRight Then
+            flags = flags Or TextFormatFlags.Right
+        Else
+            flags = flags Or TextFormatFlags.HorizontalCenter
+        End If
+        If Not button.UseMnemonic Then flags = flags Or TextFormatFlags.NoPrefix
+        TextRenderer.DrawText(e.Graphics, button.Text, button.Font, textBounds, button.ForeColor, flags)
+        If button.Focused AndAlso button.Enabled Then
+            Dim focus = button.ClientRectangle
+            focus.Inflate(-5, -5)
+            ControlPaint.DrawFocusRectangle(e.Graphics, focus, button.ForeColor, fillColor)
+        End If
+    End Sub
 
     ' ---- кнопки ----
 
@@ -285,7 +376,10 @@ Public Module Theme
         b.TextAlign = ContentAlignment.MiddleCenter
         b.UseCompatibleTextRendering = False
 
-        If minWidths.Add(b) Then AddHandler b.TextChanged, AddressOf OnButtonTextChanged
+        If minWidths.Add(b) Then
+            AddHandler b.TextChanged, AddressOf OnButtonTextChanged
+            AddHandler b.Paint, AddressOf PaintButton
+        End If
 
         FitWidth(b)
     End Sub
@@ -728,11 +822,10 @@ Public Module Theme
         panel.BorderStyle = BorderStyle.None
         panel.BackColor = Surface
         panel.Padding = New Padding(Px(22))
-        AddHandler panel.Paint, Sub(sender, e)
-            Using pen As New Pen(Border)
-                e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1)
-            End Using
-        End Sub
+        EnableDoubleBuffer(panel)
+        RemoveHandler panel.Paint, AddressOf PaintCard
+        AddHandler panel.Paint, AddressOf PaintCard
+        AddHandler panel.SizeChanged, Sub() panel.Invalidate()
     End Sub
 
     Public Function Card(title As String, ParamArray rows As Control()) As TableLayoutPanel
@@ -897,13 +990,7 @@ Public Module Theme
             link.FlatAppearance.BorderSize = 0
             link.FlatAppearance.MouseOverBackColor = SurfaceHover
             AddHandler link.Click, Sub(sender, e) tabs.SelectedIndex = index
-            AddHandler link.Paint, Sub(sender, e)
-                If tabs.SelectedIndex = index Then
-                    Using brush As New SolidBrush(Accent)
-                        e.Graphics.FillRectangle(brush, 0, Px(8), Px(3), link.Height - Px(16))
-                    End Using
-                End If
-            End Sub
+            AddHandler link.Paint, AddressOf PaintButton
             links.Add(link) : nav.Controls.Add(link)
         Next
         AddHandler tabs.SelectedIndexChanged, Sub(sender, e)
@@ -920,7 +1007,7 @@ Public Module Theme
         Dim host As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
         host.Controls.Add(tabs)
         AddHandler host.Resize, Sub(sender, e)
-            tabs.SetBounds(-Px(4), -Px(8), host.Width + Px(8), host.Height + Px(12))
+            tabs.SetBounds(-ControlPx(host, 4), -ControlPx(host, 8), host.Width + ControlPx(host, 8), host.Height + ControlPx(host, 12))
         End Sub
         shell.Controls.Add(nav, 0, 0) : shell.Controls.Add(host, 1, 0)
         Return shell

@@ -172,7 +172,7 @@ Partial Public Class Form2
         deviceConnection.Signal = signal
         deviceConnection.Steps = LinkDiag.ConnectionSteps(linkSnapshot, status.gsm, status.gprs, status.connectToServer)
         deviceConnection.Problem = LinkDiag.ConnectionProblem(linkSnapshot, deviceConnection.Steps)
-        deviceConnection.Height = Theme.Px(If(deviceConnection.Problem = "", 255, 299))
+        deviceConnection.Height = Theme.ControlPx(deviceConnection, If(deviceConnection.Problem = "", 255, 299))
         deviceConnection.Cell = LinkDiag.CellText(linkSnapshot, CByte(status.netType))
         deviceConnection.NetworkLabel = If(status.netType = 0, "Сеть", "Сеть " & LinkDiag.NetworkText(CByte(status.netType)))
         ' Две строки: уровень и качество не переносятся посередине числа в узкой карточке.

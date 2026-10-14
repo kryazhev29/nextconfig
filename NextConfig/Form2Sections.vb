@@ -32,14 +32,20 @@
         Dim readActions As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill}
         readActions.Controls.Add(Button1)
         serviceRow.Controls.Remove(btnDefault)
-        serviceRow.WrapContents = True : serviceRow.Dock = DockStyle.Fill
+        serviceRow.WrapContents = True : serviceRow.Dock = DockStyle.Top
+        serviceRow.FlowDirection = FlowDirection.LeftToRight
+        For Each action As Control In serviceRow.Controls
+            action.Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRelated)
+        Next
         Dim snapshotCard = CardBlock("Все настройки платы · только просмотр", readActions,
             Hint("Последний пакет, прочитанный с платы. Изменения в редакторе здесь не отображаются."), snapshotSecrets, snapshotGrid)
         Dim maintenanceCard = CardBlock("Обслуживание", serviceRow)
+        grid.Controls.Add(maintenanceCard, 0, 2)
+        grid.SetColumnSpan(maintenanceCard, 2)
         Dim shortcuts As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill,
             .Margin = New Padding(0, 0, 0, Theme.GapSection)}
-        Dim captions = {"Объект", "Загрузчик", "Настройки платы", "Обслуживание"}
-        Dim targets As Control() = {objectCard, bootCard, snapshotCard, maintenanceCard}
+        Dim captions = {"Объект", "Загрузчик", "Настройки платы"}
+        Dim targets As Control() = {objectCard, bootCard, snapshotCard}
         For i = 0 To captions.Length - 1
             Dim target = targets(i)
             Dim link As New Button With {.Text = captions(i), .Width = Theme.Px(155), .Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRelated)}
@@ -47,8 +53,8 @@
             AddHandler link.Click, Sub() tabObject.ScrollControlIntoView(target)
             shortcuts.Controls.Add(link)
         Next
-        tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Объект, загрузчик и обслуживание контроллера"),
-            shortcuts, objectCard, objectActions, bootCard, snapshotCard, maintenanceCard))
+        tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Объект, загрузчик и просмотр настроек платы"),
+            shortcuts, objectCard, objectActions, bootCard, snapshotCard))
         tabs.TabPages.Clear()
         ConfigureLinkSection()
         tabs.TabPages.AddRange({tabState, tabLink, tabIds, tabLog, tabSettings, tabObject})

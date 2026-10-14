@@ -51,7 +51,7 @@ try {
             }
         }
         if($section -eq 'Сервис' -and $Mode -in @('--demo','--demo:oldfw')) {
-            foreach($anchor in @('Загрузчик','Настройки платы','Обслуживание')) {
+            foreach($anchor in @('Загрузчик','Настройки платы')) {
                 & "$PSScriptRoot\ui_scroll_target.ps1" -DemoPid $p.Id -Direction 6 | Out-Null
                 Click $anchor;Snap ('service-'+(@{'Загрузчик'='boot';'Настройки платы'='snapshot';'Обслуживание'='maintenance'}[$anchor]))
             }
