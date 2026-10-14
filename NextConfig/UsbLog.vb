@@ -125,6 +125,24 @@ Public Class UsbLog
                 If n <> 5 OrElse frame(16) > 1 Then Return {}
                 text = "Восстановление: " & If(frame(16) = 1, "перезапуск питания", "перезапуск с AT") & " через " &
                     (BitConverter.ToUInt32(frame, 17) / 1000.0).ToString("0.0", Ru) & " с"
+            Case 19
+                ' comm_info_t как есть: CSQ, CREG, CGREG, сеть, PLMN[7], RSRP, RSRQ, SINR, диапазон, полоса.
+                If n <> 16 Then Return {}
+                Dim csq = frame(16), network = frame(19), rsrp = frame(27), rsrq = frame(28)
+                Dim plmn = Encoding.ASCII.GetString(frame, 20, 7).TrimEnd(ChrW(0))
+                Dim signal As String
+                If network = 4 AndAlso rsrp <> 255 Then
+                    Dim grade = LinkDiag.RsrpGrade(rsrp)
+                    If rsrq <> 255 Then grade = Math.Min(grade, LinkDiag.RsrqGrade(rsrq))
+                    signal = LinkDiag.SignalTitle(grade).ToLower(Ru) & " (−" & rsrp & " дБм" & If(rsrq <> 255, ", −" & rsrq & " дБ", "") & ")"
+                ElseIf csq <= 31 Then
+                    signal = LinkDiag.SignalTitle(If(csq >= 20, LinkDiag.Good, If(csq >= 10, LinkDiag.Medium, LinkDiag.Poor))).ToLower(Ru) & " (" & csq & " из 31)"
+                Else
+                    signal = "сигнал не определён"
+                End If
+                Dim registration = If(frame(17) <> 0 AndAlso frame(18) <> 0, "голос и данные", If(frame(17) <> 0, "только голос", If(frame(18) <> 0, "только данные", "нет")))
+                text = If(network = 0 AndAlso plmn = "", "Сеть: не найдена",
+                    "Сеть: " & LinkDiag.NetworkText(network) & ", " & LinkDiag.OperatorText(plmn) & ", " & signal) & ", регистрация: " & registration
             Case 32
                 If n <> 32 Then Return {}
                 Dim name As String = Nothing

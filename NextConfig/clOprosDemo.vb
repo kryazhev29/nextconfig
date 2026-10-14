@@ -404,7 +404,7 @@ Partial Public Class clOpros
     Private Function DemoLogLine() As String
         Dim body As Byte()
         Dim kind As Byte
-        Select Case (demoTick \ 4) Mod 9
+        Select Case (demoTick \ 4) Mod 10
             Case 0
                 kind = 1 : body = Text.Encoding.ASCII.GetBytes("AT+CEREG?")
             Case 1
@@ -421,6 +421,8 @@ Partial Public Class clOpros
                 kind = 17 : body = New Byte() {0, 0, 0, 0, 0}
             Case 7
                 kind = 18 : body = New Byte() {1, 96, 234, 0, 0}
+            Case 8
+                kind = 19 : body = New Byte() {22, 1, 1, 4, 50, 53, 48, 48, 50, 0, 0, 85, 9, 30, 7, 3}
             Case Else
                 kind = 32 : body = New Byte(31) {}
                 body(0) = 7 : body(8) = 38 : body(9) = 49 : body(10) = 50
