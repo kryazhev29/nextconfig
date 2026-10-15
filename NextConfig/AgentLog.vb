@@ -110,7 +110,7 @@ Public Module AgentLog
         If cmd = clOpros.eCmd.CMD_IDENT AndAlso Not PollDue("ident " & port & If(rx Is Nothing, " -", " +")) Then Return
 
         Dim answer As Object = Nothing
-        If rx IsNot Nothing AndAlso rx.Length > 10 AndAlso rx(8) = clOpros.eCmd.REC_ANSWER Then answer = CInt(rx(10))
+        If SldnStream.IsAnswer(rx, CByte(cmd)) Then answer = CInt(SldnStream.AnswerCode(rx))
 
         Write("usb", "port", port, "proto", "SLDN", "cmd", cmd,
               "tx", SldnHex(tx, True), "rx", If(rx Is Nothing, Nothing, SldnHex(rx, False)),

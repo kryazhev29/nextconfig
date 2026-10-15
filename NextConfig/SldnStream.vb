@@ -8,12 +8,23 @@ Public Class SldnStream
     Public Property BadFrames As Integer
 
     ' Эти три старые команды возвращают номер 0, остальные отражают номер запроса.
+    ' Текущий ответ: код/время/буфер (18 Б); прежний добавляет номер команды (19 Б).
+    Public Shared Function IsAnswer(reply As Byte(), command As Byte) As Boolean
+        If reply Is Nothing OrElse reply.Length < 9 OrElse reply(8) <> 11 Then Return False
+        Return reply.Length = 18 OrElse (reply.Length = 19 AndAlso reply(9) = command)
+    End Function
+
+    Public Shared Function AnswerCode(reply As Byte()) As Byte
+        If reply Is Nothing OrElse (reply.Length <> 18 AndAlso reply.Length <> 19) OrElse reply(8) <> 11 Then Throw New InvalidDataException("Длина ответа 11")
+        Return reply(reply.Length - 9)
+    End Function
+
     Public Shared Function MatchesReply(request As Byte(), reply As Byte()) As Boolean
         If request Is Nothing OrElse request.Length < 9 OrElse reply Is Nothing OrElse reply.Length < 11 Then Return False
         Dim cmd = request(8)
         Dim sequence = If(reply(8) <> 11 AndAlso (cmd = 100 OrElse cmd = 101 OrElse cmd = 106), CByte(0), request(7))
         If reply(7) <> sequence Then Return False
-        If reply(8) = 11 Then Return reply.Length >= 13 AndAlso reply(9) = cmd
+        If reply(8) = 11 Then Return IsAnswer(reply, cmd)
         If cmd = 20 Then Return reply(8) = 4 AndAlso reply.Length >= 13
         If reply(8) <> cmd Then Return False
         Select Case cmd

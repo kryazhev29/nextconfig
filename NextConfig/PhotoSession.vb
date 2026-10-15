@@ -119,8 +119,8 @@ Public NotInheritable Class PhotoSession
             If frame Is Nothing Then Continue Do
             If ProcessStatus(frame) Then Continue Do
             If frame(7) <> id OrElse frame(8) <> 11 Then Continue Do
-            If frame.Length < 13 OrElse frame(9) <> 7 Then Continue Do
-            CheckAnswer(frame(10), False)
+            If Not SldnStream.IsAnswer(frame, 7) Then Continue Do
+            CheckAnswer(SldnStream.AnswerCode(frame), False)
             Tell("Камера снимает…")
             Return
         Loop While clock.ElapsedMilliseconds < untilTime
@@ -148,14 +148,14 @@ Public NotInheritable Class PhotoSession
             If frame IsNot Nothing Then
                 If ProcessStatus(frame) Then Continue Do
                 If frame(7) <> id Then Continue Do ' хвост предыдущего потока
-                If frame(8) = 11 AndAlso frame.Length >= 13 AndAlso frame(9) = 21 Then
-                    If frame(10) = 1 Then
+                If SldnStream.IsAnswer(frame, 21) Then
+                    If SldnStream.AnswerCode(frame) = 1 Then
                         rejected += 1
                         If rejected > 2 Then Throw New IOException("Плата повторно отвергла номер/смещение фото.")
                         Tell("Курсор фото устарел. Запрашиваем первое неподтверждённое место (0/0).")
                         id = Send(21, transfer.Cursor(True)) : lastData = now
                     Else
-                        CheckAnswer(frame(10), True)
+                        CheckAnswer(SldnStream.AnswerCode(frame), True)
                     End If
                 ElseIf frame(8) = 14 Then
                     Dim before = transfer.Received

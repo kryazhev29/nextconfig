@@ -29,9 +29,9 @@ foreach ($name in @('SetOut','ResetController','SetDefault','SetTransparentMode'
 }
 
 $request = [NextConfig.SldnStream]::Command(2,[byte[]]@(0),42)
-Check ([NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(11,[byte[]]@(2,0),42))) 'matching reset ACK'
-Check (-not [NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(11,[byte[]]@(3,0),42))) 'foreign command ACK rejected'
-Check (-not [NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(11,[byte[]]@(2,0),41))) 'late ACK sequence rejected'
+Check ([NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(11,[byte[]]@(2,0,0,0,0,0,0,8),42))) 'matching reset ACK'
+Check (-not [NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(11,[byte[]]@(3,0,0,0,0,0,0,8),42))) 'foreign command ACK rejected'
+Check (-not [NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(11,[byte[]]@(2,0,0,0,0,0,0,8),41))) 'late ACK sequence rejected'
 Check (-not [NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(11,[byte[]]@(2),42))) 'CRC bytes cannot supply ACK status'
 Check (-not [NextConfig.SldnStream]::MatchesReply($request,[NextConfig.SldnStream]::Frame(2,$null,42))) 'reset requires ACK'
 foreach($cmd in @(100,101,106)) {

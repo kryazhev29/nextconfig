@@ -36,8 +36,8 @@ Partial Public Class clOpros
                 p(2) = If(_o2, CByte(1), CByte(0))
 
                 If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETOUT, p), 500) Then
-                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_SETOUT Then
-                        rez = rec(payloadIdx + 1)
+                    If SldnStream.IsAnswer(rec, eCmd.CMD_SETOUT) Then
+                        rez = SldnStream.AnswerCode(rec)
                     End If
                 End If
 
@@ -70,8 +70,8 @@ Partial Public Class clOpros
                 Dim rec As Byte()
 
                 If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_RESET, New Byte() {0}), 500) Then
-                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_RESET Then
-                        If rec(payloadIdx + 1) = 0 Then
+                    If SldnStream.IsAnswer(rec, eCmd.CMD_RESET) Then
+                        If SldnStream.AnswerCode(rec) = 0 Then
                             rez = True
                         End If
                     End If
@@ -100,8 +100,8 @@ Partial Public Class clOpros
                 Dim rec As Byte()
 
                 If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETDEF, New Byte() {0}), 15000) Then
-                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_SETDEF Then
-                        If rec(payloadIdx + 1) = 0 Then
+                    If SldnStream.IsAnswer(rec, eCmd.CMD_SETDEF) Then
+                        If SldnStream.AnswerCode(rec) = 0 Then
                             rez = True
                         End If
                     End If
@@ -463,8 +463,8 @@ Partial Public Class clOpros
                 Dim rec As Byte()
 
                 If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_SETTIME, BitConverter.GetBytes(_t)), 500) Then
-                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_SETTIME Then
-                        If rec(payloadIdx + 1) = 0 Then
+                    If SldnStream.IsAnswer(rec, eCmd.CMD_SETTIME) Then
+                        If SldnStream.AnswerCode(rec) = 0 Then
                             rez = True
                         End If
                     End If
@@ -736,8 +736,8 @@ Partial Public Class clOpros
                 Array.Copy(bts, 0, send, 14, 2)
 
                 If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_STARTUPDATE, send), 3000) Then
-                    If rec.Length >= 13 AndAlso rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec(payloadIdx) = eCmd.CMD_STARTUPDATE Then
-                        rez = rec(payloadIdx + 1)
+                    If SldnStream.IsAnswer(rec, eCmd.CMD_STARTUPDATE) Then
+                        rez = SldnStream.AnswerCode(rec)
                     End If
                 End If
 

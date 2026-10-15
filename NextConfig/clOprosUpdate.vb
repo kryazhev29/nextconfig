@@ -121,9 +121,9 @@ Partial Public Class clOpros
                             hw = rec(payloadIdx + 6)
                             armed = rec(payloadIdx + 7)
                         End If
-                    ElseIf rec(cmdIdx) = eCmd.REC_ANSWER AndAlso rec.Length > payloadIdx + 1 Then
+                    ElseIf SldnStream.IsAnswer(rec, eCmd.CMD_MANUALBOOT) Then
                         ' прошивка отказала целиком, причина в коде ответа 11
-                        _bootRefuseCode = rec(payloadIdx + 1)
+                        _bootRefuseCode = SldnStream.AnswerCode(rec)
                         Select Case _bootRefuseCode
                             Case 5 : rez = eBootStatus.BOOT_BUSY ' идёт обновление или пробный запуск
                             Case 4 : rez = eBootStatus.BOOT_NEED_PIN

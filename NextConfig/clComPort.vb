@@ -522,7 +522,7 @@ Public Class ClComPort
                         Dim frame = ReadReceived(command)
                         If frame IsNot Nothing Then
                             data_rec = frame
-                            If frame(8) = 11 AndAlso frame(10) = 4 Then RaiseEvent PinRequired()
+                            If frame(8) = 11 AndAlso SldnStream.AnswerCode(frame) = 4 Then RaiseEvent PinRequired()
                             Return True
                         End If
                     End If
