@@ -225,6 +225,7 @@ Partial Public Class clOpros
         CMD_GETCONFIG = 106
         CMD_TRANSPARENT = 107
         CMD_ENABLELOG = 108
+        CMD_WIFI = 113
         CMD_MANUALBOOT = 110
     End Enum
 

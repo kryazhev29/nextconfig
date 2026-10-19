@@ -123,6 +123,7 @@
     </Compile>
     <Compile Include="Form2Sections.vb" />
     <Compile Include="Form2Link.vb" />
+    <Compile Include="Form2Wifi.vb" />
     <Compile Include="Form2IO.vb" />
     <Compile Include="PinFormat.vb" />
     <Compile Include="LinkDiag.vb" />

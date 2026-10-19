@@ -708,6 +708,32 @@ Partial Public Class clOpros
         Return rez
     End Function
 
+    ' Wi-Fi-мост DR164 (команда 113). Тело "SSID\0ключ\0" пишет точку доступа в мост, пустое — состояние.
+    ' Ответ два байта: после записи — код (0 принято, 1 занято, 2 неверные данные);
+    ' при запросе — канал сервера через мост (0/1) и связь (0 нет точки, 1 точка есть, 2 TCP открыт). Nothing — ответа нет.
+    Public Function WifiBridge(ByVal payload As Byte()) As Byte()
+        If Demo.IsOn Then Return New Byte() {0, 0}
+        Dim reply As Byte() = Nothing
+        SyncLock Me
+            _isPause = True
+            Try
+                While _isSending
+                    Thread.Sleep(1)
+                End While
+                Dim rec As Byte()
+                Dim body = If(payload Is Nothing OrElse payload.Length = 0, Nothing, payload)
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_WIFI, body), 1000) Then
+                    If rec(cmdIdx) = eCmd.CMD_WIFI AndAlso rec.Length >= cmdIdx + 3 Then
+                        reply = New Byte() {rec(cmdIdx + 1), rec(cmdIdx + 2)}
+                    End If
+                End If
+            Finally
+                _isPause = False
+            End Try
+        End SyncLock
+        Return reply
+    End Function
+
     Public Function StartUpdate(ByVal fwI As s_fwinfo) As eCmdAnswer
         If Demo.IsOn Then Return DemoStartUpdate(fwI)
         Dim rez As eCmdAnswer = eCmdAnswer.CMD_UNDEFRESULT
