@@ -1,4 +1,4 @@
-param([string]$AssemblyPath="$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe", [string]$SnapshotDirectory='')
+﻿param([string]$AssemblyPath="$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe", [string]$SnapshotDirectory='')
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 if($SnapshotDirectory) {

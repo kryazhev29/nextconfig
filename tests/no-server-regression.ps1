@@ -1,4 +1,4 @@
-param([string]$AssemblyPath)
+﻿param([string]$AssemblyPath)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 [Reflection.Assembly]::LoadFrom((Resolve-Path $AssemblyPath)) | Out-Null
