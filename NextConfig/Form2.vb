@@ -1,4 +1,4 @@
-﻿Imports System.Globalization
+Imports System.Globalization
 Imports System.IO
 
 Public Class Form2
@@ -64,6 +64,7 @@ Public Class Form2
         AddHandler Shown, Sub() ReflowOverview()
 
         If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
+        UpdateFirmwareAvailability()
     End Sub
 
     Private Sub Form2_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -72,6 +73,7 @@ Public Class Form2
 
         AgentLog.WatchText(lblSaveState, "form2.save")
         AgentLog.WatchText(lblConnState, "form2.connection")
+        AgentLog.WatchText(lblFwHint, "form2.update")
         AddHandler opros.onStatus, AddressOf opros_onStatus
         AddHandler tmr1.Tick, AddressOf TmrTick
         tmr1.Interval = 1000
@@ -111,6 +113,7 @@ Public Class Form2
     ' в шапке видно, что на экране последнее полученное, а не текущее состояние.
     Private Sub PhotoBusyChanged(value As Boolean)
         busyWithBoard = value
+        UpdateFirmwareAvailability()
         If value Then
             DisableOtherActions(Me)
         Else
@@ -140,8 +143,7 @@ Public Class Form2
         btnTestOUT1.Enabled = fresh AndAlso Not busyWithBoard AndAlso HasConfigSnapshot()
         btnTestOUT2.Enabled = btnTestOUT1.Enabled
         UpdateIoButtons()
-        btnUpdateFW.Enabled = fresh AndAlso Not busyWithBoard
-        btnUpdateBoot.Enabled = btnUpdateFW.Enabled
+        UpdateFirmwareAvailability()
         photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, Camera232)
         If lastStatus = DateTime.MinValue Then
             SetHeadState(Theme.eDot.Waiting, "Ожидание данных")
@@ -170,6 +172,31 @@ Public Class Form2
     Private Function StatusIsFresh() As Boolean
         Return lastStatus <> DateTime.MinValue AndAlso DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds
     End Function
+
+    Private Function FirmwareBlockReason() As String
+        If busyWithBoard Then Return "Плата занята другой операцией. Дождитесь её завершения."
+        If Not StatusIsFresh() Then Return "Нет свежего статуса платы по USB. Проверьте подключение и дождитесь обновления данных."
+        Return ""
+    End Function
+
+    Private Sub UpdateFirmwareAvailability()
+        Dim reason = FirmwareBlockReason()
+        btnUpdateFW.Enabled = reason = ""
+        btnUpdateBoot.Enabled = btnUpdateFW.Enabled
+        Theme.SetText(lblFwHint, If(reason = "", FirmwareHint, reason))
+    End Sub
+
+    Private Function CanUpdateFirmware() As Boolean
+        Dim reason = FirmwareBlockReason()
+        If reason = "" Then Return True
+        AgentLog.Write("update.blocked", "reason", reason, "busy", busyWithBoard, "lastStatus", lastStatus)
+        Using f As New frmInfo("Обновление недоступно", reason)
+            f.ShowDialog(Me)
+        End Using
+        Return False
+    End Function
+
+    Private Const FirmwareHint As String = "Программа сама найдёт свежий файл прошивки и проведёт по шагам. Около 1 минуты, потом сама подключится к плате и покажет итог."
 
     Private Sub SetHeadState(ByVal state As Theme.eDot, ByVal text As String)
         Theme.Dot(dotConn, state)
@@ -359,7 +386,7 @@ Public Class Form2
     ' Файл берём сами (самая свежая сборка для этой платы рядом с программой);
     ' нет такого - оператор выбирает, папка запоминается.
     Private Sub btnUpdateFW_Click(sender As Object, e As EventArgs) Handles btnUpdateFW.Click
-        If Not StatusIsFresh() OrElse busyWithBoard Then Return
+        If Not CanUpdateFirmware() Then Return
         Dim file As String = FirmwareFiles.FindFirmware(BoardHw, OldModem)
         If file Is Nothing Then
             Using f As New frmInfo("Обновление прошивки", "Рядом с программой нет файла прошивки для этой платы." & vbCrLf &
@@ -375,26 +402,28 @@ Public Class Form2
 
         ' опрос статуса на время записи не нужен: порт занимают блоки прошивки
         busyWithBoard = True
+        UpdateFirmwareAvailability()
         tmr1.Enabled = False
         opros.StopGetStatus(True)
-
-        Using f As New frmFW(file, opros) With {.BoardBuild = CUInt(status.fw_build)}
-            If f.ShowDialog() = DialogResult.OK Then
-                ' контроллер устанавливает прошивку и перезагружается, связь потеряна
-                PendingCheck = New UpdateCheck With {.BeforeBuild = CUInt(status.fw_build), .ExpectedBuild = f.FileBuild,
-                                                     .BeforeBoot = status.boot_version}
-                Me.Close()
-                Exit Sub
-            End If
-        End Using
-
-        busyWithBoard = False
-        opros.StopGetStatus(False)
-        tmr1.Enabled = True
+        Try
+            Using f As New frmFW(file, opros) With {.BoardBuild = CUInt(status.fw_build)}
+                If f.ShowDialog() = DialogResult.OK Then
+                    ' контроллер устанавливает прошивку и перезагружается, связь потеряна
+                    PendingCheck = New UpdateCheck With {.BeforeBuild = CUInt(status.fw_build), .ExpectedBuild = f.FileBuild,
+                                                         .BeforeBoot = status.boot_version}
+                    Me.Close()
+                End If
+            End Using
+        Finally
+            busyWithBoard = False
+            opros.StopGetStatus(False)
+            tmr1.Enabled = Not IsDisposed
+            If Not IsDisposed Then UpdateFirmwareAvailability()
+        End Try
     End Sub
 
     Private Sub btnUpdateBoot_Click(sender As Object, e As EventArgs) Handles btnUpdateBoot.Click
-        If Not StatusIsFresh() OrElse busyWithBoard Then Return
+        If Not CanUpdateFirmware() Then Return
         Dim file As String = AskBootFile()
         If file <> "" Then ReplaceBoot(file)
     End Sub
@@ -429,22 +458,24 @@ Public Class Form2
     Private Sub ReplaceBoot(ByVal file As String)
         ' опрос статуса на время замены не нужен: порт занимает команда 110
         busyWithBoard = True
+        UpdateFirmwareAvailability()
         tmr1.Enabled = False
         opros.StopGetStatus(True)
-
-        Using f As New frmFW(file, opros, BoardHw)
-            If f.ShowDialog() = DialogResult.OK Then
-                ' контроллер перезагружается с новым загрузчиком, связь потеряна
-                PendingCheck = New UpdateCheck With {.Bootloader = True, .BeforeBuild = CUInt(status.fw_build),
-                                                     .BeforeBoot = status.boot_version}
-                Me.Close()
-                Exit Sub
-            End If
-        End Using
-
-        busyWithBoard = False
-        opros.StopGetStatus(False)
-        tmr1.Enabled = True
+        Try
+            Using f As New frmFW(file, opros, BoardHw)
+                If f.ShowDialog() = DialogResult.OK Then
+                    ' контроллер перезагружается с новым загрузчиком, связь потеряна
+                    PendingCheck = New UpdateCheck With {.Bootloader = True, .BeforeBuild = CUInt(status.fw_build),
+                                                         .BeforeBoot = status.boot_version}
+                    Me.Close()
+                End If
+            End Using
+        Finally
+            busyWithBoard = False
+            opros.StopGetStatus(False)
+            tmr1.Enabled = Not IsDisposed
+            If Not IsDisposed Then UpdateFirmwareAvailability()
+        End Try
     End Sub
 
     ' Шаг 2 перевода на новую систему. Прошивка работает, а загрузчик старый: она

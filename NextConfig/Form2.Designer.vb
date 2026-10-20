@@ -1,4 +1,4 @@
-﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
+<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Class Form2
     Inherits System.Windows.Forms.Form
 
@@ -708,7 +708,7 @@ Partial Class Form2
         Me.lblFwHint.AutoSize = True
         Me.lblFwHint.Name = "lblFwHint"
         Me.lblFwHint.MaximumSize = New System.Drawing.Size(Theme.Px(560), 0)
-        Me.lblFwHint.Text = "Программа сама найдёт свежий файл прошивки и проведёт по шагам. Около 1 минуты, потом сама подключится к плате и покажет итог."
+        Me.lblFwHint.Text = FirmwareHint
         Me.lblFwHint.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblFwHint)
 
