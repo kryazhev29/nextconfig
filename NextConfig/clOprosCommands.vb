@@ -1,4 +1,4 @@
-﻿Imports System.Globalization
+Imports System.Globalization
 Imports System.Threading
 
 ' Часть класса clOpros: команды прибора по USB
@@ -677,8 +677,8 @@ Partial Public Class clOpros
     End Function
 
     Public Function EnableLog(ByVal _o1 As Byte) As Boolean
+        LogBits = CByte(_o1 And 7) ' выбор сеанса сохраняется и при потере ответа 108
         If Demo.IsOn Then
-            LogBits = CByte(_o1 And 7)
             Return True
         End If
         Dim rez As Boolean = False
@@ -704,7 +704,6 @@ Partial Public Class clOpros
             End Try
         End SyncLock
 
-        LogBits = If(rez, CByte(_o1 And 7), CByte(0))
         Return rez
     End Function
 

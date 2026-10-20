@@ -1,4 +1,4 @@
-﻿param([string]$AssemblyPath="$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe", [string]$SnapshotDirectory='')
+param([string]$AssemblyPath="$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe", [string]$SnapshotDirectory='')
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 if($SnapshotDirectory) {
@@ -178,6 +178,8 @@ Public Class UsbLogTransportProbe
 '@
 $enableSource=Get-Content "$PSScriptRoot\..\NextConfig\clOprosCommands.vb" -Raw
 $enable=[regex]::Match($enableSource,'(?ms)^    Public Function EnableLog\(.*?^    End Function').Value.Replace('Comport.SendRecCmd','Me.SendRecCmd')
+$pollerSource=Get-Content "$PSScriptRoot\..\NextConfig\clOpros.vb" -Raw
+$logProperty=[regex]::Match($pollerSource,'(?m)^    Public Property LogBits As Byte[^\r\n]*').Value.Trim()
 $extra=@'
  Public Property LogBits As Byte
  Private _isPause As Boolean
@@ -199,6 +201,10 @@ $reconnect=@'
 Public Class ReconnectProbe
  Public opros As New UsbLogTransportProbe
  Private updatingLog As Boolean
+ Public warnings As New List(Of String)
+ Private Sub AppendLogLine(value As String)
+  warnings.Add(value)
+ End Sub
  Public Class Box
   Public Property Checked As Boolean
  End Class
@@ -210,6 +216,7 @@ Public Class ReconnectProbe
  End Sub
 '@
 $code=$prefix+"`r`n"+($methods -join "`r`n")+"`r`n"+$extra+"`r`n"+$enable+"`r`nEnd Class`r`n"+$reconnect+"`r`n"+($restoreMethods -join "`r`n")+"`r`nEnd Class`r`n"
+$code=$code.Replace('Public Property LogBits As Byte',$logProperty)
 # Add-Type с внешней сборкой не работает в этой среде; стенд собирает тот же MSBuild.
 $harness=Join-Path $env:TEMP 'domovoi-usblog-next-harness'
 New-Item -ItemType Directory -Force -Path $harness | Out-Null
@@ -238,11 +245,28 @@ Check ($script:exchangeLines.Count -eq 3) 'logs before write, during exchange an
 Check ([BitConverter]::ToString($rec) -eq [BitConverter]::ToString($answer)) 'correct exchange answer'
 
 $reconnect=New-Object ReconnectProbe
+Check ($reconnect.opros.LogBits -eq 6) 'new session defaults to GSM and general events'
+$reconnect.opros._port.After=$answer
+$reconnect.Connected()
+Check ($reconnect.opros._port.Commands[0][8] -eq 108 -and $reconnect.opros._port.Commands[0][9] -eq 6) 'default mask 108 sent immediately'
+Check (-not $reconnect.CheckBox1.Checked -and $reconnect.CheckBox2.Checked -and $reconnect.CheckBox3.Checked) 'AT opt-in, GSM and general selected'
+$reconnect.opros._port.Commands.Clear()
 $reconnect.opros.LogBits=7
 $reconnect.opros._port.After=$answer
 1..2 | ForEach-Object {$reconnect.Connected()}
 Check ($reconnect.opros._port.Commands.Count -eq 2) '108 resent after both connections'
 foreach($command in $reconnect.opros._port.Commands) {Check ($command[8] -eq 108 -and $command[9] -eq 7) '108 current mask'}
+$reconnect.opros.LogBits=0
+$reconnect.Connected()
+Check ($reconnect.opros.LogBits -eq 0 -and -not $reconnect.CheckBox2.Checked -and -not $reconnect.CheckBox3.Checked) 'explicit all-off survives reconnect'
+$reconnect.opros.LogBits=6
+$reconnect.opros._port.After=[byte[]]@()
+$reconnect.Connected()
+Check ($reconnect.opros.LogBits -eq 6 -and $reconnect.CheckBox2.Checked -and $reconnect.CheckBox3.Checked) 'lost 108 reply preserves selection'
+Check ($reconnect.warnings.Count -eq 1) 'lost 108 reply explained in journal'
+$reconnect.opros._port.After=$answer
+$reconnect.Connected()
+Check ($reconnect.opros._port.Commands[$reconnect.opros._port.Commands.Count-1][9] -eq 6) 'reconnect retries saved selection after lost reply'
 
 # Два подключения проходят тот же метод восстановления галочек.
 $poller=[Runtime.Serialization.FormatterServices]::GetUninitializedObject([NextConfig.clOpros])

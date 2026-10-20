@@ -1104,7 +1104,7 @@ Public Class Form2
     ' После ПИН/переподключения плата снова получает текущий выбор.
     Private Sub RestoreLogSelection()
         ShowLogSelection(opros.LogBits)
-        If Not opros.EnableLog(opros.LogBits) Then ShowLogSelection(0)
+        If Not opros.EnableLog(opros.LogBits) Then AppendLogLine("Журнал: плата не подтвердила выбор событий. Проверьте USB-подключение и повторите выбор.")
     End Sub
 
     Private Sub ShowLogSelection(bits As Byte)
@@ -1118,7 +1118,7 @@ Public Class Form2
     Private Sub LogSelectionChanged(sender As Object, e As EventArgs) Handles CheckBox1.CheckedChanged, CheckBox2.CheckedChanged, CheckBox3.CheckedChanged
         If updatingLog Then Return
         Dim bits = CByte(If(CheckBox1.Checked, 1, 0) Or If(CheckBox2.Checked, 2, 0) Or If(CheckBox3.Checked, 4, 0))
-        If Not opros.EnableLog(bits) Then ShowLogSelection(0)
+        If Not opros.EnableLog(bits) Then AppendLogLine("Журнал: плата не подтвердила выбор событий. Проверьте USB-подключение и повторите выбор.")
     End Sub
 
     Private Sub Label20_Click(sender As Object, e As EventArgs) Handles Label20.Click
