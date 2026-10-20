@@ -54,6 +54,7 @@ Public Class UsbLog
         {76, "Выход включён сервером: голосовой помощник"},
         {77, "Выход включён из мобильного приложения"},
         {78, "Получен ID со считывателя"},
+        {129, "Фотофиксация"},
         {131, "Значение счётчика проходов"},
         {132, "Начало загрузки новой прошивки"},
         {133, "Сбой загрузки прошивки, операция отменена"},
@@ -64,6 +65,12 @@ Public Class UsbLog
         {138, "Истёк срок действия ID"},
         {139, "Запуск таймера ограничения по времени на объекте"}
     }
+
+    ' Причины событий обновления 132-137 (прошивка user_fw_reason.h).
+    Private Shared ReadOnly FwReasons As String() = {"", "неверные параметры", "плата занята", "старый загрузчик",
+        "загрузчик занят", "прошивка в пробном режиме", "нет резервной копии", "резервная копия повреждена",
+        "неверная CRC", "ошибка записи", "отменено", "ошибка установки", "файл для другой платы",
+        "проба не подтверждена", "резервная копия", "истекло время"}
 
     ' Начало длинной строки модема: куски с битом 7 ждут последнего куска.
     Private ReadOnly pending As New StringBuilder()
@@ -165,15 +172,27 @@ Public Class UsbLog
                 Dim name As String = Nothing
                 Dim eventId = frame(24)
                 If Not Events.TryGetValue(eventId, name) Then name = "код " & eventId.ToString(Ru)
-                Dim id = Encoding.ASCII.GetString(frame, 25, 10).Trim(ChrW(0), " "c)
-                id = New String(id.Select(Function(c) If(Char.IsControl(c), "."c, c)).ToArray())
+                Dim id As String
+                If eventId >= 132 AndAlso eventId <= 137 Then
+                    ' Обновление: плата, прошивка, сборка двоичным видом (user_log.c log_addUpdateEvent).
+                    id = "прошивка " & frame(25).ToString(Ru) & "." & BitConverter.ToUInt16(frame, 26).ToString(Ru) & "." & BitConverter.ToUInt32(frame, 28).ToString(Ru)
+                ElseIf eventId = 129 Then
+                    id = "фото " & BitConverter.ToUInt32(frame, 25).ToString(Ru)
+                Else
+                    id = Encoding.ASCII.GetString(frame, 25, 10).Trim(ChrW(0), " "c)
+                    id = New String(id.Select(Function(c) If(Char.IsControl(c), "."c, c)).ToArray())
+                End If
                 ' До синхронизации часов плата пишет время от старта, его не показываем.
                 Dim written = BitConverter.ToUInt32(frame, 20)
                 Dim arg2 = BitConverter.ToUInt32(frame, 35)
                 text = "Событие: " & name
                 If written >= 1600000000UI Then text &= ", " & New DateTime(1970, 1, 1).AddSeconds(written).ToString("dd.MM.yyyy HH:mm:ss", Ru)
-                If id <> "" Then text &= ", ID " & id
-                If arg2 <> 0 Then text &= ", значение " & arg2.ToString(Ru)
+                If id <> "" Then text &= If(eventId = 129 OrElse (eventId >= 132 AndAlso eventId <= 137), ", ", ", ID ") & id
+                If arg2 <> 0 AndAlso eventId >= 132 AndAlso eventId <= 137 Then
+                    text &= ", причина " & arg2.ToString(Ru) & If(arg2 < FwReasons.Length AndAlso FwReasons(CInt(arg2)) <> "", " (" & FwReasons(CInt(arg2)) & ")", "")
+                ElseIf arg2 <> 0 Then
+                    text &= ", значение " & arg2.ToString(Ru)
+                End If
                 If frame(39) <> 0 Then text &= ", проходов " & frame(39).ToString(Ru)
             Case Else
                 Return {}
