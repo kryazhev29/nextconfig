@@ -1,4 +1,4 @@
-Imports System.Globalization
+﻿Imports System.Globalization
 Imports System.IO
 
 Public Class Form2
@@ -405,9 +405,11 @@ Public Class Form2
         UpdateFirmwareAvailability()
         tmr1.Enabled = False
         opros.StopGetStatus(True)
+        Dim installed = False
         Try
             Using f As New frmFW(file, opros) With {.BoardBuild = CUInt(status.fw_build)}
                 If f.ShowDialog() = DialogResult.OK Then
+                    installed = True
                     ' контроллер устанавливает прошивку и перезагружается, связь потеряна
                     PendingCheck = New UpdateCheck With {.BeforeBuild = CUInt(status.fw_build), .ExpectedBuild = f.FileBuild,
                                                          .BeforeBoot = status.boot_version}
@@ -415,10 +417,13 @@ Public Class Form2
                 End If
             End Using
         Finally
-            busyWithBoard = False
-            opros.StopGetStatus(False)
-            tmr1.Enabled = Not IsDisposed
-            If Not IsDisposed Then UpdateFirmwareAvailability()
+            ' После успешной записи плата перезапускается, окно закрыто: опрос возобновит новое подключение.
+            If Not installed Then
+                busyWithBoard = False
+                opros.StopGetStatus(False)
+                tmr1.Enabled = Not IsDisposed
+                If Not IsDisposed Then UpdateFirmwareAvailability()
+            End If
         End Try
     End Sub
 
@@ -461,9 +466,11 @@ Public Class Form2
         UpdateFirmwareAvailability()
         tmr1.Enabled = False
         opros.StopGetStatus(True)
+        Dim installed = False
         Try
             Using f As New frmFW(file, opros, BoardHw)
                 If f.ShowDialog() = DialogResult.OK Then
+                    installed = True
                     ' контроллер перезагружается с новым загрузчиком, связь потеряна
                     PendingCheck = New UpdateCheck With {.Bootloader = True, .BeforeBuild = CUInt(status.fw_build),
                                                          .BeforeBoot = status.boot_version}
@@ -471,10 +478,13 @@ Public Class Form2
                 End If
             End Using
         Finally
-            busyWithBoard = False
-            opros.StopGetStatus(False)
-            tmr1.Enabled = Not IsDisposed
-            If Not IsDisposed Then UpdateFirmwareAvailability()
+            ' После успешной записи плата перезапускается, окно закрыто: опрос возобновит новое подключение.
+            If Not installed Then
+                busyWithBoard = False
+                opros.StopGetStatus(False)
+                tmr1.Enabled = Not IsDisposed
+                If Not IsDisposed Then UpdateFirmwareAvailability()
+            End If
         End Try
     End Sub
 

@@ -1,4 +1,4 @@
-Imports System.Globalization
+﻿Imports System.Globalization
 Imports System.Threading
 
 ' Часть класса clOpros: команды прибора по USB
