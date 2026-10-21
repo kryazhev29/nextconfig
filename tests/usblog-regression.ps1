@@ -32,6 +32,13 @@ Check ($script:idleLines -eq 1 -and $script:idleAnswers -eq 1) 'fragmented idle 
 $idle.Dispose()
 
 $format=New-Object NextConfig.UsbLog
+$resetBody=New-Object byte[] 32
+$resetBody[9]=[byte][char]'4'
+$resetText=$format.Format((Frame 32 $resetBody))
+Check (($resetText -join ' ').Contains('Заводской сброс: кнопка')) 'factory reset button source'
+$resetBody[8]=41
+$resetText=$format.Format((Frame 32 $resetBody))
+Check (($resetText -join ' ').Contains('Мост не ответил на выключение')) 'bridge shutdown timeout event'
 $samples=@(
     @(1,[Text.Encoding]::ASCII.GetBytes('AT+CEREG?'),'→ AT+CEREG?'),
     @(2,[Text.Encoding]::ASCII.GetBytes('+CEREG: 0,1'),'← +CEREG: 0,1'),

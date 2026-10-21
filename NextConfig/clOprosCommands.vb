@@ -711,7 +711,7 @@ Partial Public Class clOpros
     ' Ответ два байта: после записи — код (0 принято, 1 занято, 2 неверные данные);
     ' при запросе — канал сервера через мост (0/1) и связь (0 нет точки, 1 точка есть, 2 TCP открыт). Nothing — ответа нет.
     Public Function WifiBridge(ByVal payload As Byte()) As Byte()
-        If Demo.IsOn Then Return New Byte() {0, 0}
+        If Demo.IsOn Then Return New Byte() {0, 0, 1, 0, 0, 4}
         Dim reply As Byte() = Nothing
         SyncLock Me
             _isPause = True
@@ -722,8 +722,8 @@ Partial Public Class clOpros
                 Dim rec As Byte()
                 Dim body = If(payload Is Nothing OrElse payload.Length = 0, Nothing, payload)
                 If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_WIFI, body), 1000) Then
-                    If rec(cmdIdx) = eCmd.CMD_WIFI AndAlso rec.Length >= cmdIdx + 3 Then
-                        reply = New Byte() {rec(cmdIdx + 1), rec(cmdIdx + 2)}
+                    If rec IsNot Nothing AndAlso rec.Length >= cmdIdx + 5 AndAlso rec(cmdIdx) = eCmd.CMD_WIFI Then
+                        reply = rec.Skip(cmdIdx + 1).Take(rec.Length - cmdIdx - 3).ToArray()
                     End If
                 End If
             Finally
@@ -731,6 +731,25 @@ Partial Public Class clOpros
             End Try
         End SyncLock
         Return reply
+    End Function
+
+    ' Локальная запись device: серверная команда 12 не содержит этих полей.
+    Public Function SetWifiModem(model As Byte, policy As Byte) As Boolean
+        If model > 1 OrElse policy > 2 OrElse (model = 0 AndAlso policy <> 0) Then Return False
+        If Demo.IsOn Then Return True
+        SyncLock Me
+            _isPause = True
+            Try
+                While _isSending
+                    Thread.Sleep(1)
+                End While
+                Dim rec As Byte() = Nothing
+                Return Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_WIFI_MODEM, New Byte() {model, policy}), 5000) AndAlso
+                    SldnStream.IsAnswer(rec, eCmd.CMD_WIFI_MODEM) AndAlso SldnStream.AnswerCode(rec) = 0
+            Finally
+                _isPause = False
+            End Try
+        End SyncLock
     End Function
 
     Public Function StartUpdate(ByVal fwI As s_fwinfo) As eCmdAnswer

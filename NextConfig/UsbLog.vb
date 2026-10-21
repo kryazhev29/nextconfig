@@ -1,10 +1,11 @@
-Imports System.Globalization
+﻿Imports System.Globalization
 Imports System.Text
 
 ' Тела 109: только проверенные кадры из общего декодера SLDN.
 Public Class UsbLog
     Private Shared ReadOnly Ru As CultureInfo = CultureInfo.GetCultureInfo("ru-RU")
     Private Shared ReadOnly Events As New Dictionary(Of Byte, String) From {
+        {0, "Заводской сброс"},
         {6, "Обновление ID завершено"},
         {7, "Обновление настроек завершено"},
         {8, "Обновление групп завершено"},
@@ -40,6 +41,7 @@ Public Class UsbLog
         {38, "Низкий уровень сигнала"},
         {39, "Перезагрузка по падению питания"},
         {40, "Перезагрузка: причина сброса процессора"},
+        {41, "Мост не ответил на выключение"},
         {65, "ID абонента отсутствует в базе"},
         {66, "ID абонента заблокирован"},
         {67, "Добавлен ID по SMS"},
@@ -181,6 +183,11 @@ Public Class UsbLog
                 Else
                     id = Encoding.ASCII.GetString(frame, 25, 10).Trim(ChrW(0), " "c)
                     id = New String(id.Select(Function(c) If(Char.IsControl(c), "."c, c)).ToArray())
+                End If
+                If eventId = 0 AndAlso id.Length = 1 AndAlso id(0) >= "0"c AndAlso id(0) <= "5"c Then
+                    Dim sources = {"USB", "сервер", "SMS", "сервер", "кнопка", "восстановление настроек"}
+                    name &= ": " & sources(AscW(id(0)) - AscW("0"c))
+                    id = ""
                 End If
                 ' До синхронизации часов плата пишет время от старта, его не показываем.
                 Dim written = BitConverter.ToUInt32(frame, 20)

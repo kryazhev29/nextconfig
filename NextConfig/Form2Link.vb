@@ -1,4 +1,4 @@
-Imports System.Threading
+﻿Imports System.Threading
 
 Partial Public Class Form2
     Private ReadOnly tabLink As New TabPage With {.Text = "Связь", .Name = "tabLink", .AutoScroll = True}
@@ -58,6 +58,7 @@ Partial Public Class Form2
         AddHandler linkRefresh.Click, Sub() RefreshLink()
         AddHandler tabLink.VisibleChanged, AddressOf LinkVisibilityChanged
         AddHandler tabState.VisibleChanged, AddressOf LinkVisibilityChanged
+        AddHandler tabSettings.VisibleChanged, AddressOf LinkVisibilityChanged
         AddHandler tmr1.Tick, AddressOf UpdateLinkCountdown
         AddHandler Disposed, Sub()
                                  If linkCancellation IsNot Nothing Then linkCancellation.Cancel()
@@ -78,19 +79,25 @@ Partial Public Class Form2
 
     Private Sub LinkVisibilityChanged(sender As Object, e As EventArgs)
         linkTimer.Interval = If(tabLink.Visible, 2000, 5000)
-        linkTimer.Enabled = (tabLink.Visible OrElse tabState.Visible) AndAlso Not IsDisposed
+        linkTimer.Enabled = (tabLink.Visible OrElse tabState.Visible OrElse tabSettings.Visible) AndAlso Not IsDisposed
         If linkCancellation IsNot Nothing Then linkCancellation.Cancel()
         If linkTimer.Enabled Then RefreshLink()
     End Sub
 
     Private Async Sub RefreshLink()
-        If linkLoading OrElse Not (tabLink.Visible OrElse tabState.Visible) OrElse busyWithBoard OrElse opros Is Nothing Then Return
+        If linkLoading OrElse Not (tabLink.Visible OrElse tabState.Visible OrElse tabSettings.Visible) OrElse busyWithBoard OrElse opros Is Nothing Then Return
         linkLoading = True : linkRefresh.Enabled = False
         Dim cancellation As New CancellationTokenSource
         linkCancellation = cancellation
         Try
             Dim snapshot = Await Task.Run(Function() opros.GetLinkDiag(cancellation.Token))
-            If Not cancellation.IsCancellationRequested AndAlso Not IsDisposed Then DisplayLink(snapshot)
+            If Not cancellation.IsCancellationRequested AndAlso Not IsDisposed Then
+                DisplayLink(snapshot)
+                If Not wifiBusy Then
+                    Dim wifiReply = Await Task.Run(Function() opros.WifiBridge(Nothing))
+                    If Not cancellation.IsCancellationRequested AndAlso Not IsDisposed Then WifiApplyReply(wifiReply)
+                End If
+            End If
         Catch ex As OperationCanceledException
         Catch ex As Exception
             If Not cancellation.IsCancellationRequested AndAlso Not IsDisposed Then
@@ -141,7 +148,7 @@ Partial Public Class Form2
             linkGauges.Visible = signal.Lte : linkPlotCard.Visible = signal.Lte : linkCsqRow.Visible = Not signal.Lte
             linkRsrp.Raw = snapshot.Rsrp : linkRsrq.Raw = snapshot.Rsrq
             linkRsrp.Invalidate() : linkRsrq.Invalidate()
-            If (tabLink.Visible OrElse tabState.Visible) AndAlso signal.Lte Then signalHistory.Observe(linkClock.Elapsed.TotalSeconds, snapshot.Rsrp)
+            If (tabLink.Visible OrElse tabState.Visible OrElse tabSettings.Visible) AndAlso signal.Lte Then signalHistory.Observe(linkClock.Elapsed.TotalSeconds, snapshot.Rsrp)
             linkPlot.Seconds = linkClock.Elapsed.TotalSeconds : linkPlot.Version = snapshot.Version : linkPlot.Invalidate()
             linkPhases.Durations = snapshot.StageMilliseconds
             If historyChanged Then

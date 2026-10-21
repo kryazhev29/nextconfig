@@ -183,6 +183,7 @@ Public Class Form2
             deviceConnection.Cell = "" : deviceConnection.Details = "Нет свежих данных"
             deviceConnection.Height = Theme.ControlPx(deviceConnection, 299)
             deviceConnection.Invalidate()
+            Theme.DotText(wifiChannel, Theme.eDot.Idle, "Связь: нет свежих данных")
             lblNet.Text = "—"
             Status485()
         End If
@@ -664,6 +665,10 @@ Public Class Form2
             f.Button1.Text = "Записать"
             f.Button2.Text = "Отмена"
             If f.ShowDialog(Me) = DialogResult.OK Then
+                If Not ResetWifiDefaults() Then
+                    Notify("Настройки по умолчанию", "Не удалось сбросить выбор Wi-Fi-модема. Настройки не записаны.", True)
+                    Return
+                End If
                 SetDefaultConfig()
                 If opros.SetConfig(config) Then
                     ConfirmConfigSnapshot()

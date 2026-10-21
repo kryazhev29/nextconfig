@@ -1,0 +1,57 @@
+﻿param([string]$AssemblyPath="$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe",[string]$Snapshot='')
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName System.Windows.Forms
+[Reflection.Assembly]::LoadFrom((Resolve-Path $AssemblyPath)) | Out-Null
+$flags=[Reflection.BindingFlags]'Instance,Public,NonPublic'
+$script:n=0
+function Check($v,$label){if(-not $v){throw "FAIL: $label"};$script:n++}
+function Field($f,$name){$p=$f.GetType().GetProperty($name,$flags);if($p){return $p.GetValue($f,$null)};return $f.GetType().GetField($name,$flags).GetValue($f)}
+function Reply($f,[byte[]]$bytes,[bool]$reload=$false){$f.GetType().GetMethod('WifiApplyReply',$flags).Invoke($f,@($bytes,$reload))|Out-Null}
+# Без конструктора clOpros, Form2_Load, фонового опроса и COM.
+$poller=[Runtime.Serialization.FormatterServices]::GetUninitializedObject([NextConfig.clOpros])
+$form=New-Object NextConfig.Form2($poller,'OFFLINE','000000000000000',0)
+try {
+    Check (-not (Field $form 'wifiSave').Enabled) 'no editing before protocol capability'
+    Reply $form ([byte[]](0,0))
+    Check (-not (Field $form 'wifiModel').Enabled) 'legacy reply cannot enable local Wi-Fi'
+    Reply $form ([byte[]](0,0,1,0,0,4))
+    Check ((Field $form 'wifiModel').SelectedIndex -eq 0) 'default is no modem'
+    Check ((Field $form 'wifiPolicy').SelectedIndex -eq 0) 'default only GSM'
+    Check ((Field $form 'wifiChannel').Text -eq 'Связь: 4G') 'actual cellular generation'
+    Reply $form ([byte[]](1,2,1,1,1,1)) $true
+    Check ((Field $form 'wifiModel').SelectedIndex -eq 1) 'read local model'
+    Check ((Field $form 'wifiPolicy').SelectedIndex -eq 1) 'read local fallback logic'
+    Check ((Field $form 'warning485').Text -eq 'Порт 485 занят Wi-Fi-модемом, камера отключена') 'exclusive port explanation'
+    Check (-not (Field $form 'mode485').Enabled) 'server table does not own selected port'
+    Check (-not (Field $form 'cmbVoLTE').Enabled) 'effective VoLTE forced off'
+    Check ((Field $form 'wifiChannel').Text -eq 'Связь: Wi-Fi') 'Wi-Fi status'
+    (Field $form 'wifiPolicy').SelectedIndex=2
+    Reply $form ([byte[]](0,0,1,1,1,2))
+    Check ((Field $form 'wifiPolicy').SelectedIndex -eq 2) 'poll preserves unsaved choice'
+    Check ((Field $form 'wifiChannel').Text -eq 'Связь: 2G') 'GSM fallback generation'
+    Check ((Field $form 'wifiState').ForeColor -eq [NextConfig.Theme]::Danger) 'bridge fault red'
+    Reply $form ([byte[]](0,3,1,1,0,4)) $true
+    Check ((Field $form 'wifiState').Text.Contains('только GSM')) 'disabled bridge state'
+    Reply $form ([byte[]](1,2,1,1,1,1)) $true
+    Reply $form ([byte[]](0,4,1,0,0,4)) $true
+    Check ((Field $form 'wifiState').Text -eq 'Мост не подтвердил выключение') 'timeout never claims bridge off'
+    Check ((Field $form 'wifiState').ForeColor -eq [NextConfig.Theme]::Danger) 'shutdown failure red even after local deselection'
+    Reply $form ([byte[]](1,2,1,1,1,1)) $true
+    if($Snapshot){
+        $form.GetType().GetMethod('SetDefaultConfig',$flags).Invoke($form,@())|Out-Null
+        $form.GetType().GetMethod('Load485',$flags).Invoke($form,@())|Out-Null
+        $load=[Delegate]::CreateDelegate([EventHandler],$form,$form.GetType().GetMethod('Form2_Load',$flags))
+        $form.remove_Load($load)
+        $form.GetType().GetField('bootOffered',$flags).SetValue($form,$true)
+        $form.GetType().GetField('linkLoading',$flags).SetValue($form,$true)
+        $form.ShowInTaskbar=$false;$form.Opacity=0;$form.Show();$form.Size=New-Object Drawing.Size(1280,1200)
+        (Field $form 'tabs').SelectedTab=Field $form 'tabSettings'
+        $button=(Field $form 'tabSettings').Controls.Find('settingsSection1',$true)[0]
+        $button.PerformClick();[Windows.Forms.Application]::DoEvents()
+        $section=(Field $form 'wifiModel')
+        while($section.Parent -and $section.Parent -ne (Field $form 'tabSettings')){$section=$section.Parent}
+        $bitmap=New-Object Drawing.Bitmap($section.Width,$section.Height)
+        try{$section.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$section.Width,$section.Height)));$bitmap.Save($Snapshot)}finally{$bitmap.Dispose()}
+    }
+}finally{$form.Dispose()}
+Write-Output "PASS: $script:n Wi-Fi UI checks; no COM opened"

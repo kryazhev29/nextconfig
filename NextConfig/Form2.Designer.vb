@@ -435,7 +435,7 @@ Partial Class Form2
         Me.tabState.BackColor = Theme.WindowBack
         Me.tabState.AutoScroll = True
         Me.tabState.Controls.Add(Theme.Overview(New Control() {
-            CardBlock("", Me.deviceConnection),
+            CardBlock("", Me.wifiChannel, Me.deviceConnection),
             CardBlock("Устройство",
                       CompactRow("Модуль связи", Me.lblModuleType, Me.Label19),
                       CompactRow("Версия платы", Me.lblHW),
@@ -573,7 +573,7 @@ Partial Class Form2
                       Row("Точка доступа", Me.boxOperator),
                       Note(Hint("Пусто — параметры оператора. Иначе: точка доступа, логин, пароль.")),
                       Row("Разрешённые сети", Me.cmbNetType), Row("VoLTE", Me.cmbVoLTE)))
-        Dim busPage = Page(Build485(), BuildWifi())
+        Dim busPage = Page(BuildWifi(), Build485())
         Dim accessPage = Page(Theme.SettingsSection("Доступ", "Управление ПИН-кодом контроллера", Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)))
         Me.serviceRow.Controls.Add(Me.Button1)
         Theme.ServiceActions(Me.serviceRow, Me.Button1)

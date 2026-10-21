@@ -47,6 +47,7 @@ Partial Public Class Form2
     Private type485(7) As ComboBox
     Private state485(7) As Label
     Private warning485 As Label
+    Private deviceTable485, hint485 As Control
 
     Private Class IndexedName
         Public Value As Byte
@@ -96,6 +97,7 @@ Partial Public Class Form2
 
         Dim devices As New TableLayoutPanel
         Theme.BusTable(devices)
+        deviceTable485 = devices
         Dim titles = New String() {"№", "Адрес", "Тип устройства", "Связь"}
         For col = 0 To 3
             devices.Controls.Add(Theme.BusCell(titles(col), True), col, 0)
@@ -115,10 +117,11 @@ Partial Public Class Form2
             devices.Controls.Add(type485(i), 2, i + 1)
             devices.Controls.Add(state485(i), 3, i + 1)
         Next
-        warning485 = Theme.BusNotice("JPEG-камера C328 должна быть на шине одна", True)
+        warning485 = Theme.BusNotice("На порту RS-485 работает одно устройство: камера или Wi-Fi-модем", True)
         Dim serverNote = Theme.BusNotice("При подключении к серверу эти настройки заменятся серверными", False)
+        hint485 = Hint("Адрес в списке должен совпадать с адресом, заданным в самом устройстве.")
         Return Theme.SettingsSection("485 и Wiegand", "Параметры шины и подключённых устройств", serverNote, options, warning485, devices,
-            Hint("Адрес в списке должен совпадать с адресом, заданным в самом устройстве."))
+            hint485)
 
     End Function
     Private Sub Changed485(sender As Object, e As EventArgs)
@@ -132,11 +135,18 @@ Partial Public Class Form2
             Dim value = Value485(type485(i), 0)
             If value = 3 Then camera = True
             If value <> 0 Then count += 1
-            address485(i).Enabled = Value485(mode485, 0) = 1
+            address485(i).Enabled = Value485(mode485, 0) = 1 AndAlso Not wifiPortBusy
             type485(i).Enabled = address485(i).Enabled
             Theme.BusRowAppearance(address485(i), type485(i), number485(i), value <> 0)
         Next
-        warning485.Visible = camera AndAlso count > 1
+        mode485.Enabled = Not wifiPortBusy : baud485.Enabled = Not wifiPortBusy
+        Theme.SetText(warning485, If(wifiPortBusy, "Порт 485 занят Wi-Fi-модемом, камера отключена",
+            "На порту RS-485 работает одно устройство: камера или Wi-Fi-модем"))
+        Theme.SetColor(warning485, If(wifiPortBusy, Theme.TextMuted, Theme.Danger))
+        warning485.BackColor = Theme.WindowBack
+        deviceTable485.Visible = Not wifiPortBusy
+        hint485.Visible = Not wifiPortBusy
+        warning485.Visible = wifiPortBusy OrElse (camera AndAlso count > 1)
         Status485()
     End Sub
     Private Function Peripherals(c As clOpros.s_config) As clOpros.s_periphery()
@@ -188,6 +198,10 @@ Partial Public Class Form2
     Private Sub Status485()
         For i = 0 To 7
             If state485(i) Is Nothing Then Continue For
+            If wifiPortBusy Then
+                Theme.DotText(state485(i), Theme.eDot.Idle, "Отключено")
+                Continue For
+            End If
             If Not StatusIsFresh() Then
                 Theme.DotText(state485(i), Theme.eDot.Idle, "Нет свежих данных")
                 Continue For
