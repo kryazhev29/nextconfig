@@ -22,7 +22,8 @@ Namespace My
                 Using f As New frmInfo("Ошибка программы",
                                        e.Exception.Message & vbCrLf & vbCrLf &
                                        "Подробности записаны в журнал: " & AgentLog.CurrentFile)
-                    f.ShowDialog()
+                    ' с владельцем окно не уходит за главное и не запирает программу
+                    f.ShowDialog(System.Windows.Forms.Form.ActiveForm)
                 End Using
             Catch
             End Try

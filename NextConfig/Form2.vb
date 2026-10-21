@@ -63,8 +63,27 @@ Public Class Form2
         AddHandler overview.SizeChanged, Sub() ReflowOverview()
         AddHandler Shown, Sub() ReflowOverview()
 
+        messages = New StatusMessage(pnlStatusBar, lblMessage, lblLastUpdate)
+        AddHandler messages.FlashChanged, Sub() UpdateStatusBar()
+        AddHandler tabs.SelectedIndexChanged, Sub() UpdateStatusBar()
+        AgentLog.WatchText(lblMessage, "form2.message")
+        UpdateStatusBar()
+
         If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
         UpdateFirmwareAvailability()
+    End Sub
+
+    ' Нижняя строка видна на всех страницах. Состояние сохранения на «Настройках»
+    ' уже написано у кнопки «Сохранить», а во время вспышки оно бы не читалось на тёмном.
+    Private messages As StatusMessage
+
+    Private Sub UpdateStatusBar()
+        lblSaveState.Visible = tabs.SelectedTab IsNot tabSettings AndAlso Not messages.Flashing
+    End Sub
+
+    ' Сообщение оператору в нижней строке вместо окна. Вопросы остаются окнами frmInfo.
+    Private Sub Notify(title As String, text As String, Optional isError As Boolean = False)
+        messages.Show(title, text, isError)
     End Sub
 
     Private Sub Form2_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -190,9 +209,7 @@ Public Class Form2
         Dim reason = FirmwareBlockReason()
         If reason = "" Then Return True
         AgentLog.Write("update.blocked", "reason", reason, "busy", busyWithBoard, "lastStatus", lastStatus)
-        Using f As New frmInfo("Обновление недоступно", reason)
-            f.ShowDialog(Me)
-        End Using
+        Notify("Обновление недоступно", "Обновление недоступно: " & reason, True)
         Return False
     End Function
 
@@ -389,13 +406,13 @@ Public Class Form2
         If Not CanUpdateFirmware() Then Return
         Dim file As String = FirmwareFiles.FindFirmware(BoardHw, OldModem)
         If file Is Nothing Then
-            Using f As New frmInfo("Обновление прошивки", "Рядом с программой нет файла прошивки для этой платы." & vbCrLf &
-                                   "Укажите файл вида 139.71.1790667089.bin — его присылает производитель.")
-                f.ShowDialog(Me)
-            End Using
+            ' Окно выбора файла закрывает главное, поэтому подсказка ещё и в его заголовке.
+            Notify("Обновление прошивки", "Рядом с программой нет файла прошивки для этой платы. " &
+                   "Укажите файл вида 139.71.1790667089.bin — его присылает производитель.")
+            OpenFileDialog1.Title = "Укажите файл прошивки вида 139.71.1790667089.bin"
             OpenFileDialog1.Filter = "Файлы прошивки (*.bin)|*.bin|Все файлы (*.*)|*.*"
             OpenFileDialog1.FileName = ""
-            If OpenFileDialog1.ShowDialog <> DialogResult.OK Then Exit Sub
+            If OpenFileDialog1.ShowDialog(Me) <> DialogResult.OK Then Exit Sub
             file = OpenFileDialog1.FileName
             FirmwareFiles.LastFolder = Path.GetDirectoryName(file)
         End If
@@ -408,7 +425,7 @@ Public Class Form2
         Dim installed = False
         Try
             Using f As New frmFW(file, opros) With {.BoardBuild = CUInt(status.fw_build)}
-                If f.ShowDialog() = DialogResult.OK Then
+                If f.ShowDialog(Me) = DialogResult.OK Then
                     installed = True
                     ' контроллер устанавливает прошивку и перезагружается, связь потеряна
                     PendingCheck = New UpdateCheck With {.BeforeBuild = CUInt(status.fw_build), .ExpectedBuild = f.FileBuild,
@@ -443,19 +460,17 @@ Public Class Form2
         OpenFileDialog1.FileName = ""
         If found.Count > 1 Then
             Dim names = String.Join(", ", found.Select(Function(f) FirmwareFiles.ProfileName(f)))
-            Using f As New frmInfo("Выбор загрузчика", "Для этой платы подходят несколько загрузчиков: " & names & "." & vbCrLf &
-                                   "Откройте папку с названием вашей платы (например, v5 — для платы v5) и выберите DomovoiBoot.bin.")
-                f.ShowDialog(Me)
-            End Using
+            Notify("Выбор загрузчика", "Для этой платы подходят несколько загрузчиков: " & names & ". " &
+                   "Откройте папку с названием вашей платы (например, v5 — для платы v5) и выберите DomovoiBoot.bin.")
+            OpenFileDialog1.Title = "Откройте папку вашей платы (" & names & ") и выберите DomovoiBoot.bin"
             OpenFileDialog1.InitialDirectory = Path.GetDirectoryName(Path.GetDirectoryName(found(0)))
         Else
-            Using f As New frmInfo("Выбор загрузчика", "Рядом с программой нет файла загрузчика." & vbCrLf &
-                                   "Укажите файл DomovoiBoot.bin из комплекта для вашей платы.")
-                f.ShowDialog(Me)
-            End Using
+            Notify("Выбор загрузчика", "Рядом с программой нет файла загрузчика. " &
+                   "Укажите файл DomovoiBoot.bin из комплекта для вашей платы.")
+            OpenFileDialog1.Title = "Укажите DomovoiBoot.bin из комплекта для вашей платы"
             OpenFileDialog1.InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
         End If
-        If OpenFileDialog1.ShowDialog <> DialogResult.OK Then Return ""
+        If OpenFileDialog1.ShowDialog(Me) <> DialogResult.OK Then Return ""
         FirmwareFiles.LastFolder = Path.GetDirectoryName(Path.GetDirectoryName(OpenFileDialog1.FileName))
         Return OpenFileDialog1.FileName
     End Function
@@ -469,7 +484,7 @@ Public Class Form2
         Dim installed = False
         Try
             Using f As New frmFW(file, opros, BoardHw)
-                If f.ShowDialog() = DialogResult.OK Then
+                If f.ShowDialog(Me) = DialogResult.OK Then
                     installed = True
                     ' контроллер перезагружается с новым загрузчиком, связь потеряна
                     PendingCheck = New UpdateCheck With {.Bootloader = True, .BeforeBuild = CUInt(status.fw_build),
@@ -535,9 +550,7 @@ Public Class Form2
                    "а ожидалась сборка от " & BuildText(check.ExpectedBuild) & ". Посмотрите журнал событий платы."
         End If
         AgentLog.Write("updatecheck", "ok", ok, "boot", check.Bootloader, "fw", status.fw_build, "bootver", status.boot_version)
-        Using f As New frmInfo(If(ok, "Готово", "Внимание"), text)
-            f.ShowDialog(Me)
-        End Using
+        Notify(If(ok, "Готово", "Внимание"), text, Not ok)
     End Sub
 
     ' Кнопка ТЕСТ по ТЗ: запускает алгоритм выхода по его настройкам (команда 8, значение 1)
@@ -559,9 +572,7 @@ Public Class Form2
         End If
 
         If code = -1 Then
-            Using f As New frmInfo("Выходы", "Контроллер не ответил на команду.")
-                f.ShowDialog()
-            End Using
+            Notify("Выходы", "Выход " & (n + 1) & ": контроллер не ответил на команду.", True)
         Else
             ' Отказ платы раньше молча проглатывался — теперь под выходом написано почему.
             ShowOutTestResult(n, code)
@@ -571,19 +582,17 @@ Public Class Form2
         Using f As New frmInfo("Прозрачный режим", "Перевести контроллер в прозрачный режим с GSM модулем?" & vbCrLf & "Конфигуратор будет закрыт!",, True)
             f.Button1.Text = "Перевести"
             f.Button2.Text = "Отмена"
-            If f.ShowDialog() = DialogResult.OK Then
+            If f.ShowDialog(Me) = DialogResult.OK Then
                 If opros.SetTransparentMode() Then
+                    ' Программа сейчас закроется - строку состояния никто не увидит, поэтому окно.
                     Using f2 As New frmInfo("Прозрачный режим", "Контроллер переведен в прозрачный режим с GSM модулем!" & vbCrLf &
                                             "Программа будет закрыта")
-                        f2.ShowDialog()
+                        f2.ShowDialog(Me)
                     End Using
                     Me.DialogResult = DialogResult.Abort
                     Me.Close()
                 Else
-                    Using f2 As New frmInfo("Прозрачный режим", "Команда не поддерживается!" & vbCrLf &
-                                            "Или нет ответа контроллера")
-                        f2.ShowDialog()
-                    End Using
+                    Notify("Прозрачный режим", "Прозрачный режим: команда не поддерживается или нет ответа контроллера.", True)
                 End If
             End If
         End Using
@@ -593,23 +602,19 @@ Public Class Form2
         Using f As New frmInfo("Заводские настройки", "Вы уверены что хотите сбросить контроллер на заводские настройки?",, True)
             f.Button1.Text = "Сбросить"
             f.Button2.Text = "Отмена"
-            If f.ShowDialog() = DialogResult.OK Then
-                Dim str As String
+            If f.ShowDialog(Me) = DialogResult.OK Then
                 If opros.SetDefault() Then
-                    str = "Настройки установлены по умолчанию!"
+                    Notify("Заводские настройки", "Контроллер сброшен на заводские настройки.")
                 Else
-                    str = "Не удалось установить настройки!" & vbCrLf & "Повторите операцию!"
+                    Notify("Заводские настройки", "Не удалось сбросить на заводские настройки. Повторите операцию.", True)
                 End If
-                Using f2 As New frmInfo("Заводские настройки", str)
-                    f2.ShowDialog()
-                End Using
             End If
         End Using
     End Sub
 
     Private Sub btnChangePIN_Click(sender As Object, e As EventArgs) Handles btnChangePIN.Click
         Using f As New frmPIN(pinCode)
-            If f.ShowDialog = DialogResult.OK Then
+            If f.ShowDialog(Me) = DialogResult.OK Then
                 config.pin = CUInt(f.nPin)
                 UpdateConfigFields()
             End If
@@ -641,18 +646,14 @@ Public Class Form2
             Theme.ConfigChanges(f, question)
             f.Button1.Text = "Сохранить"
             f.Button2.Text = "Отмена"
-            If f.ShowDialog() = DialogResult.OK Then
-                Dim str As String
+            If f.ShowDialog(Me) = DialogResult.OK Then
                 If opros.SetConfig(config) Then
-                    str = "Настройки сохранены!"
                     ConfirmConfigSnapshot()
                     SetSaveState(True)
+                    Notify("Сохранение настроек", "Настройки сохранены в контроллер.")
                 Else
-                    str = "Не удалось сохранить настройки!" & vbCrLf & "Повторите операцию!"
+                    Notify("Сохранение настроек", "Не удалось сохранить настройки. Повторите операцию.", True)
                 End If
-                Using f2 As New frmInfo("Сохранение настроек", str)
-                    f2.ShowDialog()
-                End Using
             End If
         End Using
     End Sub
@@ -662,19 +663,14 @@ Public Class Form2
         Using f As New frmInfo("Настройки по умолчанию", "Вы уверены что хотите установить настройки по умолчанию?",, True)
             f.Button1.Text = "Записать"
             f.Button2.Text = "Отмена"
-            If f.ShowDialog() = DialogResult.OK Then
-                Dim str As String
-
+            If f.ShowDialog(Me) = DialogResult.OK Then
                 SetDefaultConfig()
                 If opros.SetConfig(config) Then
                     ConfirmConfigSnapshot()
-                    str = "Настройки установлены по умолчанию!"
+                    Notify("Настройки по умолчанию", "Настройки по умолчанию записаны в контроллер.")
                 Else
-                    str = "Не удалось установить настройки!" & vbCrLf & "Повторите операцию!"
+                    Notify("Настройки по умолчанию", "Не удалось записать настройки по умолчанию. Повторите операцию.", True)
                 End If
-                Using f2 As New frmInfo("Настройки по умолчанию", str)
-                    f2.ShowDialog()
-                End Using
             End If
         End Using
     End Sub
@@ -779,9 +775,7 @@ Public Class Form2
     Private Function ValidateFields() As Boolean
         If System.Text.Encoding.UTF8.GetByteCount(txtOperator.Text.Trim()) > 31 Then
             ShowConnectionSettings()
-            Using f As New frmInfo("Точка доступа", "Точка доступа, логин и пароль вместе должны занимать не более 31 байта UTF-8.")
-                f.ShowDialog(Me)
-            End Using
+            Notify("Точка доступа", "Точка доступа, логин и пароль вместе должны занимать не более 31 байта UTF-8.", True)
             txtOperator.Focus()
             Return False
         End If
@@ -937,31 +931,23 @@ Public Class Form2
     ' Выгрузки и загрузки базы идентификаторов в программе нет: в протоколе с
     ' контроллером она не заведена. Кнопка должна об этом сказать, а не молчать.
     Private Sub btnExport_Click(sender As Object, e As EventArgs) Handles btnExport.Click
-        Using f As New frmInfo("База идентификаторов", "Выгрузка базы идентификаторов пока не сделана.")
-            f.ShowDialog(Me)
-        End Using
+        Notify("База идентификаторов", "Выгрузка базы идентификаторов пока не сделана.")
     End Sub
 
     Private Sub btnImport_Click(sender As Object, e As EventArgs) Handles btnImport.Click
-        Using f As New frmInfo("База идентификаторов", "Загрузка базы идентификаторов пока не сделана.")
-            f.ShowDialog(Me)
-        End Using
+        Notify("База идентификаторов", "Загрузка базы идентификаторов пока не сделана.")
     End Sub
 
     Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
         Using f As New frmInfo("Очистка памяти", "Вы уверены что хотите удалить из памяти все идентификаторы?",, True)
             f.Button1.Text = "Очистить"
             f.Button2.Text = "Отмена"
-            If f.ShowDialog() = DialogResult.OK Then
-                Dim str As String
+            If f.ShowDialog(Me) = DialogResult.OK Then
                 If opros.ClearMem() Then
-                    str = "Память идентификаторов очищена!"
+                    Notify("Очистка памяти", "Память идентификаторов очищена.")
                 Else
-                    str = "Не удалось очистить память идентифиаторов!" & vbCrLf & "Повторите операцию!"
+                    Notify("Очистка памяти", "Не удалось очистить память идентификаторов. Повторите операцию.", True)
                 End If
-                Using f2 As New frmInfo("Очистка памяти", str)
-                    f2.ShowDialog()
-                End Using
             End If
         End Using
     End Sub
@@ -976,7 +962,7 @@ Public Class Form2
         Using f As New frmInfo("Отвязка от объекта", "Вы уверены что хотите отвязать контроллер от объекта?",, True)
             f.Button1.Text = "Отвязать"
             f.Button2.Text = "Отмена"
-            If f.ShowDialog() = DialogResult.OK Then
+            If f.ShowDialog(Me) = DialogResult.OK Then
                 Await QueryObject(18)
                 'Dim str As String
                 'If opros.UnConnectObject() Then
@@ -1049,9 +1035,7 @@ Public Class Form2
     Private Sub Label16_Click(sender As Object, e As EventArgs) Handles Label16.Click
         ' Контроллер и сервер считают время в UTC; местное время уводило часы на пояс вперёд.
         Dim ok = opros.SetTime(DateTimeToUnixTimestamp(DateTime.UtcNow))
-        Using f As New frmInfo("Время контроллера", If(ok, "Время установлено", "Не удалось установить время"))
-            f.ShowDialog(Me)
-        End Using
+        Notify("Время контроллера", If(ok, "Время контроллера установлено.", "Не удалось установить время контроллера."), Not ok)
     End Sub
 
     Private Sub Label19_Click(sender As Object, e As EventArgs) Handles Label19.Click
@@ -1063,7 +1047,7 @@ Public Class Form2
         arr.Add(New frmSelecter.mItem With {.ID = 0, .Name = "Отмена"})
 
         Using f As New frmSelecter("Тип модуля", arr, 2, 14)
-            f.ShowDialog()
+            f.ShowDialog(Me)
 
             If f.ID = 0 Then
                 Exit Sub
@@ -1074,8 +1058,9 @@ Public Class Form2
             Else
                 str = "Не удалось выполнить!" & vbCrLf & "Повторите операцию!"
             End If
+            ' Окно сейчас закроется - строку состояния никто не увидит, поэтому окно.
             Using f2 As New frmInfo("Тип модуля", str)
-                f2.ShowDialog()
+                f2.ShowDialog(Me)
             End Using
             Me.Close()
         End Using
@@ -1094,6 +1079,7 @@ Public Class Form2
             UpdateConfigFields()
             lblSaveState.Text = "Настройки считаны в " & DateTime.Now.ToString("HH:mm:ss")
             lblSaveState.ForeColor = Theme.TextMuted
+            If Not silent Then Notify("Чтение настроек", "Настройки считаны с контроллера.")
             Exit Sub
         End If
 
@@ -1102,9 +1088,7 @@ Public Class Form2
 
         If silent Then Exit Sub
 
-        Using f2 As New frmInfo("Чтение настроек", "Не удалось считать конфигурацию!" & vbCrLf & "Повторите операцию!")
-            f2.ShowDialog()
-        End Using
+        Notify("Чтение настроек", "Не удалось считать настройки. Повторите операцию.", True)
     End Sub
 
 
@@ -1166,11 +1150,13 @@ Public Class Form2
             Dim rec = Await Threading.Tasks.Task.Run(Function() SldnStream.QueryServer("93.189.229.197", 15010, cmd, imei))
             If IsDisposed OrElse Disposing Then Return
             Dim message As String
+            Dim failed = True
             Select Case rec(9)
                 Case 1
                     message = "Контроллер отсутствует в базе."
                 Case 2
                     message = If(cmd = 17, "Контроллер не привязан к объекту.", "Контроллер отвязан от всех объектов.")
+                    failed = False
                     lblObjNum.Text = "" : lblObjName.Text = "" : lblObjController.Text = "" : lblAdmin.Text = ""
                 Case 3
                     If cmd = 17 Then
@@ -1179,20 +1165,17 @@ Public Class Form2
                         lblObjController.Text = System.Text.Encoding.UTF8.GetString(rec, 146, 128).TrimEnd(ChrW(0))
                         lblAdmin.Text = System.Text.Encoding.UTF8.GetString(rec, 274, 16).TrimEnd(ChrW(0))
                         message = "Данные о привязке получены."
+                        failed = False
                     Else
                         message = "Не удалось отвязать контроллер."
                     End If
                 Case Else
                     message = "Сервер не подтвердил выполнение запроса."
             End Select
-            Using f As New frmInfo("Подключение", message)
-                f.ShowDialog(Me)
-            End Using
+            Notify("Объект", message, failed)
         Catch ex As Exception
             If Not IsDisposed AndAlso Not Disposing Then
-                Using f As New frmInfo("Подключение", ex.GetBaseException().Message)
-                    f.ShowDialog(Me)
-                End Using
+                Notify("Объект", "Запрос к серверу не выполнен: " & ex.GetBaseException().Message, True)
             End If
         Finally
             If Not IsDisposed AndAlso Not Disposing Then
@@ -1205,25 +1188,19 @@ Public Class Form2
         Dim sList As String() = txtServer1.Text.Trim().Split(":"c)
 
         If sList.Count <> 2 Then
-            Using f As New frmInfo("Подключение", "Не правильная запись адреса сервера!")
-                f.ShowDialog()
-            End Using
+            Notify("Проверка сервера", "Адрес сервера записан неправильно. Нужно адрес:порт.", True)
             Exit Sub
         End If
 
         Try
             socket.Connect(sList(0), Integer.Parse(sList(1)))
         Catch ex As Exception
-            Using f As New frmInfo("Подключение", ex.Message)
-                f.ShowDialog()
-            End Using
+            Notify("Проверка сервера", "Нет соединения с сервером " & txtServer1.Text.Trim() & ": " & ex.Message, True)
             Exit Sub
         End Try
 
         If socket.Connected Then
-            Using f As New frmInfo("Подключение", "Соединение установлено!")
-                f.ShowDialog()
-            End Using
+            Notify("Проверка сервера", "Соединение с сервером " & txtServer1.Text.Trim() & " установлено.")
 
             socket.Close()
         End If
@@ -1244,8 +1221,9 @@ Public Class Form2
 
         RemoveHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
 
+        ' Окно сейчас закроется - строку состояния никто не увидит, поэтому окно.
         Using f As New frmInfo("Подключение", "Потеряно соединение с контроллером!")
-            f.ShowDialog()
+            f.ShowDialog(Me)
         End Using
 
         Me.Close()
@@ -1261,7 +1239,7 @@ Public Class Form2
         RemoveHandler opros.GetComPort.PinRequired, AddressOf OnPinRequired
         RemoveHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
         Using f As New frmInfo("Подключение", "Контроллер просит ПИН-код. Подключитесь заново.")
-            f.ShowDialog()
+            f.ShowDialog(Me)
         End Using
         Me.Close()
     End Sub

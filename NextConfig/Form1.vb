@@ -60,6 +60,7 @@ Public Class Form1
         If Demo.IsOn Then Me.Text = "Домовой NEXT — демонстрационный режим"
 
         BuildDeviceList()
+        BuildMessageBar()
         AgentLog.WatchText(lblStatus, "form1.status")
         AgentLog.WatchText(lblReason, "form1.reason")
         opros = New clOpros(Me)
@@ -69,6 +70,29 @@ Public Class Form1
 
         UpdateConnectState()
 
+    End Sub
+
+    ' Нижняя строка сообщений, как в окне платы: вместо всплывающих окон.
+    Private ReadOnly lblMessage As New Label()
+    Private messages As StatusMessage
+
+    Private Sub BuildMessageBar()
+        Dim bar As New Panel With {.Dock = DockStyle.Bottom, .BackColor = Theme.Surface,
+            .Padding = New Padding(Theme.GapSection, Theme.GapRelated, Theme.GapSection, Theme.GapRelated)}
+        AddHandler bar.Paint, Sub(sender, e)
+                                  Using pen As New Pen(Theme.Border)
+                                      e.Graphics.DrawLine(pen, 0, 0, bar.Width, 0)
+                                  End Using
+                              End Sub
+        Theme.Value(lblMessage)
+        lblMessage.Name = "lblMessage"
+        lblMessage.Dock = DockStyle.Fill
+        bar.Controls.Add(lblMessage)
+        messages = New StatusMessage(bar, lblMessage)
+        bar.Height = messages.LineHeight + bar.Padding.Vertical
+        Controls.Add(bar)
+        ClientSize = New Size(ClientSize.Width, ClientSize.Height + bar.Height)
+        AgentLog.WatchText(lblMessage, "form1.message")
     End Sub
 
     ' Список плат встаёт над полем серийного номера.
@@ -216,9 +240,7 @@ Public Class Form1
         Dim errText As String = ""
         If Not opros.Open(dev, errText) Then
             SetStatus(Theme.eDot.Bad, "Порт не открылся")
-            Using f As New frmInfo("Подключение", errText)
-                f.ShowDialog()
-            End Using
+            messages.Show("Подключение", "Порт " & dev.Port & " не открылся: " & errText, True)
             UpdateConnectState()
             Return
         End If
@@ -237,9 +259,7 @@ Public Class Form1
             opros.Release()
             SetStatus(Theme.eDot.Bad, "ПИН-код не принят")
             UpdateConnectState()
-            Using f As New frmInfo("Подключение", "Проверьте правильность ПИН кода!")
-                f.ShowDialog()
-            End Using
+            messages.Show("Подключение", "ПИН-код не принят. Проверьте правильность ПИН-кода.", True)
             Return
         End If
 
@@ -280,10 +300,8 @@ Public Class Form1
         If passed > PendingLimitSeconds Then
             StopPending()
             SetStatus(Theme.eDot.Bad, "Плата не вернулась")
-            Using f As New frmInfo("Плата не вернулась", "Плата не появилась за 3 минуты после обновления." & vbCrLf &
-                                   "Проверьте питание 12 В и кабель USB. Когда плата появится в списке, подключитесь к ней как обычно.")
-                f.ShowDialog(Me)
-            End Using
+            messages.Show("Плата не вернулась", "Плата не появилась за 3 минуты после обновления. " &
+                          "Проверьте питание 12 В и кабель USB. Когда плата появится в списке, подключитесь к ней как обычно.", True)
             Return
         End If
         SetStatus(Theme.eDot.Waiting, "Плата перезапускается после обновления. Ничего не отключайте — программа подключится сама (" & passed & " с)")

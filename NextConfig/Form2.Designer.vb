@@ -51,6 +51,7 @@ Partial Class Form2
 
         Me.pnlStatusBar = New System.Windows.Forms.Panel()
         Me.statusRow = New System.Windows.Forms.TableLayoutPanel()
+        Me.lblMessage = New System.Windows.Forms.Label()
         Me.lblLastUpdate = New System.Windows.Forms.Label()
         Me.lblSaveState = New System.Windows.Forms.Label()
 
@@ -836,31 +837,39 @@ Partial Class Form2
         Me.tabs.Controls.Add(Me.tabLog)
         ConfigureSections()
 
-        ' ---- строка итога ----
+        ' ---- строка состояния: сообщения программы, время статуса, сохранение ----
+        Me.lblMessage.Name = "lblMessage"
+        Me.lblMessage.Text = ""
+        Me.lblMessage.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.lblMessage.Margin = New System.Windows.Forms.Padding(0)
+        Theme.Value(Me.lblMessage)
+
         Me.lblLastUpdate.AutoSize = True
         Me.lblLastUpdate.Name = "lblLastUpdate"
         Me.lblLastUpdate.Text = "Последнее обновление: —"
-        Me.lblLastUpdate.Anchor = System.Windows.Forms.AnchorStyles.Left
-        Me.lblLastUpdate.Margin = New System.Windows.Forms.Padding(0)
+        Me.lblLastUpdate.Anchor = System.Windows.Forms.AnchorStyles.Right
+        Me.lblLastUpdate.Margin = New System.Windows.Forms.Padding(Theme.GapBlock, 0, 0, 0)
         Theme.Caption(Me.lblLastUpdate)
 
         Me.lblSaveState.AutoSize = True
         Me.lblSaveState.Name = "lblSaveState"
         Me.lblSaveState.Text = ""
         Me.lblSaveState.Anchor = System.Windows.Forms.AnchorStyles.Right
-        Me.lblSaveState.Margin = New System.Windows.Forms.Padding(0)
+        Me.lblSaveState.Margin = New System.Windows.Forms.Padding(Theme.GapBlock, 0, 0, 0)
         Theme.Caption(Me.lblSaveState)
 
         Me.statusRow.AutoSize = True
         Me.statusRow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.statusRow.ColumnCount = 2
+        Me.statusRow.ColumnCount = 3
         Me.statusRow.RowCount = 1
         Me.statusRow.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.statusRow.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize))
+        Me.statusRow.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize))
         Me.statusRow.Dock = System.Windows.Forms.DockStyle.Top
         Me.statusRow.Margin = New System.Windows.Forms.Padding(0)
-        Me.statusRow.Controls.Add(Me.lblLastUpdate, 0, 0)
-        Me.statusRow.Controls.Add(Me.lblSaveState, 1, 0)
+        Me.statusRow.Controls.Add(Me.lblMessage, 0, 0)
+        Me.statusRow.Controls.Add(Me.lblLastUpdate, 1, 0)
+        Me.statusRow.Controls.Add(Me.lblSaveState, 2, 0)
 
         Me.pnlStatusBar.AutoSize = True
         Me.pnlStatusBar.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
@@ -891,9 +900,6 @@ Partial Class Form2
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "Домовой NEXT"
         Theme.StyleForm(Me)
-        AddHandler Me.tabs.SelectedIndexChanged, Sub(sender, e)
-            Me.pnlStatusBar.Visible = Me.tabs.SelectedTab IsNot Me.tabSettings
-        End Sub
 
         CType(Me.picLogo, System.ComponentModel.ISupportInitialize).EndInit()
         Me.ResumeLayout(False)
@@ -1058,6 +1064,7 @@ Partial Class Form2
 
     Friend WithEvents pnlStatusBar As Panel
     Friend WithEvents statusRow As TableLayoutPanel
+    Friend WithEvents lblMessage As Label
     Friend WithEvents lblLastUpdate As Label
     Friend WithEvents lblSaveState As Label
 

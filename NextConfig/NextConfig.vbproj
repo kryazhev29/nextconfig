@@ -86,6 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Theme.vb" />
+    <Compile Include="StatusMessage.vb" />
     <Compile Include="NavIcons.vb" />
     <Compile Include="AppFonts.vb" />
     <Compile Include="AgentLog.vb" />
