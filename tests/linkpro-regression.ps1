@@ -85,6 +85,12 @@ try {
 } finally { $image.Dispose(); $plot.Dispose() }
 $history.Clear()
 Check ($history.Points.Count -eq 0) 'history clear'
+# 2G/3G: точки — RSSI из CSQ; смена сети начинает историю заново, иначе график смешал бы RSRP и RSSI.
+$history.Observe(0,89,$true); $history.Observe(2,91,$true)
+Check ($history.Gsm -and $history.Points.Count -eq 2 -and $history.Points[1].Level -eq 91) 'RSSI history for 2G'
+$history.Observe(4,100)
+Check (-not $history.Gsm -and $history.Points.Count -eq 1 -and $history.Points[0].Level -eq 100) 'network change starts a new history'
+$history.Clear()
 $history.Observe(100,90); $history.Observe(130,95)
 Check ([NextConfig.LinkDrawing]::PlotWindow($history,130) -eq 60 -and [NextConfig.LinkDrawing]::PlotWindow($history,400) -eq 300 -and [NextConfig.LinkDrawing]::PlotWindow($history,1000) -eq 600) 'time axis follows collected history up to ten minutes'
 Check ([NextConfig.LinkDrawing]::AgoText(300) -eq '−5 мин' -and [NextConfig.LinkDrawing]::AgoText(60) -eq '−60 с') 'time axis caption'
@@ -133,7 +139,7 @@ try {
     Snapshot 'device_2g.png'
     (Field 'tabs').SelectedTab=Field 'tabLink'
     [Windows.Forms.Application]::DoEvents()
-    Check (-not (Field 'linkGauges').Visible -and -not (Field 'linkPlotCard').Visible -and (Field 'linkCsqRow').Visible) '2G has CSQ and no graph'
+    Check ((Field 'linkGauges').Visible -and (Field 'linkPlotCard').Visible -and -not (Field 'linkCsqRow').Visible -and (Field 'linkRsrp').Gsm) '2G has the same gauges and an RSSI graph'
     Snapshot 'link_2g.png'
     $status.netType=4; $status.connectToServer=0
     (Field 'tabs').SelectedTab=Field 'tabState'; Status

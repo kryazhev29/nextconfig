@@ -247,18 +247,23 @@ Public Module Theme
     End Sub
 
     ' Блок с белой поверхностью и тонкой границей.
-    Public Sub ReflowOverview(overview As TableLayoutPanel)
+    ' firstShare — доля первой карточки в широком окне (от 1250 точек), в обычном — пополам.
+    Public Sub ReflowOverview(overview As TableLayoutPanel, Optional firstShare As Single = 50.0F)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         Dim cards = grid.Controls.Cast(Of Control)().ToArray()
         Dim narrow = overview.ClientSize.Width < ControlPx(overview, 940)
         Dim gap = ControlPx(overview, 8)
         Dim wanted = If(narrow, 1, 2)
-        If grid.ColumnCount = wanted AndAlso CInt(If(grid.Tag, -1)) = cards.Length Then Return
+        Dim share = If(overview.ClientSize.Width >= ControlPx(overview, 1250), firstShare, 50.0F)
+        If grid.ColumnCount = wanted AndAlso CInt(If(grid.Tag, -1)) = cards.Length Then
+            If wanted = 2 AndAlso grid.ColumnStyles(0).Width <> share Then grid.ColumnStyles(0).Width = share : grid.ColumnStyles(1).Width = 100.0F - share
+            Return
+        End If
         grid.SuspendLayout()
         grid.Controls.Clear() : grid.ColumnStyles.Clear() : grid.RowStyles.Clear()
         grid.ColumnCount = wanted : grid.RowCount = If(narrow, cards.Length, cards.Length - 1)
         For i = 1 To wanted
-            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / wanted))
+            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, If(wanted = 1, 100.0F, If(i = 1, share, 100.0F - share))))
         Next
         For i = 0 To grid.RowCount - 1
             grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))

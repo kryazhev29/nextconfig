@@ -68,10 +68,20 @@ foreach ($case in @(@(89,9,'Хорошо','Хорошо'), @(90,10,'Средне
     Check ($view.LevelText -eq "$($case[2]) · −$($case[0]) дБм" -and $view.QualityText -eq "$($case[3]) · −$($case[1]) дБ") "LTE thresholds $($case[0])/$($case[1])"
 }
 $gsm = V4 $online 100 9; $gsm[13] = 1; $gsm = Seal $gsm
-foreach ($frame in @($gsm, $online, $null)) {
+foreach ($frame in @($online, $null)) {
     $view = Signal $frame
-    Check ($view.LevelText -eq '20 из 31' -and $view.QualityText -eq '' -and $view.Maximum -eq 31 -and $view.Value -eq 20) '2G/v3/no 112 use status CSQ'
+    Check ($view.LevelText -eq '20 из 31' -and $view.QualityText -eq '' -and $view.Maximum -eq 31 -and $view.Value -eq 20 -and -not $view.Gsm) 'v3/no 112 use status CSQ'
 }
+# 2G и 3G: уровень RSSI в дБм из CSQ (TS 27.007 §8.5), оценки — прежние границы CSQ 10 и 20.
+$view = Signal $gsm
+Check ($view.Gsm -and -not $view.Lte -and $view.LevelText -eq 'Хорошо · −73 дБм' -and $view.QualityText -eq '' -and $view.Maximum -eq 31 -and $view.Value -eq 20 -and $view.Bars -eq 5) '2G level in dBm'
+foreach ($case in @(@(31,51,'Хорошо',5), @(20,73,'Хорошо',5), @(19,75,'Средне',4), @(10,93,'Средне',3), @(9,95,'Плохо',2), @(0,113,'Плохо',1))) {
+    $view = [NextConfig.LinkDiag]::SignalView($null, [byte]$case[0], [byte]1)
+    Check ($view.Gsm -and [NextConfig.LinkDiag]::GsmLevel([byte]$case[0]) -eq $case[1] -and $view.LevelText -eq "$($case[2]) · −$($case[1]) дБм" -and $view.Bars -eq $case[3]) "2G CSQ $($case[0])"
+}
+$view = [NextConfig.LinkDiag]::SignalView($null, [byte]99, [byte]3)
+Check ($view.Gsm -and $view.LevelText -eq 'Нет данных' -and $view.Grade -eq -1 -and $view.Bars -eq 0 -and [NextConfig.LinkDiag]::GsmLevel(99) -eq 255) '3G unknown CSQ keeps the dBm view'
+Check (-not ([NextConfig.LinkDiag]::SignalView($null, [byte]20, [byte]4)).Gsm) '4G without 112 stays on CSQ'
 # Плата №1, 13.10: пропуск одного замера в 4G не переключает экран на CSQ (было мигание).
 foreach ($frame in @((V4 $online 255 255 255), (V4 $online 255 9 61))) {
     $view = Signal $frame
@@ -178,7 +188,7 @@ try {
     Display $v4
     Check ((Field 'linkRsrp').Raw -eq 105 -and (Field 'linkRsrq').Raw -eq 10) 'LTE gauges use RSRP and RSRQ'
     Display $gsm
-    Check ((Field 'linkCsq').Text -eq '26 из 31' -and (Field 'linkSignal').Maximum -eq 31) '2G retains CSQ'
+    Check ((Field 'linkRsrp').Gsm -and (Field 'linkRsrp').Raw -eq 61 -and (Field 'linkRsrq').Gsm -and (Field 'linkRsrq').Raw -eq 255 -and (Field 'linkRsrq').Network -eq '2G') '2G gauges: RSSI from CSQ, quality not measured'
     Display $sim
     Check ((Field 'linkCsq').Text -eq 'Не определён' -and (Field 'linkSignal').Value -eq 0) 'unknown CSQ is empty'
     Check ((Field 'linkBanner').ForeColor -eq [NextConfig.Theme]::Danger) 'error red banner'
@@ -229,7 +239,8 @@ try {
     Display $lte
     $overview = Field 'deviceConnection'
     Check ($overview.Signal.LevelText -eq 'Средне · −100 дБм' -and $overview.Signal.QualityText -eq 'Хорошо · −9 дБ' -and $overview.Signal.Lte) 'Device LTE v4 text and quality'
-    Check ($overview.Signal.Maximum -eq 50 -and $overview.Signal.Value -eq 20 -and $overview.Steps -eq 4 -and $overview.MemoryUsed -eq 3151) 'Device LTE scale, connection chain and memory'
+    Check ($overview.Signal.Maximum -eq 50 -and $overview.Signal.Value -eq 20 -and $overview.Steps -eq 4) 'Device LTE scale and connection chain'
+    Check ((((Field 'deviceMemory').Text -replace [char]0xA0, ' ') -eq '3 151 из 50 000 · 6 %') -and (Field 'deviceMemoryMeter').Value -eq 3151) 'ID memory moved to the device card'
     Status
     Check ($overview.Signal.Lte) 'status 101 cannot overwrite LTE with CSQ'
     Snapshot 'device_lte.png'
@@ -258,8 +269,15 @@ try {
     Status
     Check (-not $overview.Signal.Lte) '2G status immediately discards cached LTE signal'
     Display $gsm
-    Check ($overview.Details -eq 'CSQ 20 из 31' -and $overview.Signal.Bars -eq 5) 'Device 2G CSQ'
+    Check ($overview.Details -eq "уровень −73 дБм`nкачество в 2G не измеряется" -and $overview.Signal.Gsm -and $overview.Signal.Bars -eq 5) 'Device 2G in dBm'
     Snapshot 'device_2g.png'
+    (Field 'tabs').SelectedTab = Field 'tabLink'
+    [Windows.Forms.Application]::DoEvents()
+    Display $gsm
+    Check ((Field 'linkGauges').Visible -and (Field 'linkPlotCard').Visible -and -not (Field 'linkCsqRow').Visible -and (Field 'signalHistory').Gsm -and (Field 'signalHistory').Points.Count -gt 0) '2G shows the same gauges and an RSSI graph'
+    Snapshot 'link_2g.png'
+    (Field 'tabs').SelectedTab = Field 'tabState'
+    [Windows.Forms.Application]::DoEvents()
     $status.netType = 4
     Status; Display $lte
     $form.GetType().GetField('lastStatus', $flags).SetValue($form, [DateTime]::Now.AddSeconds(-10))

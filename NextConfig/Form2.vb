@@ -346,6 +346,8 @@ Public Class Form2
 
         Theme.SetText(lblUsedMem, status.usedMem & " из 50 000")
         meterMem.Value = status.usedMem
+        Theme.SetText(deviceMemory, CUInt(status.usedMem).ToString("N0", Globalization.CultureInfo.GetCultureInfo("ru-RU")) & " из 50 000 · " & Math.Min(100, status.usedMem * 100 \ 50000) & " %")
+        deviceMemoryMeter.Value = status.usedMem
 
         SetHeadState(Theme.eDot.Good, "На связи")
         Theme.SetText(lblLastUpdate, "Последнее обновление: " & lastStatus.ToString("HH:mm:ss"))
@@ -787,7 +789,7 @@ Public Class Form2
     ' она возникла, и ничего на плату не отправляем.
     Private Function ValidateFields() As Boolean
         If System.Text.Encoding.UTF8.GetByteCount(txtOperator.Text.Trim()) > 31 Then
-            ShowConnectionSettings()
+            ShowSettingsSection(0)
             Notify("Точка доступа", "Точка доступа, логин и пароль вместе должны занимать не более 31 байта UTF-8.", True)
             txtOperator.Focus()
             Return False
@@ -800,13 +802,14 @@ Public Class Form2
         lblServer2Err.Visible = (lblServer2Err.Text <> "")
 
         Dim valid = lblServer1Err.Text = "" AndAlso lblServer2Err.Text = ""
-        If Not valid Then ShowConnectionSettings()
+        If Not valid Then ShowSettingsSection(0)
         Return valid
     End Function
 
-    Private Sub ShowConnectionSettings()
+    ' Раздел настроек: 0 «Связь», 1 «485 и Wiegand», 2 «Доступ», 3 «Сервис».
+    Private Sub ShowSettingsSection(section As Integer)
         tabs.SelectedTab = tabSettings
-        Dim link = TryCast(tabSettings.Controls.Find("settingsSection0", True).FirstOrDefault(), Button)
+        Dim link = TryCast(tabSettings.Controls.Find("settingsSection" & section, True).FirstOrDefault(), Button)
         If link IsNot Nothing Then link.PerformClick()
     End Sub
 

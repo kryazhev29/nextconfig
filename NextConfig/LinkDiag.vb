@@ -33,6 +33,7 @@ Public Structure LinkSignalView
     Public Grade As Integer
     Public Bars As Integer
     Public Lte As Boolean
+    Public Gsm As Boolean            ' 2G и 3G: уровень RSSI в дБм из CSQ, качество не измеряется
 End Structure
 
 Public Module LinkDiag
@@ -45,6 +46,12 @@ Public Module LinkDiag
     Public Const RsrpPoorThreshold As Integer = -100
     Public Const RsrqGoodThreshold As Integer = -10
     Public Const RsrqPoorThreshold As Integer = -15
+    ' RSSI 2G/3G по CSQ (3GPP TS 27.007 §8.5: 0 — −113 дБм и ниже, 31 — −51 и выше, шаг 2 дБм);
+    ' границы — прежние оценки CSQ: 10 и 20 из 31.
+    Public Const GsmMinimum As Integer = -113
+    Public Const GsmMaximum As Integer = -51
+    Public Const GsmGoodThreshold As Integer = -73
+    Public Const GsmPoorThreshold As Integer = -93
     Public Const Poor As Integer = 0
     Public Const Medium As Integer = 1
     Public Const Good As Integer = 2
@@ -120,6 +127,11 @@ Public Module LinkDiag
     End Function
 
     Public Function SignalView(snapshot As LinkSnapshot, csq As Byte) As LinkSignalView
+        Return SignalView(snapshot, csq, CByte(0))
+    End Function
+
+    ' network — технология из статуса 101, когда снимка 112 нет (в 2G карточка устройства берёт CSQ из статуса).
+    Public Function SignalView(snapshot As LinkSnapshot, csq As Byte, network As Byte) As LinkSignalView
         ' Вид 4G выбирается по типу сети: пропущенный замер (255) даёт «нет данных», а не переключение экрана на CSQ.
         ' Итог — по уровню RSRP: качество RSRQ падает при передаче данных и нагрузке соты (плата №1: −9…−13 дБ
         ' при том же уровне) и показывается своей шкалой, не занижая итог.
@@ -132,10 +144,35 @@ Public Module LinkDiag
                 .Maximum = RsrpMaximum - RsrpMinimum, .Value = If(known, Math.Max(0, Math.Min(RsrpMaximum - RsrpMinimum, -CInt(snapshot.Rsrp) - RsrpMinimum)), 0),
                 .Grade = grade, .Bars = If(Not known, 0, If(snapshot.Rsrp <= 80, 5, If(snapshot.Rsrp <= 90, 4, If(snapshot.Rsrp <= 100, 3, If(snapshot.Rsrp <= 110, 2, 1))))), .Lte = True}
         End If
+        ' 2G и 3G — та же картинка в дБм; 4G без RSRP (прошивка до 112 v4) остаётся на CSQ: там он завышает уровень.
+        Dim net = If(snapshot Is Nothing, network, snapshot.Network)
+        If net = 1 OrElse net = 3 Then
+            Dim level = GsmLevel(csq)
+            Return New LinkSignalView With {.LevelText = MetricText(level, GsmGrade(level), "дБм"), .QualityText = "",
+                .Maximum = 31, .Value = If(csq <= 31, CInt(csq), 0), .Grade = GsmGrade(level), .Bars = CsqBars(csq), .Gsm = True}
+        End If
         Return New LinkSignalView With {.LevelText = If(csq <= 31, csq & " из 31", "Не определён"),
             .QualityText = "", .Maximum = 31, .Value = If(csq <= 31, CInt(csq), 0),
-            .Grade = If(csq > 31, -1, If(csq >= 20, Good, If(csq >= 10, Medium, Poor))),
-            .Bars = If(csq > 31, 0, If(csq >= 20, 5, If(csq >= 15, 4, If(csq >= 10, 3, If(csq >= 5, 2, 1))))) }
+            .Grade = If(csq > 31, -1, If(csq >= 20, Good, If(csq >= 10, Medium, Poor))), .Bars = CsqBars(csq)}
+    End Function
+
+    Private Function CsqBars(csq As Byte) As Integer
+        Return If(csq > 31, 0, If(csq >= 20, 5, If(csq >= 15, 4, If(csq >= 10, 3, If(csq >= 5, 2, 1)))))
+    End Function
+
+    ' Уровень RSSI без знака, как RSRP в 112: CSQ 12 → 89 (−89 дБм); 255 — нет данных.
+    Public Function GsmLevel(csq As Byte) As Byte
+        Return If(csq <= 31, CByte(113 - 2 * csq), CByte(255))
+    End Function
+
+    Public Function GsmGrade(raw As Byte) As Integer
+        Return If(raw = 255, -1, If(raw <= -GsmGoodThreshold, Good, If(raw <= -GsmPoorThreshold, Medium, Poor)))
+    End Function
+
+    ' Шкала уровня: минимум, граница «плохо», граница «хорошо», максимум, дБм.
+    Public Function LevelScale(gsm As Boolean) As Integer()
+        Return If(gsm, New Integer() {GsmMinimum, GsmPoorThreshold, GsmGoodThreshold, GsmMaximum},
+            New Integer() {RsrpMinimum, RsrpPoorThreshold, RsrpGoodThreshold, RsrpMaximum})
     End Function
 
     ' 4G до первого ответа 112: CSQ в 4G завышает оценку (плата №1: 22 из 31 при RSRP −100 дБм).

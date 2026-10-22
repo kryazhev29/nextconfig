@@ -3,6 +3,8 @@
 Partial Public Class Form2
     Private ReadOnly tabLink As New TabPage With {.Text = "Связь", .Name = "tabLink", .AutoScroll = True}
     Private ReadOnly deviceConnection As New LinkOverview
+    Private ReadOnly deviceMemory As New Label With {.Name = "deviceMemory", .Text = "---", .AutoSize = True}
+    Private ReadOnly deviceMemoryMeter As New Meter With {.Maximum = 50000}
     Private ReadOnly signalHistory As New LinkHistory
     Private ReadOnly linkClock As Diagnostics.Stopwatch = Diagnostics.Stopwatch.StartNew()
     Private ReadOnly linkState As New Label With {.Name = "linkState", .Text = "Чтение состояния связи…"}
@@ -33,7 +35,8 @@ Partial Public Class Form2
         tabLink.BackColor = Theme.WindowBack
         deviceConnection.History = signalHistory : linkPlot.History = signalHistory
         AddHandler deviceConnection.More, Sub() tabs.SelectedTab = tabLink
-        Theme.Value(linkCsq) : Theme.Caption(linkHistoryNote)
+        AddHandler deviceConnection.PolicyClick, Sub() ShowWifiSettings()
+        Theme.Value(linkCsq) : Theme.Caption(linkHistoryNote) : Theme.Value(deviceMemory)
         Theme.LinkHistory(linkFailures)
         linkFailures.Columns.Add("stage", "Этап")
         linkFailures.Columns.Add("reason", "Причина")
@@ -147,10 +150,14 @@ Partial Public Class Form2
             Dim signal = LinkDiag.SignalView(snapshot, snapshot.Csq)
             Theme.SetText(linkCsq, signal.LevelText)
             linkSignal.Maximum = signal.Maximum : linkSignal.Value = signal.Value
-            linkGauges.Visible = signal.Lte : linkPlotCard.Visible = signal.Lte : linkCsqRow.Visible = Not signal.Lte
-            linkRsrp.Raw = snapshot.Rsrp : linkRsrq.Raw = snapshot.Rsrq
+            ' 2G и 3G — те же шкалы и график, что в 4G: уровень RSSI в дБм из CSQ, качество не измеряется.
+            Dim graph = signal.Lte OrElse signal.Gsm
+            Dim level = If(signal.Gsm, LinkDiag.GsmLevel(snapshot.Csq), snapshot.Rsrp)
+            linkGauges.Visible = graph : linkPlotCard.Visible = graph : linkCsqRow.Visible = Not graph
+            linkRsrp.Gsm = signal.Gsm : linkRsrq.Gsm = signal.Gsm : linkRsrq.Network = LinkDiag.NetworkText(snapshot.Network)
+            linkRsrp.Raw = level : linkRsrq.Raw = If(signal.Gsm, CByte(255), snapshot.Rsrq)
             linkRsrp.Invalidate() : linkRsrq.Invalidate()
-            If (tabLink.Visible OrElse tabState.Visible OrElse tabSettings.Visible) AndAlso signal.Lte Then signalHistory.Observe(linkClock.Elapsed.TotalSeconds, snapshot.Rsrp)
+            If (tabLink.Visible OrElse tabState.Visible OrElse tabSettings.Visible) AndAlso graph Then signalHistory.Observe(linkClock.Elapsed.TotalSeconds, level, signal.Gsm)
             linkPlot.Seconds = linkClock.Elapsed.TotalSeconds : linkPlot.Version = snapshot.Version : linkPlot.Invalidate()
             linkPhases.Durations = snapshot.StageMilliseconds
             If historyChanged Then
@@ -180,7 +187,7 @@ Partial Public Class Form2
     Private Sub UpdateDeviceSignal()
         Dim snapshot = If(status.netType = clOpros.eNetType._4G, linkSnapshot, Nothing)
         Dim measuring = status.netType = clOpros.eNetType._4G AndAlso Not linkTried
-        Dim signal = If(measuring, LinkDiag.MeasuringView(), LinkDiag.SignalView(snapshot, status.signal))
+        Dim signal = If(measuring, LinkDiag.MeasuringView(), LinkDiag.SignalView(snapshot, status.signal, CByte(status.netType)))
         Theme.SetText(lblSig, signal.LevelText)
         pbSig.Maximum = signal.Maximum : pbSig.Value = signal.Value
         deviceConnection.Signal = signal
@@ -191,11 +198,24 @@ Partial Public Class Form2
         ShowLinkChannels(channels)
         deviceConnection.Cell = LinkDiag.CellText(linkSnapshot, CByte(status.netType))
         ' Две строки: уровень и качество не переносятся посередине числа в узкой карточке.
+        Dim rssi = LinkDiag.GsmLevel(status.signal)
         deviceConnection.Details = If(measuring, "уровень измеряется", If(signal.Lte,
             "уровень " & If(snapshot.Rsrp = 255, "нет данных", "−" & snapshot.Rsrp & " дБм") & vbLf &
-            "качество " & If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), "CSQ " & signal.LevelText))
-        deviceConnection.MemoryUsed = status.usedMem : deviceConnection.Seconds = linkClock.Elapsed.TotalSeconds
+            "качество " & If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), If(signal.Gsm,
+            "уровень " & If(rssi = 255, "нет данных", "−" & rssi & " дБм") & vbLf &
+            "качество в " & LinkDiag.NetworkText(CByte(status.netType)) & " не измеряется", "CSQ " & signal.LevelText)))
+        deviceConnection.Seconds = linkClock.Elapsed.TotalSeconds
         deviceConnection.Invalidate()
+    End Sub
+
+    ' «Логика: …» на карточке «Связь»: выбор Wi-Fi-модема — первый блок раздела «485 и Wiegand».
+    Private Sub ShowWifiSettings()
+        ShowSettingsSection(1)
+        Dim host = wifiModel.Parent
+        While host IsNot Nothing AndAlso Not (TypeOf host Is ScrollableControl AndAlso DirectCast(host, ScrollableControl).AutoScroll)
+            host = host.Parent
+        End While
+        If host IsNot Nothing Then DirectCast(host, ScrollableControl).ScrollControlIntoView(wifiModel)
     End Sub
 
     Private Sub ShowLinkChannels(channels As LinkChannelView)

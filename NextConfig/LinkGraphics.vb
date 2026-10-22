@@ -3,12 +3,13 @@
 Public Structure LinkPoint
     Public Seconds As Double
     Public EndSeconds As Double
-    Public Rsrp As Byte
+    Public Level As Byte             ' дБм без знака: RSRP в 4G, RSSI в 2G/3G
 End Structure
 
 Public Class LinkHistory
     Private ReadOnly samples As New List(Of LinkPoint)
     Public LatestSeconds As Double
+    Public Gsm As Boolean            ' точки — RSSI 2G/3G; смена сети начинает историю заново
     Public Sub Clear()
         samples.Clear() : LatestSeconds = 0
     End Sub
@@ -19,16 +20,21 @@ Public Class LinkHistory
     End Property
 
     Public Sub Observe(seconds As Double, rsrp As Byte)
+        Observe(seconds, rsrp, False)
+    End Sub
+
+    Public Sub Observe(seconds As Double, level As Byte, gsm As Boolean)
+        If gsm <> Me.Gsm Then Clear() : Me.Gsm = gsm
         Dim old = samples.TakeWhile(Function(p) p.EndSeconds < seconds - 600).Count()
         If old > 0 Then samples.RemoveRange(0, old)
         If samples.Count > 0 AndAlso samples(0).Seconds < seconds - 600 Then
             Dim first = samples(0)
             first.Seconds = seconds - 600 : samples(0) = first
         End If
-        If rsrp = 255 Then Return
+        If level = 255 Then Return
         LatestSeconds = seconds
-        If samples.Count = 0 OrElse samples.Last().Rsrp <> rsrp Then
-            samples.Add(New LinkPoint With {.Seconds = seconds, .EndSeconds = seconds, .Rsrp = rsrp})
+        If samples.Count = 0 OrElse samples.Last().Level <> level Then
+            samples.Add(New LinkPoint With {.Seconds = seconds, .EndSeconds = seconds, .Level = level})
         Else
             Dim last = samples.Last()
             last.EndSeconds = seconds : samples(samples.Count - 1) = last
@@ -74,9 +80,10 @@ Public Module LinkDrawing
     End Sub
 
     ' Веер Wi-Fi: точка и три дуги, закрашено по уровню моста (> 70 % — три, > 40 % — две, иначе одна); без данных — пустой.
-    Public Sub WifiFan(g As Graphics, area As Rectangle, level As Integer)
+    ' Неиспользуемый канал — серым: зелёный веер читается как «Wi-Fi работает».
+    Public Sub WifiFan(g As Graphics, area As Rectangle, level As Integer, Optional muted As Boolean = False)
         Dim filled = If(level < 0, 0, If(level > 70, 3, If(level > 40, 2, 1)))
-        Dim color = GradeColor(If(level > 70, LinkDiag.Good, If(level > 40, LinkDiag.Medium, LinkDiag.Poor)))
+        Dim color = If(muted, Theme.Idle, GradeColor(If(level > 70, LinkDiag.Good, If(level > 40, LinkDiag.Medium, LinkDiag.Poor))))
         Dim cx = area.Left + area.Width / 2.0F, cy = area.Bottom - 1.0F, ring = area.Height / 3.6F
         Using dot As New SolidBrush(If(filled > 0, color, Theme.Border))
             g.FillEllipse(dot, cx - ring * 0.4F, cy - ring * 0.8F, ring * 0.8F, ring * 0.8F)
@@ -109,9 +116,9 @@ Public Module LinkDrawing
     Public Sub Plot(g As Graphics, bounds As Rectangle, history As LinkHistory, now As Double, zones As Boolean)
         If bounds.Width <= 0 OrElse bounds.Height <= 0 Then Return
         g.SmoothingMode = SmoothingMode.AntiAlias
-        Dim ymin = LinkDiag.RsrpMinimum, ymax = LinkDiag.RsrpMaximum, window = PlotWindow(history, now)
+        Dim limits = LinkDiag.LevelScale(history.Gsm)
+        Dim ymin = limits(0), ymax = limits(3), window = PlotWindow(history, now)
         If zones Then
-            Dim limits = New Integer() {ymin, LinkDiag.RsrpPoorThreshold, LinkDiag.RsrpGoodThreshold, ymax}
             For grade = 0 To 2
                 Dim y = bounds.Bottom - CSng((limits(grade + 1) - ymin) / CDbl(ymax - ymin) * bounds.Height)
                 Dim h = CSng((limits(grade + 1) - limits(grade)) / CDbl(ymax - ymin) * bounds.Height)
@@ -124,7 +131,7 @@ Public Module LinkDrawing
         Dim x = Function(seconds As Double) CSng(bounds.Left + Math.Max(0, seconds - now + window) / window * bounds.Width)
         For Each sample In history.Points
             If sample.EndSeconds < now - window Then Continue For
-            Dim y = CSng(bounds.Bottom - Math.Max(0, Math.Min(ymax - ymin, -CInt(sample.Rsrp) - ymin)) / CDbl(ymax - ymin) * bounds.Height)
+            Dim y = CSng(bounds.Bottom - Math.Max(0, Math.Min(ymax - ymin, -CInt(sample.Level) - ymin)) / CDbl(ymax - ymin) * bounds.Height)
             points.Add(New PointF(x(sample.Seconds), y))
             If sample.EndSeconds > sample.Seconds Then points.Add(New PointF(x(sample.EndSeconds), y))
         Next
@@ -137,7 +144,7 @@ Public Module LinkDrawing
             g.FillEllipse(brush, last.X - radius, last.Y - radius, radius * 2, radius * 2)
             ' На большом графике у последней точки — текущий уровень, чтобы не сверять со шкалой.
             If zones AndAlso history.Points.Count > 0 Then
-                Dim label = "−" & history.Points.Last().Rsrp & " дБм", w = Theme.DrawingPx(g, 80)
+                Dim label = "−" & history.Points.Last().Level & " дБм", w = Theme.DrawingPx(g, 80)
                 DrawLabel(g, label, Theme.FontBodyBold, Theme.TextMain,
                     New Rectangle(CInt(last.X) - w - Theme.DrawingPx(g, 6), CInt(last.Y) - Theme.DrawingPx(g, 26), w, Theme.DrawingPx(g, 22)), ContentAlignment.MiddleRight)
             End If
@@ -148,6 +155,8 @@ End Module
 Public Class SignalGauge
     Inherits Control
     Public Quality As Boolean
+    Public Gsm As Boolean            ' 2G/3G: уровень — RSSI по CSQ, качество модем не сообщает
+    Public Network As String = "2G"
     Public Raw As Byte = 255
 
     Public Sub New()
@@ -157,20 +166,29 @@ Public Class SignalGauge
 
     Protected Overrides Sub OnPaint(e As PaintEventArgs)
         Dim g = e.Graphics, pad = Theme.ControlPx(Me, 6), barY = Theme.ControlPx(Me, 93), barHeight = Theme.ControlPx(Me, 10)
+        Dim measured = Not (Quality AndAlso Gsm)
         ' Монтажнику — что значит шкала, без терминов.
-        LinkDrawing.DrawLabel(g, If(Quality, "Насколько чистый сигнал: мешают соседние вышки и загрузка", "Насколько сильно слышна вышка"),
+        LinkDrawing.DrawLabel(g, If(Not measured, "В " & Network & " качество сигнала не измеряется", If(Quality, "Насколько чистый сигнал: мешают соседние вышки и загрузка", "Насколько сильно слышна вышка")),
             Theme.FontCaption, Theme.TextMuted, New Rectangle(pad, barY + Theme.ControlPx(Me, 44), Width - 2 * pad, Theme.ControlPx(Me, 24)))
-        Dim minimum = If(Quality, LinkDiag.RsrqMinimum, LinkDiag.RsrpMinimum), maximum = If(Quality, LinkDiag.RsrqMaximum, LinkDiag.RsrpMaximum)
-        Dim grade = If(Quality, LinkDiag.RsrqGrade(Raw), LinkDiag.RsrpGrade(Raw))
-        LinkDrawing.DrawLabel(g, If(Quality, "Качество (RSRQ)", "Уровень (RSRP)"), Theme.FontBody, Theme.TextMuted, New Rectangle(pad, 0, Width - 2 * pad, Theme.ControlPx(Me, 24)))
-        LinkDrawing.DrawLabel(g, If(Raw = 255, "—", "−" & Raw) & If(Quality, " дБ", " дБм"), Theme.FontValueBig, Theme.TextMain, New Rectangle(pad, Theme.ControlPx(Me, 29), Width - Theme.ControlPx(Me, 110), Theme.ControlPx(Me, 48)))
-        Dim badge As New Rectangle(Width - Theme.ControlPx(Me, 100), Theme.ControlPx(Me, 35), Theme.ControlPx(Me, 94), Theme.ControlPx(Me, 30))
-        Using brush As New SolidBrush(LinkDrawing.GradeBackColor(grade))
-            g.FillRectangle(brush, badge)
-        End Using
-        LinkDrawing.DrawLabel(g, LinkDiag.GradeText(grade), Theme.FontBody, LinkDrawing.GradeTextColor(grade), badge, ContentAlignment.MiddleCenter)
+        Dim limits = If(Quality, New Integer() {LinkDiag.RsrqMinimum, LinkDiag.RsrqPoorThreshold, LinkDiag.RsrqGoodThreshold, LinkDiag.RsrqMaximum}, LinkDiag.LevelScale(Gsm))
+        Dim minimum = limits(0), maximum = limits(3)
+        Dim grade = If(Not measured, -1, If(Quality, LinkDiag.RsrqGrade(Raw), If(Gsm, LinkDiag.GsmGrade(Raw), LinkDiag.RsrpGrade(Raw))))
+        LinkDrawing.DrawLabel(g, If(Quality, If(Gsm, "Качество", "Качество (RSRQ)"), If(Gsm, "Уровень (RSSI)", "Уровень (RSRP)")), Theme.FontBody, Theme.TextMuted, New Rectangle(pad, 0, Width - 2 * pad, Theme.ControlPx(Me, 24)))
+        LinkDrawing.DrawLabel(g, If(Not measured, "—", If(Raw = 255, "—", "−" & Raw) & If(Quality, " дБ", " дБм")), Theme.FontValueBig, Theme.TextMain, New Rectangle(pad, Theme.ControlPx(Me, 29), Width - Theme.ControlPx(Me, 136), Theme.ControlPx(Me, 48)))
         Dim span = Math.Max(1, Width - 2 * pad)
-        Dim limits = If(Quality, New Integer() {minimum, LinkDiag.RsrqPoorThreshold, LinkDiag.RsrqGoodThreshold, maximum}, New Integer() {minimum, LinkDiag.RsrpPoorThreshold, LinkDiag.RsrpGoodThreshold, maximum})
+        ' Оценки нет, если величину не измеряют: серая полоса и пояснение вместо «Нет данных».
+        If measured Then
+            Dim badge As New Rectangle(Width - Theme.ControlPx(Me, 126), Theme.ControlPx(Me, 35), Theme.ControlPx(Me, 120), Theme.ControlPx(Me, 30))
+            Using brush As New SolidBrush(LinkDrawing.GradeBackColor(grade))
+                g.FillRectangle(brush, badge)
+            End Using
+            LinkDrawing.DrawLabel(g, LinkDiag.GradeText(grade), Theme.FontBody, LinkDrawing.GradeTextColor(grade), badge, ContentAlignment.MiddleCenter)
+        Else
+            Using brush As New SolidBrush(Theme.Border)
+                g.FillRectangle(brush, pad, barY, span, barHeight)
+            End Using
+            Return
+        End If
         For gradeIndex = 0 To 2
             Dim x = pad + CSng((limits(gradeIndex) - minimum) / CDbl(maximum - minimum) * span)
             Dim w = CSng((limits(gradeIndex + 1) - limits(gradeIndex)) / CDbl(maximum - minimum) * span)
@@ -291,11 +309,13 @@ Public Class SignalPlot
 
     Protected Overrides Sub OnPaint(e As PaintEventArgs)
         Dim g = e.Graphics, area As New Rectangle(Theme.ControlPx(Me, 50), Theme.ControlPx(Me, 32), Math.Max(1, Width - Theme.ControlPx(Me, 65)), Height - Theme.ControlPx(Me, 58))
-        LinkDrawing.DrawLabel(g, If(Version >= 5, "точка раз в 2 с", "точка раз в 30 с"), Theme.FontCaption, Theme.TextMuted, New Rectangle(0, 0, Width, Theme.ControlPx(Me, 25)), ContentAlignment.MiddleRight)
+        ' CSQ прошивка опрашивает раз в 30 с (comm_info.c), частый опрос антенны — только QENG для 4G.
+        LinkDrawing.DrawLabel(g, If(Version >= 5 AndAlso Not History.Gsm, "точка раз в 2 с", "точка раз в 30 с"), Theme.FontCaption, Theme.TextMuted, New Rectangle(0, 0, Width, Theme.ControlPx(Me, 25)), ContentAlignment.MiddleRight)
         LinkDrawing.Plot(g, area, History, Seconds, True)
         If History.Points.Count = 0 Then LinkDrawing.DrawLabel(g, "собираю данные…", Theme.FontCaption, Theme.TextMuted, area, ContentAlignment.MiddleCenter)
-        For Each mark In New Integer() {LinkDiag.RsrpMaximum, LinkDiag.RsrpGoodThreshold, LinkDiag.RsrpPoorThreshold, LinkDiag.RsrpMinimum}
-            Dim y = area.Bottom - CInt((mark - LinkDiag.RsrpMinimum) / CDbl(LinkDiag.RsrpMaximum - LinkDiag.RsrpMinimum) * area.Height)
+        Dim scale = LinkDiag.LevelScale(History.Gsm)
+        For Each mark In New Integer() {scale(3), scale(2), scale(1), scale(0)}
+            Dim y = area.Bottom - CInt((mark - scale(0)) / CDbl(scale(3) - scale(0)) * area.Height)
             LinkDrawing.DrawLabel(g, "−" & Math.Abs(mark), Theme.FontCaption, Theme.TextMuted, New Rectangle(0, y - Theme.ControlPx(Me, 10), Theme.ControlPx(Me, 44), Theme.ControlPx(Me, 20)))
         Next
         LinkDrawing.DrawLabel(g, LinkDrawing.AgoText(LinkDrawing.PlotWindow(History, Seconds)), Theme.FontCaption, Theme.TextMuted, New Rectangle(area.Left, area.Bottom, Theme.ControlPx(Me, 70), Theme.ControlPx(Me, 24)))
@@ -362,18 +382,23 @@ Public Class ConnectionPhases
 End Class
 
 ' Карточка «Связь» на странице устройства (22.10.2026): итог крупно; при выбранном Wi-Fi-модеме — строки каналов
-' со значком уровня и ролью; путь до сервера по активному каналу; крупная шкала сотовой — только когда сервер
-' идёт через сотовую (при Wi-Fi её уровень в строке сотовой); память. Размеры в точках при 100 %.
+' со значком уровня, ролью и уровнем справа; путь до сервера по активному каналу; крупная шкала сотовой — только когда
+' сервер идёт через сотовую (при Wi-Fi её уровень в строке сотовой). Вечером 22.10 крупнее: шрифт на шаг, строки выше;
+' «Логика: …» открывает выбор Wi-Fi-модема; память идентификаторов — в карточке «Устройство». Размеры в точках при 100 %.
 Public Class LinkOverview
     Inherits Control
+    Private Const RowsTop As Integer = 82, RowHeight As Integer = 50, RowPitch As Integer = 54
+    Private Const ChainHeight As Integer = 106, ProblemHeight As Integer = 44, PanelHeight As Integer = 90
+    Private ReadOnly nameFont As Font = AppFonts.Create(Theme.FontBody.Size * 1.1F, FontStyle.Regular)
+    Private ReadOnly nameBold As Font = AppFonts.Create(Theme.FontBody.Size * 1.1F, FontStyle.Bold)
     Public Signal As LinkSignalView
     Public Channels As LinkChannelView = LinkChannels.Stale()
     Public Cell As String = ""
     Public Details As String = "Нет свежих данных"
-    Public MemoryUsed As UInteger
     Public History As LinkHistory
     Public Seconds As Double
     Public Event More As EventHandler
+    Public Event PolicyClick As EventHandler
 
     Public Sub New()
         SetStyle(ControlStyles.AllPaintingInWmPaint Or ControlStyles.UserPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
@@ -400,22 +425,22 @@ Public Class LinkOverview
         End Get
     End Property
 
-    ' Заголовок 30, итог 44, строки каналов по 48 и зазор 6, путь до сервера 100 (с подсказкой 144), шкала 80, память 55.
+    ' Заголовок 30, итог 52, строки каналов по 54 и зазор 6, путь до сервера 106 (с подсказкой 150), шкала 90, низ 4.
     Private ReadOnly Property ChainDesign As Integer
         Get
-            Return 74 + If(Channels.Rows.Length = 0, 0, 48 * Channels.Rows.Length + 6)
+            Return RowsTop + If(Channels.Rows.Length = 0, 0, RowPitch * Channels.Rows.Length + 6)
         End Get
     End Property
 
     Private ReadOnly Property SignalDesign As Integer
         Get
-            Return ChainDesign + If(Problem = "", 100, 144)
+            Return ChainDesign + ChainHeight + If(Problem = "", 0, ProblemHeight)
         End Get
     End Property
 
     Public ReadOnly Property DesignHeight As Integer
         Get
-            Return SignalDesign + If(PanelVisible, 80, 0) + 55
+            Return SignalDesign + If(PanelVisible, PanelHeight, 0) + 4
         End Get
     End Property
 
@@ -428,11 +453,26 @@ Public Class LinkOverview
     ' Куда нажимать за подробностями сотовой: крупная шкала или, при Wi-Fi, строка сотовой.
     Public ReadOnly Property MoreArea As Rectangle
         Get
-            If PanelVisible Then Return New Rectangle(0, SignalTop, Width, Theme.ControlPx(Me, 80))
+            If PanelVisible Then Return New Rectangle(0, SignalTop, Width, Theme.ControlPx(Me, PanelHeight))
             For i = 0 To Channels.Rows.Length - 1
-                If Channels.Rows(i).Channel = eLinkChannel.Cellular Then Return New Rectangle(0, Theme.ControlPx(Me, 74 + 48 * i), Width, Theme.ControlPx(Me, 44))
+                If Channels.Rows(i).Channel = eLinkChannel.Cellular Then Return New Rectangle(0, Theme.ControlPx(Me, RowsTop + RowPitch * i), Width, Theme.ControlPx(Me, RowHeight))
             Next
             Return Rectangle.Empty
+        End Get
+    End Property
+
+    ' «Логика: только GSM ›» в углу — ссылка на выбор Wi-Fi-модема в настройках.
+    Private ReadOnly Property PolicyText As String
+        Get
+            Return If(Channels.Rows.Length = 0 OrElse Channels.Policy = "", "", Channels.Policy & " ›")
+        End Get
+    End Property
+
+    Public ReadOnly Property PolicyArea As Rectangle
+        Get
+            If PolicyText = "" Then Return Rectangle.Empty
+            Dim w = TextRenderer.MeasureText(PolicyText, Theme.FontCaption, New Size(Integer.MaxValue, Integer.MaxValue), TextFormatFlags.SingleLine Or TextFormatFlags.NoPrefix).Width + Theme.ControlPx(Me, 6)
+            Return New Rectangle(Width - Theme.ControlPx(Me, 5) - w, 0, w, Theme.ControlPx(Me, 28))
         End Get
     End Property
 
@@ -454,18 +494,22 @@ Public Class LinkOverview
         Return TextRenderer.MeasureText(g, value, font, New Size(Integer.MaxValue, Integer.MaxValue), TextFormatFlags.SingleLine Or TextFormatFlags.NoPrefix).Width
     End Function
 
-    ' Уровень сотовой коротко: «−95 дБм» в LTE, «CSQ 20» в 2G.
+    ' Уровень сотовой коротко: «−95 дБм» в 4G и 2G; «CSQ 20», когда тип сети неизвестен.
     Private Function CellularValue() As String
-        If Signal.Lte Then
+        If Signal.Lte OrElse Signal.Gsm Then
             Dim cut = Signal.LevelText.LastIndexOf(" · ")
             Return If(cut >= 0, Signal.LevelText.Substring(cut + 3), Signal.LevelText)
         End If
         Return If(Signal.Value > 0, "CSQ " & Signal.Value, "")
     End Function
 
+    Private Shared Function Unused(row As LinkChannelRow) As Boolean
+        Return row.Role = "Не используется"
+    End Function
+
     ' Роль: активный — заливка, работающие роли — белая плашка с рамкой, «Не используется» — серая.
     Private Sub DrawRole(g As Graphics, pill As Rectangle, row As LinkChannelRow)
-        Dim used = row.Role <> "Не используется"
+        Dim used = Not Unused(row)
         Using path = Theme.RoundedPath(New RectangleF(pill.X + 0.5F, pill.Y + 0.5F, pill.Width - 1.0F, pill.Height - 1.0F), pill.Height / 2.0F),
               fill As New SolidBrush(If(row.Active, Theme.Accent, If(used, Theme.Surface, Theme.Disabled))), pen As New Pen(If(used, Theme.Accent, Theme.Disabled))
             g.FillPath(fill, path)
@@ -478,11 +522,11 @@ Public Class LinkOverview
         Dim g = e.Graphics, p = Theme.ControlPx(Me, 4), span = Math.Max(1, Width - 2 * p)
         g.SmoothingMode = SmoothingMode.AntiAlias
         LinkDrawing.DrawLabel(g, "Связь", Theme.FontGroup, Theme.TextMain, New Rectangle(p, 0, Theme.ControlPx(Me, 70), Theme.ControlPx(Me, 28)))
-        LinkDrawing.DrawLabel(g, If(Channels.Rows.Length = 0, Cell, Channels.Policy), Theme.FontCaption, Theme.TextMuted,
+        LinkDrawing.DrawLabel(g, If(PolicyText <> "", PolicyText, If(Channels.Rows.Length = 0, Cell, "")), Theme.FontCaption, If(PolicyText <> "", Theme.Accent, Theme.TextMuted),
             New Rectangle(Theme.ControlPx(Me, 80), 0, Math.Max(1, Width - Theme.ControlPx(Me, 85)), Theme.ControlPx(Me, 28)), ContentAlignment.MiddleRight)
 
         ' Итог: на связи ли сервер и через какой канал.
-        Dim mark = Theme.ControlPx(Me, 14), markY = Theme.ControlPx(Me, 52), headColor = ToneDot(Channels.HeadTone)
+        Dim mark = Theme.ControlPx(Me, 15), markY = Theme.ControlPx(Me, 54), headColor = ToneDot(Channels.HeadTone)
         Using brush As New SolidBrush(Color.FromArgb(30, headColor))
             g.FillEllipse(brush, p, markY - mark, mark * 2, mark * 2)
         End Using
@@ -493,50 +537,53 @@ Public Class LinkOverview
         End If
         Dim headLeft = p + mark * 2 + Theme.ControlPx(Me, 10)
         Dim headWidth = Math.Min(Math.Max(1, p + span - headLeft), TextWidth(g, Channels.Headline, Theme.FontValueBig) + Theme.ControlPx(Me, 4))
-        OneLine(g, Channels.Headline, Theme.FontValueBig, ToneText(Channels.HeadTone), New Rectangle(headLeft, markY - Theme.ControlPx(Me, 20), headWidth, Theme.ControlPx(Me, 40)))
+        OneLine(g, Channels.Headline, Theme.FontValueBig, ToneText(Channels.HeadTone), New Rectangle(headLeft, markY - Theme.ControlPx(Me, 21), headWidth, Theme.ControlPx(Me, 42)))
         ' Пояснение только целиком: обрезанное «попытка через сот…» хуже, чем никакого (канал виден и по строкам ниже).
         Dim noteLeft = headLeft + headWidth + Theme.ControlPx(Me, 8), noteWidth = p + span - noteLeft
         If Channels.Note <> "" AndAlso TextWidth(g, Channels.Note, Theme.FontCaption) <= noteWidth Then
-            OneLine(g, Channels.Note, Theme.FontCaption, Theme.TextMuted, New Rectangle(noteLeft, markY - Theme.ControlPx(Me, 20), noteWidth, Theme.ControlPx(Me, 40)))
+            OneLine(g, Channels.Note, Theme.FontCaption, Theme.TextMuted, New Rectangle(noteLeft, markY - Theme.ControlPx(Me, 21), noteWidth, Theme.ControlPx(Me, 42)))
         End If
 
-        ' Каналы: значок с уровнем, имя, роль сразу за именем, значение уровня справа; состояние второй строкой.
-        Dim top = Theme.ControlPx(Me, 74)
+        ' Каналы: значок с уровнем, имя, роль сразу за именем, уровень справа; состояние второй строкой.
+        ' Неиспользуемый канал — серым целиком, причина — в строке состояния.
+        Dim top = Theme.ControlPx(Me, RowsTop)
         For Each row In Channels.Rows
-            Dim area As New Rectangle(p, top, span, Theme.ControlPx(Me, 44))
+            Dim area As New Rectangle(p, top, span, Theme.ControlPx(Me, RowHeight))
             If row.Active Then
                 Using back As New SolidBrush(Theme.SurfaceHover), accent As New SolidBrush(Theme.Accent)
                     g.FillRectangle(back, area)
                     g.FillRectangle(accent, area.Left, area.Top, Theme.ControlPx(Me, 3), area.Height)
                 End Using
             End If
-            Dim icon As New Rectangle(area.Left + Theme.ControlPx(Me, 12), area.Top + Theme.ControlPx(Me, 6), Theme.ControlPx(Me, 22), Theme.ControlPx(Me, 17))
+            Dim muted = Unused(row)
+            Dim icon As New Rectangle(area.Left + Theme.ControlPx(Me, 12), area.Top + Theme.ControlPx(Me, 8), Theme.ControlPx(Me, 24), Theme.ControlPx(Me, 19))
             Dim value = "", valueColor = Theme.TextMuted
             If row.Channel = eLinkChannel.Wifi Then
-                LinkDrawing.WifiFan(g, icon, row.Level)
+                LinkDrawing.WifiFan(g, icon, row.Level, muted)
                 If row.Level >= 0 Then value = row.Level & " %"
             Else
                 LinkDrawing.Bars(g, icon, Signal.Bars, Signal.Grade)
-                If Not PanelVisible Then value = CellularValue() & " →" : valueColor = Theme.Accent ' подробности сотовой — по нажатию на строку
+                value = CellularValue() ' при крупной шкале ниже — то же число, чтобы сравнить с Wi-Fi
+                If Not PanelVisible Then value = (value & " →").TrimStart() : valueColor = Theme.Accent ' подробности сотовой — по нажатию на строку
             End If
-            Dim rowLeft = area.Left + Theme.ControlPx(Me, 44), rowRight = area.Right - Theme.ControlPx(Me, 10)
-            Dim valueWidth = If(value = "", 0, TextWidth(g, value, Theme.FontCaption))
-            If value <> "" Then OneLine(g, value, Theme.FontCaption, valueColor, New Rectangle(rowRight - valueWidth, area.Top + Theme.ControlPx(Me, 2), valueWidth, Theme.ControlPx(Me, 24)))
-            Dim nameFont = If(row.Active, Theme.FontBodyBold, Theme.FontBody), pillWidth = TextWidth(g, row.Role, Theme.FontCaption) + Theme.ControlPx(Me, 18)
-            Dim nameWidth = Math.Max(1, Math.Min(TextWidth(g, row.Name, nameFont),
+            Dim rowLeft = area.Left + Theme.ControlPx(Me, 48), rowRight = area.Right - Theme.ControlPx(Me, 10)
+            Dim valueWidth = If(value = "", 0, TextWidth(g, value, Theme.FontBody))
+            If value <> "" Then OneLine(g, value, Theme.FontBody, valueColor, New Rectangle(rowRight - valueWidth, area.Top + Theme.ControlPx(Me, 3), valueWidth, Theme.ControlPx(Me, 26)))
+            Dim rowFont = If(row.Active, nameBold, nameFont), pillWidth = TextWidth(g, row.Role, Theme.FontCaption) + Theme.ControlPx(Me, 18)
+            Dim nameWidth = Math.Max(1, Math.Min(TextWidth(g, row.Name, rowFont),
                 rowRight - valueWidth - Theme.ControlPx(Me, If(value = "", 0, 12)) - pillWidth - Theme.ControlPx(Me, 10) - rowLeft))
-            OneLine(g, row.Name, nameFont, Theme.TextMain, New Rectangle(rowLeft, area.Top + Theme.ControlPx(Me, 2), nameWidth, Theme.ControlPx(Me, 24)))
-            DrawRole(g, New Rectangle(rowLeft + nameWidth + Theme.ControlPx(Me, 10), area.Top + Theme.ControlPx(Me, 4), pillWidth, Theme.ControlPx(Me, 20)), row)
-            OneLine(g, row.State, Theme.FontCaption, ToneText(row.Tone), New Rectangle(rowLeft, area.Top + Theme.ControlPx(Me, 24), Math.Max(1, rowRight - rowLeft), Theme.ControlPx(Me, 18)))
-            top += Theme.ControlPx(Me, 48)
+            OneLine(g, row.Name, rowFont, If(muted, Theme.TextMuted, Theme.TextMain), New Rectangle(rowLeft, area.Top + Theme.ControlPx(Me, 3), nameWidth, Theme.ControlPx(Me, 26)))
+            DrawRole(g, New Rectangle(rowLeft + nameWidth + Theme.ControlPx(Me, 10), area.Top + Theme.ControlPx(Me, 6), pillWidth, Theme.ControlPx(Me, 20)), row)
+            OneLine(g, row.State, Theme.FontBody, ToneText(row.Tone), New Rectangle(rowLeft, area.Top + Theme.ControlPx(Me, 28), Math.Max(1, rowRight - rowLeft), Theme.ControlPx(Me, 20)))
+            top += Theme.ControlPx(Me, RowPitch)
         Next
 
-        ' Путь до сервера по активному каналу: крест — место обрыва. Шаг не шире 150 точек и от левого края, как строки выше.
+        ' Путь до сервера по активному каналу: крест — место обрыва. Шаг не шире 170 точек и от левого края, как строки выше.
         Dim chainTop = Theme.ControlPx(Me, ChainDesign), labels = Channels.Labels, count = labels.Length
         OneLine(g, "Путь до сервера" & If(Channels.Via = "", "", " через " & Channels.Via), Theme.FontCaption, Theme.TextMuted, New Rectangle(p, chainTop, span, Theme.ControlPx(Me, 20)))
-        Dim chainSpan = Math.Min(span, Theme.ControlPx(Me, 150) * count), chainLeft = p
+        Dim chainSpan = Math.Min(span, Theme.ControlPx(Me, 170) * count), chainLeft = p
         For i = 0 To count - 1
-            Dim x = chainLeft + chainSpan * (2 * i + 1) \ (2 * count), y = chainTop + Theme.ControlPx(Me, 46), radius = Theme.ControlPx(Me, 14)
+            Dim x = chainLeft + chainSpan * (2 * i + 1) \ (2 * count), y = chainTop + Theme.ControlPx(Me, 50), radius = Theme.ControlPx(Me, 16)
             Dim color = If(Steps < 0 OrElse i > Steps, Theme.Idle, If(i < Steps, Theme.Ok, Theme.Danger))
             If i > 0 Then
                 Using pen As New Pen(If(i < Steps, Theme.Ok, If(i = Steps, Theme.Danger, Theme.Border)), Theme.ControlPx(Me, 2))
@@ -552,43 +599,48 @@ Public Class LinkOverview
             Else
                 LinkDrawing.DrawLabel(g, If(Steps < 0 OrElse i > Steps, "·", "✓"), Theme.FontGroup, color, New Rectangle(x - radius, y - radius, radius * 2, radius * 2), ContentAlignment.MiddleCenter)
             End If
-            LinkDrawing.DrawLabel(g, labels(i), Theme.FontCaption, Theme.TextMain, New Rectangle(x - chainSpan \ (2 * count), chainTop + Theme.ControlPx(Me, 64), chainSpan \ count, Theme.ControlPx(Me, 22)), ContentAlignment.MiddleCenter)
+            LinkDrawing.DrawLabel(g, labels(i), Theme.FontBody, Theme.TextMain, New Rectangle(x - chainSpan \ (2 * count), chainTop + Theme.ControlPx(Me, 72), chainSpan \ count, Theme.ControlPx(Me, 24)), ContentAlignment.MiddleCenter)
         Next
-        LinkDrawing.DrawLabel(g, Problem, Theme.FontCaption, If(Steps < 0, Theme.TextMuted, Theme.Danger), New Rectangle(p, chainTop + Theme.ControlPx(Me, 92), span, Theme.ControlPx(Me, 42)))
+        LinkDrawing.DrawLabel(g, Problem, Theme.FontBody, If(Steps < 0, Theme.TextMuted, Theme.Danger), New Rectangle(p, chainTop + Theme.ControlPx(Me, 100), span, Theme.ControlPx(Me, 44)))
 
-        Dim memoryY = SignalTop + Theme.ControlPx(Me, 10)
         If PanelVisible Then
-            Dim panel As New Rectangle(p, SignalTop, span, Theme.ControlPx(Me, 80))
+            Dim panel As New Rectangle(p, SignalTop, span, Theme.ControlPx(Me, PanelHeight))
             Using brush As New SolidBrush(Theme.WindowBack)
                 g.FillRectangle(brush, panel)
             End Using
-            LinkDrawing.Bars(g, New Rectangle(p + Theme.ControlPx(Me, 10), panel.Top + Theme.ControlPx(Me, 25), Theme.ControlPx(Me, 36), Theme.ControlPx(Me, 35)), Signal.Bars, Signal.Grade)
-            Dim hasGraph = Signal.Lte AndAlso History IsNot Nothing AndAlso History.Points.Count > 0
-            Dim detailWidth = Math.Max(Theme.ControlPx(Me, 100), span - Theme.ControlPx(Me, If(hasGraph, 270, 170)))
+            LinkDrawing.Bars(g, New Rectangle(p + Theme.ControlPx(Me, 12), panel.Top + Theme.ControlPx(Me, 27), Theme.ControlPx(Me, 40), Theme.ControlPx(Me, 38)), Signal.Bars, Signal.Grade)
+            ' История той же сети, что на шкале: после смены 4G ↔ 2G прошлые точки не рисуются. В узкой карточке
+            ' (окно в половину экрана) место графика отдано подробностям: «качество в 2G не измеряется» иначе не помещается.
+            Dim hasGraph = (Signal.Lte OrElse Signal.Gsm) AndAlso History IsNot Nothing AndAlso History.Points.Count > 0 AndAlso
+                History.Gsm = Signal.Gsm AndAlso span >= Theme.ControlPx(Me, 560)
+            Dim detailWidth = Math.Max(Theme.ControlPx(Me, 100), span - Theme.ControlPx(Me, If(hasGraph, 325, 205)))
             ' При двух каналах шкала относится только к сотовой сети — так и подписана.
             Dim title = LinkDiag.SignalTitle(Signal.Grade), both = Channels.Rows.Length > 0
             If both Then title = "Сотовая сеть · " & Char.ToLower(title(0)) & title.Substring(1)
-            OneLine(g, title, Theme.FontBodyBold, Theme.TextMain, New Rectangle(p + Theme.ControlPx(Me, 58), panel.Top + Theme.ControlPx(Me, 8), If(both, span - Theme.ControlPx(Me, 68), detailWidth), Theme.ControlPx(Me, 25)))
-            LinkDrawing.DrawLabel(g, Details, Theme.FontCaption, Theme.TextMuted, New Rectangle(p + Theme.ControlPx(Me, 58), panel.Top + Theme.ControlPx(Me, 33), detailWidth, Theme.ControlPx(Me, 42)))
-            If hasGraph Then LinkDrawing.Plot(g, New Rectangle(Width - Theme.ControlPx(Me, 205), panel.Top + Theme.ControlPx(Me, If(both, 34, 20)), Theme.ControlPx(Me, 95), Theme.ControlPx(Me, If(both, 36, 40))), History, Seconds, False)
-            LinkDrawing.DrawLabel(g, "Подробнее →", Theme.FontCaption, Theme.Accent, New Rectangle(Width - Theme.ControlPx(Me, 100), panel.Top + Theme.ControlPx(Me, If(both, 37, 25)), Theme.ControlPx(Me, 95), Theme.ControlPx(Me, 30)), ContentAlignment.MiddleRight)
-            memoryY = panel.Bottom + Theme.ControlPx(Me, 10)
+            OneLine(g, title, nameBold, Theme.TextMain, New Rectangle(p + Theme.ControlPx(Me, 66), panel.Top + Theme.ControlPx(Me, 9), If(both, span - Theme.ControlPx(Me, 76), detailWidth), Theme.ControlPx(Me, 27)))
+            LinkDrawing.DrawLabel(g, Details, Theme.FontBody, Theme.TextMuted, New Rectangle(p + Theme.ControlPx(Me, 66), panel.Top + Theme.ControlPx(Me, 37), detailWidth, Theme.ControlPx(Me, 46)))
+            If hasGraph Then LinkDrawing.Plot(g, New Rectangle(Width - Theme.ControlPx(Me, 255), panel.Top + Theme.ControlPx(Me, If(both, 40, 24)), Theme.ControlPx(Me, 115), Theme.ControlPx(Me, If(both, 38, 42))), History, Seconds, False)
+            LinkDrawing.DrawLabel(g, "Подробнее →", Theme.FontBody, Theme.Accent, New Rectangle(Width - Theme.ControlPx(Me, 136), panel.Top + Theme.ControlPx(Me, If(both, 43, 29)), Theme.ControlPx(Me, 130), Theme.ControlPx(Me, 32)), ContentAlignment.MiddleRight)
         End If
-        LinkDrawing.DrawLabel(g, "Память идентификаторов", Theme.FontCaption, Theme.TextMuted, New Rectangle(p, memoryY, span \ 2, Theme.ControlPx(Me, 24)))
-        LinkDrawing.DrawLabel(g, MemoryUsed.ToString("N0", Globalization.CultureInfo.GetCultureInfo("ru-RU")) & " из 50 000 · " & Math.Min(100, MemoryUsed * 100UL \ 50000).ToString() & " %", Theme.FontCaption, Theme.TextMain, New Rectangle(p + span \ 2, memoryY, span \ 2, Theme.ControlPx(Me, 24)), ContentAlignment.MiddleRight)
-        Using back As New SolidBrush(Theme.Border), fill As New SolidBrush(Theme.Accent)
-            g.FillRectangle(back, p, memoryY + Theme.ControlPx(Me, 30), span, Theme.ControlPx(Me, 5))
-            g.FillRectangle(fill, p, memoryY + Theme.ControlPx(Me, 30), CSng(span * Math.Min(1, MemoryUsed / 50000.0)), Theme.ControlPx(Me, 5))
-        End Using
     End Sub
 
     Protected Overrides Sub OnMouseMove(e As MouseEventArgs)
         MyBase.OnMouseMove(e)
-        Cursor = If(MoreArea.Contains(e.Location), Cursors.Hand, Cursors.Default)
+        Cursor = If(MoreArea.Contains(e.Location) OrElse PolicyArea.Contains(e.Location), Cursors.Hand, Cursors.Default)
     End Sub
 
     Protected Overrides Sub OnMouseClick(e As MouseEventArgs)
         MyBase.OnMouseClick(e)
-        If e.Button = MouseButtons.Left AndAlso MoreArea.Contains(e.Location) Then RaiseEvent More(Me, EventArgs.Empty)
+        If e.Button <> MouseButtons.Left Then Return
+        If PolicyArea.Contains(e.Location) Then
+            RaiseEvent PolicyClick(Me, EventArgs.Empty)
+        ElseIf MoreArea.Contains(e.Location) Then
+            RaiseEvent More(Me, EventArgs.Empty)
+        End If
+    End Sub
+
+    Protected Overrides Sub Dispose(disposing As Boolean)
+        If disposing Then nameFont.Dispose() : nameBold.Dispose()
+        MyBase.Dispose(disposing)
     End Sub
 End Class

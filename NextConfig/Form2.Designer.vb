@@ -448,7 +448,8 @@ Partial Class Form2
                       CompactRow("Версия платы", Me.lblHW),
                       CompactRow("Версия прошивки", Me.lblFW),
                       CompactRow("Версия загрузчика", Me.lblBoot),
-                      CompactRow("Время устройства", Me.lblTime, Me.Label16)),
+                      CompactRow("Время устройства", Me.lblTime, Me.Label16),
+                      CompactRow("Память ID", Theme.LinkSignal(Me.deviceMemoryMeter, Me.deviceMemory))),
             CardBlock("Входы и выходы", IoBlock())}))
 
         ' ---- вкладка «Настройки» ----

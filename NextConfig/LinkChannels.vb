@@ -111,8 +111,8 @@ Public Module LinkChannels
             Case 1
                 wifiRow.State = If(ap = 1, "нет сети Wi-Fi", If(ap = 2, "сеть есть, соединения с сервером нет", "мост отвечает, соединения нет"))
                 wifiRow.Tone = If(Not used, eLinkTone.Muted, If(ap = 1, eLinkTone.Bad, eLinkTone.Warn))
-            Case 3
-                wifiRow.State = If(ap = 1, "нет сети Wi-Fi", "соединение выключено") & If(policy = 0, "", ", ожидание повтора")
+            Case 3 ' при «Только GSM» оператору нужна причина, а не состояние сокета
+                wifiRow.State = If(policy = 0, "выключен: выбрано «Только GSM»", If(ap = 1, "нет сети Wi-Fi", "соединение выключено") & ", ожидание повтора")
                 wifiRow.Tone = If(Not used, eLinkTone.Muted, If(ap = 1, eLinkTone.Bad, eLinkTone.Warn))
             Case 4 : wifiRow.State = "мост не подтвердил выключение" : wifiRow.Tone = eLinkTone.Bad
             Case 5 : wifiRow.State = "выключение моста…" : wifiRow.Tone = eLinkTone.Muted
