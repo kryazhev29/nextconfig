@@ -1,7 +1,8 @@
 ﻿' Карточка «Связь» на два канала (22.10.2026): какой канал везёт сервер, роль второго и цепочка этапов активного.
 ' Источник — USB 113 (прошивка task/wifi-one, User/c/user_commands.c): 0 сервер через мост; 1 связь моста
 ' (0 нет, 1 отвечает, 2 TCP открыт, 3 TCP выключен, 4 выключение без подтверждения, 5 выключение); 2 признак формата;
-' 3 Wi-Fi-модем; 4 логика (0 только GSM, 1 GSM, если нет Wi-Fi, 2 только Wi-Fi); 5 канал. Два байта — прошивка до локального выбора.
+' 3 Wi-Fi-модем; 4 логика (0 только GSM, 1 GSM, если нет Wi-Fi, 2 только Wi-Fi); 5 канал; с 22.10.2026 ещё 6 точка доступа
+' по WSLK (0 нет данных, 1 нет, 2 есть), 7 уровень WSLQ, % (255 нет), 8… имя сети. Два байта — прошивка до локального выбора.
 ' Состояние 112 описывает только модем, поэтому в цепочку Wi-Fi оно не входит.
 Public Enum eLinkChannel
     Unknown = 0
@@ -22,6 +23,8 @@ Public Structure LinkChannelRow
     Public State As String
     Public Tone As eLinkTone
     Public Active As Boolean
+    Public Level As Integer          ' уровень Wi-Fi, %; -1 — не показывать
+    Public Channel As eLinkChannel
 End Structure
 
 Public Class LinkChannelView
@@ -45,7 +48,9 @@ Public Module LinkChannels
     Private ReadOnly WifiProblems As String() = {
         "Мост не отвечает — проверьте питание моста и линию RS-485",
         "Мост отвечает, соединения нет — проверьте сеть Wi-Fi, пароль и доступ в интернет",
-        "Соединение открыто, сервер не отвечает — проверьте адрес сервера в настройках"}
+        "Соединение открыто, сервер не отвечает — проверьте адрес сервера в настройках",
+        "Мост не подключён к сети Wi-Fi — проверьте имя сети и пароль",
+        "Сеть Wi-Fi есть, соединения с сервером нет — проверьте доступ в интернет и адрес сервера"}
     Private ReadOnly CellularBreaks As String() = {"нет SIM-карты", "нет сети", "нет интернета", "сервер не отвечает"}
 
     Public Function Stale() As LinkChannelView
@@ -57,6 +62,9 @@ Public Module LinkChannels
         Dim known = wifi IsNot Nothing AndAlso wifi.Length >= 2
         Dim local = known AndAlso wifi.Length >= 6 AndAlso wifi(2) = 1 AndAlso wifi(3) <= 1 AndAlso wifi(4) <= 2
         Dim bridge = known AndAlso wifi(0) <> 0
+        Dim ap = If(local AndAlso wifi.Length >= 8, wifi(6), CByte(0))
+        Dim ssid = If(ap = 2 AndAlso wifi.Length > 8, Text.Encoding.UTF8.GetString(wifi, 8, wifi.Length - 8), "")
+        Dim level = If(ap = 2 AndAlso wifi(7) <= 100, CInt(wifi(7)), -1)
         Dim generation = If(network = 1 OrElse network = 3 OrElse network = 4, LinkDiag.NetworkText(network), "")
         Dim result As New LinkChannelView With {.Known = known, .Online = server <> 0,
             .Active = If(bridge, eLinkChannel.Wifi, eLinkChannel.Cellular),
@@ -74,8 +82,14 @@ Public Module LinkChannels
         End If
         If bridge Then
             result.Labels = {"Мост", "Сеть Wi-Fi", "Сервер"}
-            result.Steps = If(result.Online, 3, If(wifi(1) = 0, 0, If(wifi(1) <> 2, 1, 2)))
-            result.Problem = If(result.Steps = 3, "", WifiProblems(result.Steps))
+            ' Точка доступа уточняет обрыв: нет сети Wi-Fi — до «Сеть Wi-Fi», сеть есть — до «Сервер».
+            result.Steps = If(result.Online, 3, If(wifi(1) = 0, 0, If(wifi(1) = 2 OrElse ap = 2, 2, 1)))
+            Select Case result.Steps
+                Case 3 : result.Problem = ""
+                Case 0 : result.Problem = WifiProblems(0)
+                Case 1 : result.Problem = WifiProblems(If(ap = 1, 3, 1))
+                Case Else : result.Problem = WifiProblems(If(wifi(1) = 2, 2, 4))
+            End Select
         Else
             result.Labels = {"SIM", If(generation = "", "Сеть", "Сеть " & generation), "Интернет", "Сервер"}
             result.Steps = LinkDiag.ConnectionSteps(snapshot, gsm, internet, server)
@@ -86,18 +100,25 @@ Public Module LinkChannels
         Dim policy = If(local, CInt(wifi(4)), -1)
         If policy >= 0 Then result.Policy = "Логика: " & Policies(policy)
         Dim cell = LinkDiag.CellText(snapshot, network, False) ' диапазон — в подробностях: в строке канала не помещается
-        Dim wifiRow As New LinkChannelRow With {.Name = If(local, "Wi-Fi · USR-DR164", "Wi-Fi-мост"), .Active = bridge,
+        Dim wifiRow As New LinkChannelRow With {.Channel = eLinkChannel.Wifi, .Active = bridge, .Level = level,
+            .Name = If(ssid <> "", "Wi-Fi · " & ssid, If(local, "Wi-Fi · USR-DR164", "Wi-Fi-мост")),
             .Role = If(bridge, "Активный", If(policy = 0, "Не используется", "Основной"))}
         Dim used = bridge OrElse policy <> 0 ' основной канал, который сейчас не везёт сервер, — повод для внимания
         Select Case wifi(1)
-            Case 2 : wifiRow.State = "соединение с сервером открыто" : wifiRow.Tone = eLinkTone.Good
-            Case 1 : wifiRow.State = "мост отвечает, соединения нет" : wifiRow.Tone = If(used, eLinkTone.Warn, eLinkTone.Muted)
-            Case 3 : wifiRow.State = If(policy = 0, "соединение выключено", "соединение выключено, ожидание повтора") : wifiRow.Tone = If(used, eLinkTone.Warn, eLinkTone.Muted)
+            Case 2 ' одними словами с сотовой: «сервер на связи» — только когда сервер принял плату
+                wifiRow.State = If(Not bridge, "соединение открыто", If(result.Online, "сервер на связи", "соединение открыто, сервер не отвечает"))
+                wifiRow.Tone = If(bridge AndAlso Not result.Online, eLinkTone.Bad, eLinkTone.Good)
+            Case 1
+                wifiRow.State = If(ap = 1, "нет сети Wi-Fi", If(ap = 2, "сеть есть, соединения с сервером нет", "мост отвечает, соединения нет"))
+                wifiRow.Tone = If(Not used, eLinkTone.Muted, If(ap = 1, eLinkTone.Bad, eLinkTone.Warn))
+            Case 3
+                wifiRow.State = If(ap = 1, "нет сети Wi-Fi", "соединение выключено") & If(policy = 0, "", ", ожидание повтора")
+                wifiRow.Tone = If(Not used, eLinkTone.Muted, If(ap = 1, eLinkTone.Bad, eLinkTone.Warn))
             Case 4 : wifiRow.State = "мост не подтвердил выключение" : wifiRow.Tone = eLinkTone.Bad
             Case 5 : wifiRow.State = "выключение моста…" : wifiRow.Tone = eLinkTone.Muted
             Case Else : wifiRow.State = "мост не отвечает" : wifiRow.Tone = If(used, eLinkTone.Bad, eLinkTone.Muted)
         End Select
-        Dim cellRow As New LinkChannelRow With {.Name = "Сотовая" & If(cell = "", "", " · " & cell), .Active = Not bridge,
+        Dim cellRow As New LinkChannelRow With {.Name = "Сотовая" & If(cell = "", "", " · " & cell), .Active = Not bridge, .Level = -1, .Channel = eLinkChannel.Cellular,
             .Role = If(Not bridge, "Активный", If(policy = 2, "Звонки и SMS", "Резерв"))}
         If Not bridge Then
             cellRow.State = If(result.Online, "сервер на связи", CellularBreaks(Math.Max(0, Math.Min(3, result.Steps))))

@@ -14,7 +14,7 @@ Imports System.Threading
 '   NextConfig.exe --demo:oldfw48   старая прошивка v5 (чтение и перевод)
 '   NextConfig.exe --demo:two       две платы NEXT: на связи и без сети
 '   --demo-link=wifi | fallback | switch   вместе с --demo: сервер через Wi-Fi (сотовая в резерве),
-'                       мост не отвечает и сервер через 4G, смена канала каждые 40 с (событие в строке состояния)
+'                       сети Wi-Fi нет и сервер через 4G, смена канала каждые 40 с (событие в строке состояния)
 Public Enum eDemoMode
     Off = 0
     Found = 1
@@ -44,8 +44,8 @@ Public Module Demo
         Dim scenario = If(arg Is Nothing, "", arg.Substring(12))
         If scenario = "switch" Then scenario = If((linkScenarioClock.ElapsedMilliseconds \ 40000) Mod 2 = 0, "wifi", "fallback")
         Select Case scenario
-            Case "wifi" : Return New Byte() {1, 2, 1, 1, 1, 1}
-            Case "fallback" : Return New Byte() {0, 0, 1, 1, 1, 4}
+            Case "wifi" : Return New Byte() {1, 2, 1, 1, 1, 1, 2, 78}.Concat(Text.Encoding.UTF8.GetBytes("Office-5G")).ToArray()
+            Case "fallback" : Return New Byte() {0, 3, 1, 1, 1, 4, 1, 255}
             Case Else : Return New Byte() {0, 0, 1, 0, 0, 4}
         End Select
     End Function

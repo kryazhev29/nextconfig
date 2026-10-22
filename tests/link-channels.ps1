@@ -31,7 +31,7 @@ Check ($v.Headline -eq 'Нет связи с сервером' -and $v.Note -eq 
 $v=View ([byte[]](1,2,1,1,1,1)) 1 1 1 4 $cell
 Check ($v.Active -eq [NextConfig.eLinkChannel]::Wifi -and $v.Headline -eq 'На связи через Wi-Fi' -and $v.Header -eq 'Сервер через Wi-Fi') 'Wi-Fi headline'
 Check ($v.Policy -eq 'Логика: GSM, если нет Wi-Fi' -and ($v.Labels -join '|') -eq 'Мост|Сеть Wi-Fi|Сервер' -and $v.Steps -eq 3 -and $v.Problem -eq '') 'Wi-Fi chain'
-Check ($v.Rows[0].Name -eq 'Wi-Fi · USR-DR164' -and $v.Rows[0].Role -eq 'Активный' -and $v.Rows[0].Active -and $v.Rows[0].State -eq 'соединение с сервером открыто' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Good) 'Wi-Fi row active'
+Check ($v.Rows[0].Name -eq 'Wi-Fi · USR-DR164' -and $v.Rows[0].Role -eq 'Активный' -and $v.Rows[0].Active -and $v.Rows[0].State -eq 'сервер на связи' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Good) 'Wi-Fi row active'
 Check ($v.Rows[1].Name -eq 'Сотовая · МегаФон · 4G' -and $v.Rows[1].Role -eq 'Резерв' -and -not $v.Rows[1].Active -and $v.Rows[1].State -eq 'сеть есть') 'cellular row reserve'
 # Главная ложная тревога старой карточки: модем без интернета (112 «Нет интернета», gprs 0), а сервер идёт через мост.
 $noPdp=New-Object NextConfig.LinkSnapshot; $noPdp.Version=5; $noPdp.State=3; $noPdp.Network=4
@@ -71,6 +71,22 @@ $v=View ([byte[]](1,2)) 1 1 1 4
 Check ($v.Rows[0].Name -eq 'Wi-Fi-мост' -and $v.Policy -eq '' -and $v.Rows[1].Role -eq 'Резерв') 'legacy reply'
 Check ((View ([byte[]](0,0)) 1 1 1 4).Rows.Length -eq 0) 'legacy cellular is single channel'
 
+# Прошивка с 22.10.2026: байт 6 точка доступа, 7 уровень WSLQ, 8… имя сети (UTF-8).
+function Ext([byte[]]$head,[byte]$ap,[byte]$level,[string]$ssid=''){ [byte[]]($head+[byte[]]@($ap,$level)+[Text.Encoding]::UTF8.GetBytes($ssid)) }
+$v=View (Ext ([byte[]](1,2,1,1,1,1)) 2 78 'Office-5G') 1 1 1 4 $cell
+Check ($v.Rows[0].Name -eq 'Wi-Fi · Office-5G' -and $v.Rows[0].Level -eq 78 -and $v.Rows[1].Level -eq -1) 'SSID and level in Wi-Fi row'
+Check ((View (Ext ([byte[]](1,2,1,1,1,1)) 2 55 'Дача Иванова') 1 1 1 4).Rows[0].Name -eq 'Wi-Fi · Дача Иванова') 'UTF-8 SSID'
+$v=View (Ext ([byte[]](1,2,1,1,1,1)) 2 255 'Office') 1 1 1 4
+Check ($v.Rows[0].Name -eq 'Wi-Fi · Office' -and $v.Rows[0].Level -eq -1) 'level unknown hides bars'
+Check ((View (Ext ([byte[]](1,2,1,1,1,1)) 0 0) 1 1 1 4).Rows[0].Name -eq 'Wi-Fi · USR-DR164' -and (View (Ext ([byte[]](1,2,1,1,1,1)) 0 0) 1 1 1 4).Rows[0].Level -eq -1) 'no AP data yet: model name'
+$v=View (Ext ([byte[]](1,1,1,1,1,1)) 1 255) 1 1 0 4
+Check ($v.Steps -eq 1 -and $v.Problem.StartsWith('Мост не подключён к сети Wi-Fi') -and $v.Rows[0].State -eq 'нет сети Wi-Fi' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Bad) 'bridge without Wi-Fi network: break at network'
+$v=View (Ext ([byte[]](1,1,1,1,1,1)) 2 60 'Office') 1 1 0 4
+Check ($v.Steps -eq 2 -and $v.Problem.StartsWith('Сеть Wi-Fi есть, соединения с сервером нет') -and $v.Rows[0].State -eq 'сеть есть, соединения с сервером нет' -and $v.Rows[0].Level -eq 60) 'Wi-Fi network up, no server: break at server'
+$v=View ([byte[]](0,3,1,1,1,4,1,255)) 1 1 1 4
+Check ($v.Rows[0].State -eq 'нет сети Wi-Fi, ожидание повтора' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Bad -and $v.Rows[0].Role -eq 'Основной') 'fallback explains missing Wi-Fi network'
+Check ((View ([byte[]](0,3,1,1,0,4,1,255)) 1 1 1 4).Rows[0].Tone -eq [NextConfig.eLinkTone]::Muted) 'unused Wi-Fi without network is grey'
+
 # Событие переключения.
 $wifi=View ([byte[]](1,2,1,1,1,1)); $gsm4=View ([byte[]](0,0,1,1,1,4)) 1 1 1 4; $gsm2=View ([byte[]](0,0,1,1,1,2)) 1 1 1 1
 Check ([NextConfig.LinkChannels]::SwitchText($wifi,$gsm4) -eq 'переключение с Wi-Fi на сотовую сеть 4G') 'switch to cellular text'
@@ -85,22 +101,36 @@ try {
     $card.Signal=[NextConfig.LinkDiag]::SignalView($cell,26)
     $card.Cell=[NextConfig.LinkDiag]::CellText($cell,4); $card.Details='уровень −95 дБм'; $card.MemoryUsed=1274
     $cases=[ordered]@{
-        'link_cellular.png'=@((View ([byte[]](0,0,1,0,0,4)) 1 1 1 4 $cell),301)
-        'link_wifi.png'=@((View ([byte[]](1,2,1,1,1,1)) 1 1 1 4 $cell),403)
-        'link_fallback.png'=@((View ([byte[]](0,0,1,1,1,4)) 1 1 1 4 $cell),403)
-        'link_wifi_down.png'=@((View ([byte[]](1,1,1,1,2,1)) 1 0 0 4 $cell),447)
+        'link_cellular.png'=@((View ([byte[]](0,0,1,0,0,4)) 1 1 1 4 $cell),309,$true)
+        'link_wifi.png'=@((View (Ext ([byte[]](1,2,1,1,1,1)) 2 78 'Office-5G') 1 1 1 4 $cell),331,$false)
+        'link_fallback.png'=@((View ([byte[]](0,3,1,1,1,4,1,255)) 1 1 1 4 $cell),411,$true)
+        'link_wifi_down.png'=@((View ([byte[]](1,1,1,1,2,1)) 1 0 0 4 $cell),375,$false)
     }
-    foreach($name in $cases.Keys){
-        $card.Channels=$cases[$name][0]
-        Check ($card.DesignHeight -eq $cases[$name][1]) "$name design height $($card.DesignHeight)"
+    foreach($wide in @($false,$true)){
+    # Узкая — как в окне 1296 px при 125 %, широкая — развёрнутое окно.
+    $card.Width=[NextConfig.Theme]::Px($(if($wide){820}else{410}))
+    foreach($key in $cases.Keys){
+        $name=$(if($wide){$key.Replace('.png','_wide.png')}else{$key})
+        $card.Channels=$cases[$key][0]
+        Check ($card.DesignHeight -eq $cases[$key][1]) "$name design height $($card.DesignHeight)"
         $card.Height=[NextConfig.Theme]::ControlPx($card,$card.DesignHeight)
-        Check ($card.SignalTop + [NextConfig.Theme]::ControlPx($card,80) -lt $card.Height) "$name signal panel inside"
+        # Крупная шкала сотовой — только когда сервер идёт через сотовую; при Wi-Fi подробности открывает строка сотовой.
+        Check ($card.PanelVisible -eq $cases[$key][2]) "$name panel only for cellular"
+        Check (-not $card.MoreArea.IsEmpty -and $card.MoreArea.Bottom -le $card.Height) "$name details area inside"
         $bitmap=New-Object Drawing.Bitmap($card.Width,$card.Height)
         try {
             $card.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$card.Width,$card.Height)))
             if($SnapshotDirectory){ New-Item -ItemType Directory -Force -Path $SnapshotDirectory | Out-Null; $bitmap.Save((Join-Path $SnapshotDirectory $name),[Drawing.Imaging.ImageFormat]::Png) }
         } finally { $bitmap.Dispose() }
     }
+    }
+    $card.Channels=$cases['link_wifi.png'][0]; $card.Height=[NextConfig.Theme]::ControlPx($card,$card.DesignHeight)
+    $script:more=0; $card.add_More({ $script:more++ })
+    $row=$card.MoreArea
+    Check ($row.Top -eq [NextConfig.Theme]::ControlPx($card,122)) 'Wi-Fi active: details open from cellular row'
+    $click=New-Object Windows.Forms.MouseEventArgs([Windows.Forms.MouseButtons]::Left,1,20,($row.Top+5),0)
+    $card.GetType().GetMethod('OnMouseClick',$flags).Invoke($card,[object[]]@($click.PSObject.BaseObject)) | Out-Null
+    Check ($script:more -eq 1) 'cellular row click opens Link'
 } finally { $card.Dispose() }
 
 # Окно устройства: шапка, событие в строке состояния, сброс при устаревшем статусе.
@@ -118,7 +148,7 @@ try {
     $initial=(Field 'lblMessage').Text
     Reply ([byte[]](1,2,1,1,1,1))
     Check ((Field 'lblHeadLink').Text -eq 'Сервер через Wi-Fi' -and (Field 'lblMessage').Text -eq $initial) 'first answer sets channel silently'
-    Check ((Field 'deviceConnection').Height -eq [NextConfig.Theme]::ControlPx((Field 'deviceConnection'),403)) 'card grows for two channels'
+    Check ((Field 'deviceConnection').Height -eq [NextConfig.Theme]::ControlPx((Field 'deviceConnection'),331)) 'card grows for two channels'
     Reply $null
     Check ((Field 'lblHeadLink').Text -eq 'Сервер через Wi-Fi' -and (Field 'lblMessage').Text -eq $initial) 'missed 113 answer keeps channel'
     Reply ([byte[]](0,0,1,1,1,4))
