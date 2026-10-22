@@ -13,6 +13,7 @@ Check ([NextConfig.StatusMessage]::Line('','Готово',$time) -eq '21.10.2026
 $time=New-Object DateTime 2026,1,2,3,4,5
 Check ([NextConfig.StatusMessage]::Line('Объект','Записано',$time) -eq '02.01.2026, 03:04:05: Объект - Записано') 'leading zeros'
 $bar=New-Object Windows.Forms.Panel
+$bar.BackColor=[NextConfig.Theme]::StatusBack
 $label=New-Object Windows.Forms.Label
 $bar.Controls.Add($label)
 try {
@@ -20,5 +21,14 @@ try {
     $status.Show('Очистка памяти','Память очищена')
     Check ($label.Text -match '^\d\d\.\d\d\.\d{4}, \d\d:\d\d:\d\d: Очистка памяти - Память очищена$') 'shown with date, time and operation'
     Check ($status.Flashing -and $bar.BackColor -eq [NextConfig.Theme]::BrandEnd -and $label.ForeColor.ToArgb() -eq [Drawing.Color]::White.ToArgb()) 'flash white on dark blue'
+    $status.GetType().GetMethod('EndFlash',[Reflection.BindingFlags]'Instance,NonPublic').Invoke($status,$null) | Out-Null
+    Check (-not $status.Flashing -and $bar.BackColor -eq [NextConfig.Theme]::StatusBack -and $label.ForeColor -eq [NextConfig.Theme]::TextMain) 'after flash: light blue line, dark text'
 } finally { $bar.Dispose() }
+# Строка окна устройства светло-голубая с самого открытия (без COM и Form2_Load).
+$poller=[Runtime.Serialization.FormatterServices]::GetUninitializedObject([NextConfig.clOpros])
+$form=New-Object NextConfig.Form2($poller,'COM9','000000000000000',0)
+try {
+    $flags=[Reflection.BindingFlags]'Instance,Public,NonPublic'
+    Check ($form.GetType().GetProperty('pnlStatusBar',$flags).GetValue($form,$null).BackColor -eq [NextConfig.Theme]::StatusBack) 'device window status line is light blue'
+} finally { $form.Dispose() }
 Write-Output "PASS: $script:n status line checks; no COM opened"

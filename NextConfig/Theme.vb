@@ -26,6 +26,7 @@ Public Module Theme
     Public ReadOnly Border As Color = Color.FromArgb(&HE0, &HE2, &HEA)       ' границы
     Public ReadOnly Idle As Color = Color.FromArgb(&H9A, &HA6, &HB6)         ' серая точка
     Public ReadOnly Disabled As Color = Color.FromArgb(&HED, &HEE, &HF2)     ' фон недоступного
+    Public ReadOnly StatusBack As Color = Color.FromArgb(&HD6, &HE8, &HFA)   ' строка состояния (образец Алексея, 22.10.2026)
 
     ' ---- шрифты ----
     Public Const Family As String = "Montserrat"

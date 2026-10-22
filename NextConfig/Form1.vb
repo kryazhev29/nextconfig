@@ -77,7 +77,7 @@ Public Class Form1
     Private messages As StatusMessage
 
     Private Sub BuildMessageBar()
-        Dim bar As New Panel With {.Dock = DockStyle.Bottom, .BackColor = Theme.Surface,
+        Dim bar As New Panel With {.Dock = DockStyle.Bottom, .BackColor = Theme.StatusBack,
             .Padding = New Padding(Theme.GapSection, Theme.GapRelated, Theme.GapSection, Theme.GapRelated)}
         AddHandler bar.Paint, Sub(sender, e)
                                   Using pen As New Pen(Theme.Border)

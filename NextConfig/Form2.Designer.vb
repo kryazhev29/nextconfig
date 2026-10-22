@@ -873,7 +873,7 @@ Partial Class Form2
 
         Me.pnlStatusBar.AutoSize = True
         Me.pnlStatusBar.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.pnlStatusBar.BackColor = Theme.Surface
+        Me.pnlStatusBar.BackColor = Theme.StatusBack
         Me.pnlStatusBar.Dock = System.Windows.Forms.DockStyle.Fill
         Me.pnlStatusBar.Margin = New System.Windows.Forms.Padding(0)
         Me.pnlStatusBar.Padding = New System.Windows.Forms.Padding(Theme.GapSection, Theme.GapRelated, Theme.GapSection, Theme.GapRelated)

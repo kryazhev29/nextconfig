@@ -1075,7 +1075,7 @@ Public Class Form2
         ReadConfig(False)
     End Sub
 
-    ' Чтение настроек с платы. При открытии окна - молча, по кнопке - с ответом.
+    ' Чтение настроек с платы. При открытии окна - итог подключения в строке состояния, по кнопке - ответ чтения.
     Private Sub ReadConfig(ByVal silent As Boolean)
         If opros.GetConfig(config) Then
             ConfirmConfigSnapshot()
@@ -1084,14 +1084,21 @@ Public Class Form2
             UpdateConfigFields()
             lblSaveState.Text = "Настройки считаны в " & DateTime.Now.ToString("HH:mm:ss")
             lblSaveState.ForeColor = Theme.TextMuted
-            If Not silent Then Notify("Чтение настроек", "Настройки считаны с контроллера.")
+            If silent Then
+                Notify("Подключение", "плата " & lblPortInfo.Text & " подключена, настройки считаны")
+            Else
+                Notify("Чтение настроек", "Настройки считаны с контроллера.")
+            End If
             Exit Sub
         End If
 
         lblSaveState.Text = "Не удалось считать настройки"
         lblSaveState.ForeColor = Theme.Danger
 
-        If silent Then Exit Sub
+        If silent Then
+            Notify("Подключение", "плата " & lblPortInfo.Text & " подключена, настройки не считаны", True)
+            Exit Sub
+        End If
 
         Notify("Чтение настроек", "Не удалось считать настройки. Повторите операцию.", True)
     End Sub
