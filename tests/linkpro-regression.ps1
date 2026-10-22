@@ -25,10 +25,13 @@ foreach ($case in @(@(80,5),@(81,4),@(89,4),@(90,4),@(91,3),@(100,3),@(101,2),@(
 foreach ($case in @(@(0,1),@(4,1),@(5,2),@(9,2),@(10,3),@(14,3),@(15,4),@(19,4),@(20,5),@(31,5),@(99,0),@(255,0))) {
     Check ((Signal $null $case[0]).Bars -eq $case[1]) "CSQ bars $($case[0])"
 }
-foreach ($case in @(@(89,9,'хороший'),@(90,10,'средний'),@(100,15,'средний'),@(101,16,'слабый'),@(80,16,'слабый'),@(100,9,'средний'),@(80,255,'хороший'))) {
+# Итог по уровню RSRP: качество RSRQ падает при нагрузке соты и итог не занижает (22.10.2026).
+foreach ($case in @(@(89,9,'хороший'),@(90,10,'средний'),@(100,15,'средний'),@(101,16,'слабый'),@(80,16,'хороший'),@(100,9,'средний'),@(80,255,'хороший'),@(95,20,'средний'))) {
     $text=[NextConfig.LinkDiag]::BannerText([NextConfig.LinkDiag]::Parse((V5 $case[0] $case[1])))
-    Check ($text.StartsWith("На связи · сигнал $($case[2])")) "worst metric banner $($case[0])/$($case[1])"
+    Check ($text.StartsWith("На связи · сигнал $($case[2])")) "level banner $($case[0])/$($case[1])"
 }
+$view=[NextConfig.LinkDiag]::MeasuringView()
+Check ($view.LevelText -eq 'Измеряется' -and $view.Grade -eq -1 -and $view.Bars -eq 0 -and $view.Value -eq 0 -and -not $view.Lte) '4G before first 112: measuring, not CSQ grade'
 foreach ($state in 0..7) {
     $b=$five.Clone(); $b[10]=$state
     $s=[NextConfig.LinkDiag]::Parse((Seal $b))

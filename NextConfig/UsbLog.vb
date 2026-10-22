@@ -158,9 +158,8 @@ Public Class UsbLog
                 Dim plmn = Encoding.ASCII.GetString(frame, 20, 7).TrimEnd(ChrW(0))
                 Dim signal As String
                 If network = 4 AndAlso rsrp <> 255 Then
-                    Dim grade = LinkDiag.RsrpGrade(rsrp)
-                    If rsrq <> 255 Then grade = Math.Min(grade, LinkDiag.RsrqGrade(rsrq))
-                    signal = LinkDiag.SignalTitle(grade).ToLower(Ru) & " (−" & rsrp & " дБм" & If(rsrq <> 255, ", −" & rsrq & " дБ", "") & ")"
+                    Dim grade = LinkDiag.RsrpGrade(rsrp) ' итог по уровню, как в LinkDiag.SignalView
+                    signal =LinkDiag.SignalTitle(grade).ToLower(Ru) & " (−" & rsrp & " дБм" & If(rsrq <> 255, ", −" & rsrq & " дБ", "") & ")"
                 ElseIf csq <= 31 Then
                     signal = LinkDiag.SignalTitle(If(csq >= 20, LinkDiag.Good, If(csq >= 10, LinkDiag.Medium, LinkDiag.Poor))).ToLower(Ru) & " (" & csq & " из 31)"
                 Else

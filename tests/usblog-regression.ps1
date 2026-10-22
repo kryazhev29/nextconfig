@@ -59,6 +59,8 @@ foreach($s in $samples) {
 function Net([byte[]]$head,[string]$plmn,[byte[]]$lte) { return ,([byte[]]($head+[Text.Encoding]::ASCII.GetBytes($plmn.PadRight(7,[char]0))+$lte)) }
 $line=$format.Format((Frame 19 (Net ([byte[]](22,1,1,4)) '25002' ([byte[]](95,9,30,7,3)))))[0]
 Check ($line.Contains('Сеть: 4G, 25002') -and $line.Contains('сигнал средний (−95 дБм, −9 дБ)') -and $line.EndsWith('регистрация: голос и данные')) 'network snapshot LTE'
+$line=$format.Format((Frame 19 (Net ([byte[]](22,1,1,4)) '25002' ([byte[]](85,16,30,7,3)))))[0]
+Check ($line.Contains('сигнал хороший (−85 дБм, −16 дБ)')) 'network snapshot LTE: quality does not lower level'
 $line=$format.Format((Frame 19 (Net ([byte[]](12,1,0,1)) '25001' ([byte[]](255,255,255,255,255)))))[0]
 Check ($line.Contains('Сеть: 2G, 25001') -and $line.Contains('сигнал средний (12 из 31)') -and $line.EndsWith('регистрация: только голос')) 'network snapshot CSQ'
 $line=$format.Format((Frame 19 (Net ([byte[]](99,0,0,0)) '' ([byte[]](255,255,255,255,255)))))[0]

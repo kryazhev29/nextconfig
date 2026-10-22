@@ -121,10 +121,11 @@ Public Module LinkDiag
 
     Public Function SignalView(snapshot As LinkSnapshot, csq As Byte) As LinkSignalView
         ' Вид 4G выбирается по типу сети: пропущенный замер (255) даёт «нет данных», а не переключение экрана на CSQ.
+        ' Итог — по уровню RSRP: качество RSRQ падает при передаче данных и нагрузке соты (плата №1: −9…−13 дБ
+        ' при том же уровне) и показывается своей шкалой, не занижая итог.
         If snapshot IsNot Nothing AndAlso snapshot.Version >= 4 AndAlso snapshot.Network = 4 Then
             Dim known = snapshot.Rsrp <> 255
             Dim grade = RsrpGrade(snapshot.Rsrp)
-            If known AndAlso snapshot.Rsrq <> 255 Then grade = Math.Min(grade, RsrqGrade(snapshot.Rsrq))
             Return New LinkSignalView With {
                 .LevelText = MetricText(snapshot.Rsrp, RsrpGrade(snapshot.Rsrp), "дБм"),
                 .QualityText = MetricText(snapshot.Rsrq, RsrqGrade(snapshot.Rsrq), "дБ"),
@@ -135,6 +136,11 @@ Public Module LinkDiag
             .QualityText = "", .Maximum = 31, .Value = If(csq <= 31, CInt(csq), 0),
             .Grade = If(csq > 31, -1, If(csq >= 20, Good, If(csq >= 10, Medium, Poor))),
             .Bars = If(csq > 31, 0, If(csq >= 20, 5, If(csq >= 15, 4, If(csq >= 10, 3, If(csq >= 5, 2, 1))))) }
+    End Function
+
+    ' 4G до первого ответа 112: CSQ в 4G завышает оценку (плата №1: 22 из 31 при RSRP −100 дБм).
+    Public Function MeasuringView() As LinkSignalView
+        Return New LinkSignalView With {.LevelText = "Измеряется", .QualityText = "", .Maximum = 31, .Value = 0, .Grade = -1, .Bars = 0}
     End Function
 
     Public Function RsrpGrade(raw As Byte) As Integer

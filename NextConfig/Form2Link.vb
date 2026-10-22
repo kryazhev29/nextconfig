@@ -25,6 +25,7 @@ Partial Public Class Form2
     Private linkTimer As System.Windows.Forms.Timer
     Private linkCancellation As CancellationTokenSource
     Private linkLoading As Boolean
+    Private linkTried As Boolean ' был ответ или отказ 112: до него в 4G сигнал «Измеряется»
     Private linkSnapshot As LinkSnapshot
     Private ReadOnly linkAge As New Diagnostics.Stopwatch
 
@@ -128,6 +129,7 @@ Partial Public Class Form2
 
     Private Sub DisplayLink(snapshot As LinkSnapshot)
         HoldLastLte(snapshot)
+        linkTried = True
         Dim historyChanged = snapshot Is Nothing OrElse linkSnapshot Is Nothing OrElse Not snapshot.Failures.SequenceEqual(linkSnapshot.Failures)
         linkSnapshot = snapshot : linkAge.Restart()
         If historyChanged Then linkFailures.Rows.Clear()
@@ -173,7 +175,8 @@ Partial Public Class Form2
 
     Private Sub UpdateDeviceSignal()
         Dim snapshot = If(status.netType = clOpros.eNetType._4G, linkSnapshot, Nothing)
-        Dim signal = LinkDiag.SignalView(snapshot, status.signal)
+        Dim measuring = status.netType = clOpros.eNetType._4G AndAlso Not linkTried
+        Dim signal = If(measuring, LinkDiag.MeasuringView(), LinkDiag.SignalView(snapshot, status.signal))
         Theme.SetText(lblSig, signal.LevelText)
         pbSig.Maximum = signal.Maximum : pbSig.Value = signal.Value
         deviceConnection.Signal = signal
@@ -183,9 +186,9 @@ Partial Public Class Form2
         deviceConnection.Cell = LinkDiag.CellText(linkSnapshot, CByte(status.netType))
         deviceConnection.NetworkLabel = If(status.netType = 0, "Сеть", "Сеть " & LinkDiag.NetworkText(CByte(status.netType)))
         ' Две строки: уровень и качество не переносятся посередине числа в узкой карточке.
-        deviceConnection.Details = If(signal.Lte,
+        deviceConnection.Details = If(measuring, "уровень измеряется", If(signal.Lte,
             "уровень " & If(snapshot.Rsrp = 255, "нет данных", "−" & snapshot.Rsrp & " дБм") & vbLf &
-            "качество " & If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), "CSQ " & signal.LevelText)
+            "качество " & If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), "CSQ " & signal.LevelText))
         deviceConnection.MemoryUsed = status.usedMem : deviceConnection.Seconds = linkClock.Elapsed.TotalSeconds
         deviceConnection.Invalidate()
     End Sub
