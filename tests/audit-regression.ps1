@@ -71,8 +71,10 @@ $f = New-Object NextConfig.Form2($poller,'offline','000000000000000',0)
 try {
     Check (-not (Control $f 'btnSave').Enabled) 'save disabled before first read'
     Check (-not (Control $f 'btnDefault').Enabled) 'defaults cannot overwrite unread fields'
-    (Control $f 'txtServer1').Text='invalid-server'
+    (Control $f 'txtServer1').Text='invalid-server:port'
     Check (-not (Invoke $f 'ValidateFields')) 'invalid hidden server rejected'
+    (Control $f 'txtServer1').Text='invalid-server'
+    Check (Invoke $f 'ValidateFields') 'host without port takes firmware default port'
     (Control $f 'txtServer1').Text='192.0.2.1:15010'
     Check (Invoke $f 'ValidateFields') 'valid server accepted'
     $config = New-Object 'NextConfig.clOpros+s_config'

@@ -631,8 +631,10 @@ Public Class Form2
         ApplyFields()
 
         Dim changes As List(Of String) = ChangeList()
+        Dim configChanged = changes.Count > 0
         Dim question As String
 
+        WifiChanges(changes)
         If changes.Count = 0 Then
             lblSaveState.Text = "Изменений нет"
             Return
@@ -645,13 +647,22 @@ Public Class Form2
             f.Button1.Text = "Сохранить"
             f.Button2.Text = "Отмена"
             If f.ShowDialog(Me) = DialogResult.OK Then
-                If opros.SetConfig(config) Then
+                ' Настройки сервера (команда 12) и выбор Wi-Fi-модема (команда 114) хранятся в плате раздельно.
+                If configChanged Then
+                    If Not opros.SetConfig(config) Then
+                        Notify("Сохранение настроек", "Не удалось сохранить настройки. Повторите операцию.", True)
+                        Return
+                    End If
                     ConfirmConfigSnapshot()
-                    SetSaveState(True)
-                    Notify("Сохранение настроек", "Настройки сохранены в контроллер.")
-                Else
-                    Notify("Сохранение настроек", "Не удалось сохранить настройки. Повторите операцию.", True)
                 End If
+                If WifiDiffers() AndAlso Not SaveWifiChoice() Then
+                    SetSaveState(False)
+                    Notify("Сохранение настроек", If(configChanged, "Настройки сохранены, но выбор Wi-Fi-модема не записан. Повторите сохранение.",
+                        "Не удалось записать выбор Wi-Fi-модема. Повторите операцию."), True)
+                    Return
+                End If
+                SetSaveState(True)
+                Notify("Сохранение настроек", "Настройки сохранены в контроллер.")
             End If
         End Using
     End Sub
@@ -853,7 +864,8 @@ Public Class Form2
         Return "скрыто"
     End Function
 
-    ' Адрес сервера пишется как узел:порт, например 87.244.4.92:15010.
+    ' Адрес сервера пишется как узел:порт, например 87.244.4.92:15010. Узел без порта прошивка
+    ' дополняет заводским портом поля (15010 или 15020): так адрес записывает сервер СофтЭксперт.
     Private Function ServerError(ByVal text As String, ByVal required As Boolean) As String
         Dim v As String = text.Trim()
         If System.Text.Encoding.UTF8.GetByteCount(v) > 31 Then Return "Адрес с портом должен занимать не более 31 байта UTF-8"
@@ -864,8 +876,9 @@ Public Class Form2
 
         Dim parts As String() = v.Split(":"c)
 
-        If parts.Length <> 2 Then Return "Адрес пишется как узел:порт, например 87.244.4.92:15010"
+        If parts.Length > 2 Then Return "Адрес пишется как узел:порт, например 87.244.4.92:15010"
         If parts(0).Trim() = "" Then Return "Не указан адрес узла"
+        If parts.Length = 1 Then Return ""
 
         Dim port As Integer
 
@@ -911,7 +924,7 @@ Public Class Form2
     End Sub
 
     Private Function FieldsDiffer() As Boolean
-        If FieldsDiffer485() Then Return True
+        If FieldsDiffer485() OrElse WifiDiffers() Then Return True
         With config
             If txtServer1.Text.Trim() <> .server1 Then Return True
             If txtServer2.Text.Trim() <> .server2 Then Return True
@@ -1079,6 +1092,7 @@ Public Class Form2
             snapshotConfig = config
             RefreshSnapshot()
             UpdateConfigFields()
+            RevertWifi()
             lblSaveState.Text = "Настройки считаны в " & DateTime.Now.ToString("HH:mm:ss")
             lblSaveState.ForeColor = Theme.TextMuted
             If silent Then
@@ -1195,14 +1209,15 @@ Public Class Form2
     Private Sub Label21_Click(sender As Object, e As EventArgs) Handles Label21.Click
         Dim socket As New Net.Sockets.TcpClient
         Dim sList As String() = txtServer1.Text.Trim().Split(":"c)
+        Dim port As Integer = 15010
 
-        If sList.Count <> 2 Then
+        If sList.Count > 2 OrElse (sList.Count = 2 AndAlso Not Integer.TryParse(sList(1), port)) Then
             Notify("Проверка сервера", "Адрес сервера записан неправильно. Нужно адрес:порт.", True)
             Exit Sub
         End If
 
         Try
-            socket.Connect(sList(0), Integer.Parse(sList(1)))
+            socket.Connect(sList(0), port)
         Catch ex As Exception
             Notify("Проверка сервера", "Нет соединения с сервером " & txtServer1.Text.Trim() & ": " & ex.Message, True)
             Exit Sub

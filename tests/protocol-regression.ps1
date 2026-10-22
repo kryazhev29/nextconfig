@@ -16,6 +16,7 @@ Public Class AuditOpros
   Public Shared Function WifiReply() As Byte()
    Return Nothing
   End Function
+  Public Shared WifiChoice As Byte()
  End Class
  Public LastCommand As Byte
  Public LastPayload As Byte()

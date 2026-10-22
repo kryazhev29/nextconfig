@@ -7,6 +7,7 @@ $script:n=0
 function Check($v,$label){if(-not $v){throw "FAIL: $label"};$script:n++}
 function Field($f,$name){$p=$f.GetType().GetProperty($name,$flags);if($p){return $p.GetValue($f,$null)};return $f.GetType().GetField($name,$flags).GetValue($f)}
 function Reply($f,[byte[]]$bytes,[bool]$reload=$false){$f.GetType().GetMethod('WifiApplyReply',$flags).Invoke($f,@($bytes,$reload))|Out-Null}
+function Call($name){$a=New-Object object[] $args.Count;for($i=0;$i -lt $args.Count;$i++){$a[$i]=$args[$i].PSObject.BaseObject};$form.GetType().GetMethod($name,$flags).Invoke($form,$a)}
 # Без конструктора clOpros, Form2_Load, фонового опроса и COM.
 $poller=[Runtime.Serialization.FormatterServices]::GetUninitializedObject([NextConfig.clOpros])
 $form=New-Object NextConfig.Form2($poller,'OFFLINE','000000000000000',0)
@@ -17,7 +18,7 @@ try {
     $form.GetType().GetField('status',$flags).SetValue($form,$status)
     $form.GetType().GetField('lastStatus',$flags).SetValue($form,[DateTime]::Now)
     function Link { (Field $form 'deviceConnection').Channels }
-    Check (-not (Field $form 'wifiSave').Enabled) 'no editing before protocol capability'
+    Check (-not (Field $form 'wifiModel').Enabled) 'no editing before protocol capability'
     Reply $form ([byte[]](0,0))
     Check (-not (Field $form 'wifiModel').Enabled) 'legacy reply cannot enable local Wi-Fi'
     Reply $form ([byte[]](0,0,1,0,0,4))
@@ -47,6 +48,30 @@ try {
     Check ((Field $form 'wifiState').Text -eq 'Мост не подтвердил выключение') 'timeout never claims bridge off'
     Check ((Field $form 'wifiState').ForeColor -eq [NextConfig.Theme]::Danger) 'shutdown failure red even after local deselection'
     Reply $form ([byte[]](1,2,1,1,1,1)) $true
+    # Выбор Wi-Fi пишет общая кнопка «Сохранить изменения»; «Отменить» возвращает выбор платы (22.10.2026).
+    Check ((Field $form 'wifiCheck').Parent.Controls.Count -eq 2) 'no separate Wi-Fi save button'
+    Check (-not (Call 'WifiDiffers')) 'board choice loaded, nothing pending'
+    (Field $form 'wifiPolicy').SelectedIndex=0
+    Check (Call 'WifiDiffers') 'only GSM is a pending change'
+    $list=New-Object 'System.Collections.Generic.List[string]'
+    Call 'WifiChanges' $list | Out-Null
+    Check ($list.Count -eq 1 -and $list[0] -eq '• Логика работы: GSM, если нет Wi-Fi → Только GSM') 'confirmation lists the logic change'
+    Reply $form ([byte[]](1,2,1,1,1,1))
+    Check ((Field $form 'wifiPolicy').SelectedIndex -eq 0 -and (Call 'WifiDiffers')) 'poll keeps the pending change'
+    Call 'RevertWifi' | Out-Null
+    Check ((Field $form 'wifiPolicy').SelectedIndex -eq 1 -and -not (Call 'WifiDiffers')) 'revert restores board logic'
+    (Field $form 'wifiModel').SelectedIndex=0
+    $list.Clear(); Call 'WifiChanges' $list | Out-Null
+    Check ($list.Count -eq 2 -and $list[0] -eq '• Wi-Fi-модем: USR-DR164 → Не выбран' -and $list[1].EndsWith('→ Только GSM')) 'deselecting modem lists model and logic'
+    Call 'RevertWifi' | Out-Null
+    Check ((Field $form 'wifiModel').SelectedIndex -eq 1 -and (Field $form 'wifiPolicy').SelectedIndex -eq 1) 'revert restores model and logic'
+    # Адрес без порта прошивка принимает с портом поля: проверка не блокирует сохранение (22.10.2026).
+    Check ((Call 'ServerError' 'gate.example.ru' $true) -eq '') 'address without port accepted'
+    Check ((Call 'ServerError' 'gate.example.ru:15010' $true) -eq '') 'address with port accepted'
+    Check ((Call 'ServerError' 'a:1:2' $true) -ne '') 'two colons rejected'
+    Check ((Call 'ServerError' ':15010' $true) -eq 'Не указан адрес узла') 'port without host rejected'
+    Check ((Call 'ServerError' 'gate.example.ru:0' $true) -eq 'Порт от 1 до 65535') 'zero port rejected'
+    Check ((Call 'ServerError' '' $false) -eq '' -and (Call 'ServerError' '' $true) -ne '') 'second server may be empty'
     if($Snapshot){
         $form.GetType().GetMethod('SetDefaultConfig',$flags).Invoke($form,@())|Out-Null
         $form.GetType().GetMethod('Load485',$flags).Invoke($form,@())|Out-Null

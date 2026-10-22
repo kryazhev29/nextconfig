@@ -736,7 +736,10 @@ Partial Public Class clOpros
     ' Локальная запись device: серверная команда 12 не содержит этих полей.
     Public Function SetWifiModem(model As Byte, policy As Byte) As Boolean
         If model > 1 OrElse policy > 2 OrElse (model = 0 AndAlso policy <> 0) Then Return False
-        If Demo.IsOn Then Return True
+        If Demo.IsOn Then
+            Demo.WifiChoice = {model, policy}
+            Return True
+        End If
         SyncLock Me
             _isPause = True
             Try

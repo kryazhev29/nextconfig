@@ -38,6 +38,9 @@ Public Module Demo
 
     Private ReadOnly linkScenarioClock As Diagnostics.Stopwatch = Diagnostics.Stopwatch.StartNew()
 
+    ' Выбор, «записанный» в демо командой 114: без --demo-link ответ 113 его возвращает.
+    Public WifiChoice As Byte() = {0, 0}
+
     ' Ответ 113 в демо; без --demo-link Wi-Fi-модем не выбран, сервер через 4G.
     Public Function WifiReply() As Byte()
         Dim arg = Environment.GetCommandLineArgs().FirstOrDefault(Function(a) a.StartsWith("--demo-link="))
@@ -46,7 +49,10 @@ Public Module Demo
         Select Case scenario
             Case "wifi" : Return New Byte() {1, 2, 1, 1, 1, 1, 2, 78}.Concat(Text.Encoding.UTF8.GetBytes("Office-5G")).ToArray()
             Case "fallback" : Return New Byte() {0, 3, 1, 1, 1, 4, 1, 255}
-            Case Else : Return New Byte() {0, 0, 1, 0, 0, 4}
+            Case Else
+                ' Выбранный мост в «Только GSM» выключает TCP (связь 3); других мостов в демо нет.
+                Dim link As Byte = If(WifiChoice(0) = 1 AndAlso WifiChoice(1) = 0, CByte(3), CByte(0))
+                Return New Byte() {0, link, 1, WifiChoice(0), WifiChoice(1), 4}
         End Select
     End Function
 
