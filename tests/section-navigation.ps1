@@ -1,4 +1,4 @@
-param([string]$AssemblyPath='', [string]$Output='')
+﻿param([string]$AssemblyPath='', [string]$Output='')
 $ErrorActionPreference='Stop'
 if(-not $AssemblyPath){$AssemblyPath=Join-Path $PSScriptRoot '..\NextConfig\bin\OperatorReview\NextConfig.exe'}
 Add-Type -AssemblyName System.Windows.Forms

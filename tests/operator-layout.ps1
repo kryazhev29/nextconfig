@@ -1,4 +1,4 @@
-param([string]$AssemblyPath='', [string]$Output='',
+﻿param([string]$AssemblyPath='', [string]$Output='',
       [Parameter(ValueFromRemainingArguments=$true)][string[]]$DemoArgs)
 # Только локальная форма: без Form2_Load, фонового опроса и открытия COM.
 $ErrorActionPreference='Stop'
