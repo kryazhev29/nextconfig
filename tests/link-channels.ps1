@@ -181,5 +181,9 @@ try {
     $before=(Field 'lblMessage').Text
     Reply ([byte[]](1,2,1,1,1,1))
     Check ((Field 'lblMessage').Text -eq $before -and (Field 'lblHeadLink').Text -eq 'Сервер через Wi-Fi') 'no switch event across stale gap'
+    # Узкая плитка: имя канала не режется — сначала уходит оператор или сеть, потом слово оценки (22.10.2026).
+    Check ([NextConfig.LinkOverview]::ShortName('Сотовая · МегаФон · 4G') -eq 'Сотовая · 4G') 'short cellular name keeps generation'
+    Check ([NextConfig.LinkOverview]::ShortName('Wi-Fi · Office-5G') -eq 'Wi-Fi') 'short Wi-Fi name drops network'
+    Check ([NextConfig.LinkOverview]::ShortName('Сотовая · 2G') -eq 'Сотовая') 'short name without operator'
 } finally { $form.Dispose() }
 Write-Output "PASS: $script:n link channel checks; no COM opened"

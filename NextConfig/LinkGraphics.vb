@@ -525,6 +525,12 @@ Public Class LinkOverview
         Return row.Role = "Не используется"
     End Function
 
+    ' Имя канала без оператора или сети Wi-Fi: «Сотовая · МегаФон · 4G» → «Сотовая · 4G», «Wi-Fi · Office-5G» → «Wi-Fi».
+    Public Shared Function ShortName(name As String) As String
+        Dim parts = name.Split({" · "}, StringSplitOptions.None)
+        Return If(parts.Length >= 3, parts(0) & " · " & parts(parts.Length - 1), parts(0))
+    End Function
+
     ' Роль: активный — заливка, работающие роли — белая плашка с рамкой, «Не используется» — серая.
     Private Sub DrawRole(g As Graphics, pill As Rectangle, row As LinkChannelRow)
         Dim used = Not Unused(row)
@@ -591,14 +597,19 @@ Public Class LinkOverview
             Dim arrowWidth = If(row.Channel = eLinkChannel.Cellular, TextWidth(g, "→", Theme.FontBody), 0)
             If arrowWidth > 0 Then OneLine(g, "→", Theme.FontBody, Theme.Accent, New Rectangle(rowRight - arrowWidth, nameTop, arrowWidth, lineHeight))
             Dim valueRight = rowRight - If(arrowWidth > 0, arrowWidth + Theme.ControlPx(Me, 8), 0)
-            Dim value = If(grade < 0, "", LinkDiag.SignalTitle(grade).ToLowerInvariant())
-            ' Узкая плитка: «средний» вместо «сигнал средний» — имя канала важнее.
-            If value <> "" AndAlso rowLeft + TextWidth(g, row.Name, rowFont) + pillWidth + Theme.ControlPx(Me, 22) + TextWidth(g, value, Theme.FontBody) > valueRight Then value = value.Substring(value.IndexOf(" "c) + 1)
+            Dim value = If(grade < 0, "", LinkDiag.SignalTitle(grade).ToLowerInvariant()), name = row.Name
+            ' Узкая плитка: сначала «средний» вместо «сигнал средний», потом имя без оператора или сети («Сотовая · 4G», «Wi-Fi»),
+            ' потом без оценки — имя канала важнее оценки, резать его нельзя.
+            Dim fits = Function() rowLeft + TextWidth(g, name, rowFont) + pillWidth + Theme.ControlPx(Me, If(value = "", 10, 22)) +
+                If(value = "", 0, TextWidth(g, value, Theme.FontBody)) <= valueRight
+            If value <> "" AndAlso Not fits() Then value = value.Substring(value.IndexOf(" "c) + 1)
+            If Not fits() Then name = ShortName(name)
+            If value <> "" AndAlso Not fits() Then value = ""
             Dim valueWidth = If(value = "", 0, TextWidth(g, value, Theme.FontBody))
             If value <> "" Then OneLine(g, value, Theme.FontBody, If(muted, Theme.TextMuted, LinkDrawing.GradeTextColor(grade)), New Rectangle(valueRight - valueWidth, nameTop, valueWidth, lineHeight))
-            Dim nameWidth = Math.Max(1, Math.Min(TextWidth(g, row.Name, rowFont),
+            Dim nameWidth = Math.Max(1, Math.Min(TextWidth(g, name, rowFont),
                 valueRight - valueWidth - Theme.ControlPx(Me, If(value = "", 0, 12)) - pillWidth - Theme.ControlPx(Me, 10) - rowLeft))
-            OneLine(g, row.Name, rowFont, If(muted, Theme.TextMuted, Theme.TextMain), New Rectangle(rowLeft, nameTop, nameWidth, lineHeight))
+            OneLine(g, name, rowFont, If(muted, Theme.TextMuted, Theme.TextMain), New Rectangle(rowLeft, nameTop, nameWidth, lineHeight))
             DrawRole(g, New Rectangle(rowLeft + nameWidth + Theme.ControlPx(Me, 10), nameTop + Theme.ControlPx(Me, 2), pillWidth, Theme.ControlPx(Me, 20)), row)
             If Not noState Then OneLine(g, state, Theme.FontBody, stateColor, New Rectangle(rowLeft, tile.Top + Theme.ControlPx(Me, 33), Math.Max(1, rowRight - rowLeft), Theme.ControlPx(Me, 20)))
             top += Theme.ControlPx(Me, TileHeight + TileGap)
