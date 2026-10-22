@@ -582,6 +582,7 @@ Partial Class Form2
                       Note(Hint("Пусто — параметры оператора. Иначе: точка доступа, логин, пароль.")),
                       Row("Разрешённые сети", Me.cmbNetType), Row("VoLTE", Me.cmbVoLTE)))
         Dim busPage = Page(BuildWifi(), Build485())
+        busPage.BackColor = Theme.WindowBack
         Dim accessPage = Page(Theme.SettingsSection("Доступ", "Управление ПИН-кодом контроллера", Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)))
         Me.serviceRow.Controls.Add(Me.Button1)
         Theme.ServiceActions(Me.serviceRow, Me.Button1)

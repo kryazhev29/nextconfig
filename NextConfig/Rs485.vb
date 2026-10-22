@@ -89,11 +89,7 @@ Partial Public Class Form2
         mode485.Items.Add(New IndexedName(1, "Активный"))
         AddHandler mode485.SelectedIndexChanged, AddressOf Changed485
         baud485 = Combo485("baud") : wiegand485 = Combo485("wiegand")
-        Dim options As New TableLayoutPanel
-        Theme.BusOptions(options)
-        options.Controls.Add(Theme.BusField("Режим работы", mode485), 0, 0)
-        options.Controls.Add(Theme.BusField("Скорость, бод", baud485), 1, 0)
-        options.Controls.Add(Theme.BusField("Тип Wiegand", wiegand485), 2, 0)
+        Dim options = OperatorColumns(OperatorField("Режим работы", mode485), OperatorField("Скорость, бод", baud485), 400)
 
         Dim devices As New TableLayoutPanel
         Theme.BusTable(devices)
@@ -117,11 +113,31 @@ Partial Public Class Form2
             devices.Controls.Add(type485(i), 2, i + 1)
             devices.Controls.Add(state485(i), 3, i + 1)
         Next
+        ' Нативный список выше старой строки 34 px: последняя строка обрезалась.
+        Dim sizeRows As EventHandler = Sub()
+            Dim rowHeight = Math.Max(Theme.ControlPx(devices, 34), type485(0).Height + type485(0).Margin.Vertical)
+            If devices.RowStyles(1).Height <> rowHeight Then
+                For i = 1 To 8
+                    devices.RowStyles(i).Height = rowHeight
+                Next
+            End If
+            devices.Height = CInt(devices.RowStyles(0).Height) + rowHeight * 8
+        End Sub
+        AddHandler type485(0).SizeChanged, sizeRows
+        AddHandler devices.DpiChangedAfterParent, sizeRows
+        sizeRows(devices, EventArgs.Empty)
         warning485 = Theme.BusNotice("На порту RS-485 работает одно устройство: камера или Wi-Fi-модем", True)
-        Dim serverNote = Theme.BusNotice("При подключении к серверу эти настройки заменятся серверными", False)
+        Dim serverNote = OperatorNote("Параметры RS-485 и Wiegand задаёт сервер. При подключении локальные значения заменятся серверными.")
         hint485 = Hint("Адрес в списке должен совпадать с адресом, заданным в самом устройстве.")
-        Return Theme.SettingsSection("485 и Wiegand", "Параметры шины и подключённых устройств", serverNote, options, warning485, devices,
-            hint485)
+        Dim bus = Theme.Card("Порт RS-485", options, warning485, devices, hint485)
+        Dim reader = Theme.Card("Считыватель Wiegand", OperatorField("Формат считывателя", wiegand485),
+            OperatorNote("Отдельный вход для считывателя. Доступен и при подключённом Wi-Fi-модеме."))
+        Dim section As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .BackColor = Theme.WindowBack,
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        section.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        section.Controls.Add(serverNote)
+        section.Controls.Add(OperatorColumns(bus, reader, 1080))
+        Return section
 
     End Function
     Private Sub Changed485(sender As Object, e As EventArgs)

@@ -13,6 +13,53 @@ Partial Public Class Form2
     Private wifiLoading As Boolean, wifiPortBusy As Boolean
     Private wifiBoardModel As Byte, wifiBoardPolicy As Byte
     Private wifiOptions As Control
+    Private wifiSetupHint As Label
+
+    ' Поля измеряются по содержимому: фиксированная высота обрезала нижнюю рамку.
+    Private Function OperatorField(title As String, editor As Control) As Control
+        Dim field As New TableLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            .ColumnCount = 1, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, Theme.GapRow)}
+        field.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        field.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        field.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        field.Controls.Add(New Label With {.Text = title, .AutoSize = True, .Font = Theme.FontBody,
+            .ForeColor = Theme.TextMain, .Margin = New Padding(0, 0, 0, Theme.GapLabel)}, 0, 0)
+        editor.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        editor.Margin = New Padding(0)
+        field.Controls.Add(editor, 0, 1)
+        Return field
+    End Function
+
+    Private Function OperatorNote(text As String) As Label
+        Return New Label With {.Text = text, .AutoSize = True, .Font = Theme.FontCaption,
+            .ForeColor = Theme.TextMuted, .Anchor = AnchorStyles.Left Or AnchorStyles.Right,
+            .Margin = New Padding(0, 0, 0, Theme.GapRelated)}
+    End Function
+
+    Private Function OperatorColumns(left As Control, right As Control, Optional breakpoint As Integer = 760) As Control
+        Dim grid As New TableLayoutPanel With {.Name = "operatorColumns", .AutoSize = True,
+            .AutoSizeMode = AutoSizeMode.GrowAndShrink, .ColumnCount = 2, .RowCount = 1,
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
+        grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
+        grid.Controls.Add(left, 0, 0) : grid.Controls.Add(right, 1, 0)
+        Dim arrange As EventHandler = Sub()
+            Dim stacked = grid.Width < Theme.ControlPx(grid, breakpoint)
+            Dim column = If(stacked, 0, 1), row = If(stacked, 1, 0)
+            If grid.GetColumn(right) = column AndAlso grid.GetRow(right) = row Then Return
+            grid.SuspendLayout()
+            grid.ColumnStyles(0).Width = If(stacked, 100, 50)
+            grid.ColumnStyles(1).Width = If(stacked, 0, 50)
+            grid.SetCellPosition(right, New TableLayoutPanelCellPosition(column, row))
+            left.Margin = New Padding(0, 0, If(stacked, 0, Theme.GapRelated), Theme.GapRow)
+            right.Margin = New Padding(If(stacked, 0, Theme.GapRelated), 0, 0, Theme.GapRow)
+            grid.ResumeLayout(True)
+        End Sub
+        left.Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRow)
+        right.Margin = New Padding(Theme.GapRelated, 0, 0, Theme.GapRow)
+        AddHandler grid.SizeChanged, arrange
+        Return grid
+    End Function
 
     Private Function BuildWifi() As Control
         wifiModel = New ComboBox With {.Name = "wifiModel"}
@@ -26,7 +73,7 @@ Partial Public Class Form2
         Dim ssidBox = Theme.FieldBox(wifiSsid, 240), keyBox = Theme.FieldBox(wifiKey, 240)
         Theme.PasswordField(keyBox, wifiKey)
         wifiWrite = New Button With {.Name = "wifiWrite", .Text = "Записать сеть"}
-        wifiCheck = New Button With {.Name = "wifiCheck", .Text = "Прочитать"}
+        wifiCheck = New Button With {.Name = "wifiCheck", .Text = "Обновить статус"}
         For Each button In {wifiWrite, wifiCheck}
             Theme.Secondary(button)
             button.Margin = New Padding(0, 0, Theme.GapRelated, 0)
@@ -35,24 +82,39 @@ Partial Public Class Form2
         AddHandler wifiPolicy.SelectedIndexChanged, Sub() WifiEdited()
         AddHandler wifiWrite.Click, Sub() WifiExchange(1)
         AddHandler wifiCheck.Click, Sub() WifiExchange(0)
-        Dim choice As New TableLayoutPanel
-        Theme.BusOptions(choice)
-        choice.Controls.Add(Theme.BusField("Wi-Fi-модем", wifiModel), 0, 0)
-        choice.Controls.Add(Theme.BusField("Логика работы", wifiPolicy), 1, 0)
-        Dim network As New TableLayoutPanel
-        Theme.BusOptions(network)
-        network.Controls.Add(Theme.BusField("Сеть Wi-Fi (SSID)", ssidBox), 0, 0)
-        network.Controls.Add(Theme.BusField("Пароль сети", keyBox), 1, 0)
+        Dim choice = Theme.Card("Подключение к серверу",
+            OperatorColumns(OperatorField("Wi-Fi-модем", wifiModel), OperatorField("Канал связи с сервером", wifiPolicy), 600),
+            OperatorNote("Примените выбор кнопкой «Сохранить изменения» внизу окна. Сервер этот выбор не меняет."))
+        Dim network = OperatorColumns(OperatorField("Название сети (SSID)", ssidBox), OperatorField("Пароль сети", keyBox), 600)
         wifiOptions = network
         Dim actions As New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            .WrapContents = False, .Margin = New Padding(0, 0, 0, Theme.GapRow)}
+            .WrapContents = True, .Anchor = AnchorStyles.Left Or AnchorStyles.Right,
+            .Margin = New Padding(0, 0, 0, Theme.GapRelated)}
         actions.Controls.AddRange({wifiWrite, wifiCheck})
         wifiState = Theme.BusNotice("Состояние моста не запрашивалось", False)
-        wifiRule = Theme.BusNotice("При выбранном Wi-Fi-модеме камера отключена, VoLTE выключен. В режиме «Только Wi-Fi» GSM остаётся для звонков.", False)
+        wifiState.Name = "wifiState"
+        wifiState.Font = Theme.FontBody
+        wifiState.ForeColor = Theme.TextMain
+        wifiState.BackColor = Theme.SurfaceHover
+        wifiSetupHint = OperatorNote("")
+        Dim networkCard = Theme.Card("Сеть Wi-Fi", network, actions, wifiSetupHint)
+        choice.Dock = DockStyle.Fill : networkCard.Dock = DockStyle.Fill
+        wifiRule = OperatorNote("Wi-Fi-модем занимает RS-485: камера недоступна, VoLTE выключен. В режиме «Только Wi-Fi» сотовая связь остаётся для звонков.")
         WifiControls()
-        Dim section = Theme.SettingsSection("Wi-Fi-модем", "Настройка только на месте, через NextConfig", choice, network, actions, wifiState, wifiRule,
-            Hint("Выбор модема и логика записываются кнопкой «Сохранить изменения» и сервером не меняются. Сеть и пароль записываются в мост кнопкой «Записать сеть»; после записи мост перезапускается."))
-        section.Margin = New Padding(0, 0, 0, Theme.GapSection)
+        Dim heading As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 2,
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, Theme.GapRow)}
+        heading.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Theme.Px(210)))
+        heading.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        heading.Controls.Add(New Label With {.Text = "Wi-Fi-модем", .AutoSize = True, .Font = Theme.FontTitle,
+            .ForeColor = Theme.TextMain, .Anchor = AnchorStyles.Left, .Margin = New Padding(0)}, 0, 0)
+        wifiState.Margin = New Padding(0)
+        heading.Controls.Add(wifiState, 1, 0)
+        Dim section As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .BackColor = Theme.WindowBack,
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, Theme.GapRow)}
+        section.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        section.Controls.Add(heading)
+        section.Controls.Add(OperatorColumns(choice, networkCard))
+        section.Controls.Add(wifiRule)
         Return section
     End Function
 
@@ -71,6 +133,9 @@ Partial Public Class Form2
         wifiCheck.Enabled = Not wifiBusy
         wifiOptions.Visible = selected
         wifiRule.Visible = selected
+        Theme.SetText(wifiSetupHint, If(Not selected, "Выберите Wi-Fi-модем и сохраните изменения, чтобы настроить сеть.",
+            If(Not wifiSelected, "Сначала сохраните выбор модема кнопкой «Сохранить изменения» внизу окна.",
+                "«Записать сеть» сразу передаёт сеть и пароль в модем и перезапускает его. Пустой пароль — открытая сеть.")))
         wifiSsid.Enabled = Not wifiBusy : wifiKey.Enabled = Not wifiBusy
         If cmbVoLTE IsNot Nothing Then cmbVoLTE.Enabled = Not wifiSelected
     End Sub
@@ -104,10 +169,10 @@ Partial Public Class Form2
             text = "Выключение моста…"
         ElseIf wifiSelected Then
             Select Case reply(1)
-                Case 2 : text = "Мост: TCP сервера открыт" : dot = Theme.eDot.Good
-                Case 3 : text = If(reply(4) = 0, "TCP моста выключен: только GSM", "TCP моста выключен; ожидание повтора")
-                Case 1 : text = "Мост отвечает, TCP закрыт" : dot = Theme.eDot.Good
-                Case Else : text = "Мост: нет подтверждённой связи" : dot = Theme.eDot.Bad
+                Case 2 : text = "Wi-Fi-мост: соединение с сервером открыто" : dot = Theme.eDot.Good
+                Case 3 : text = If(reply(4) = 0, "Выбран только GSM: Wi-Fi для сервера выключен", "Wi-Fi: соединение с сервером закрыто, ожидание повтора")
+                Case 1 : text = "Wi-Fi-модем отвечает; соединение с сервером не открыто" : dot = Theme.eDot.Good
+                Case Else : text = "Нет подтверждённой связи с Wi-Fi-модемом" : dot = Theme.eDot.Bad
             End Select
         End If
         Theme.DotText(wifiState, dot, text)
