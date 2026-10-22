@@ -100,13 +100,15 @@ Public Class PhotoPanel
 
     ' camera232 - старая плата MODEM (IP v3): камера одна, на порту 232, как в старой прошивке;
     ' настройки RS-485 к ней не относятся (прошивка ветки fix/ipv3-photo-rs232).
-    Public Sub SetState(config As clOpros.s_config, updating As Boolean, fresh As Boolean, Optional camera232 As Boolean = False)
+    ' wifiPort - выбран Wi-Fi-модем (USB 113): мост занимает весь порт RS-485, прошивка камеру запрещает.
+    Public Sub SetState(config As clOpros.s_config, updating As Boolean, fresh As Boolean, Optional camera232 As Boolean = False,
+                        Optional wifiPort As Boolean = False)
         If legacy Then Return
         blocked = updating OrElse Not fresh
         Dim available = {config.periph1, config.periph2, config.periph3, config.periph4,
             config.periph5, config.periph6, config.periph7, config.periph8}.
             Where(Function(p) p.rs485Type = 3).Select(Function(p) p.rs485Adr).Distinct().ToArray()
-        configured = config.rs485Mode = 1 AndAlso available.Length > 0
+        configured = config.rs485Mode = 1 AndAlso available.Length > 0 AndAlso Not wifiPort
         addressCaption.Visible = Not camera232 : addresses.Visible = Not camera232
         If camera232 Then
             configured = True
@@ -126,9 +128,10 @@ Public Class PhotoPanel
             If addresses.SelectedIndex < 0 AndAlso addresses.Items.Count > 0 Then addresses.SelectedIndex = 0
         End If
         hint.Text = If(updating, "Идёт обновление прошивки. Съёмка и выгрузка недоступны.",
-            If(Not fresh, "Ожидание свежего состояния платы…", If(configured,
+            If(Not fresh, "Ожидание свежего состояния платы…", If(wifiPort,
+            "Камера недоступна: порт RS-485 занят Wi-Fi-мостом.", If(configured,
             "Камера C328 · адрес RS-485. Нажмите на фото, чтобы открыть крупнее.",
-            "Для съёмки нужны активный RS-485 и периферия C328 (тип 3). Проверьте настройки; они не изменены.")))
+            "Для съёмки нужны активный RS-485 и периферия C328 (тип 3). Проверьте настройки; они не изменены."))))
         UpdateButtons()
     End Sub
 

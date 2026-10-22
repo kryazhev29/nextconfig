@@ -54,4 +54,14 @@ try {
         try{$section.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$section.Width,$section.Height)));$bitmap.Save($Snapshot)}finally{$bitmap.Dispose()}
     }
 }finally{$form.Dispose()}
+# Карточка фото при выбранном Wi-Fi-модеме: камера в таблице есть, но порт занят мостом (22.10.2026).
+$config=New-Object 'NextConfig.clOpros+s_config'
+$config.rs485Mode=1; $p=$config.periph2; $p.rs485Adr=2; $p.rs485Type=3; $config.periph2=$p
+$photo=New-Object NextConfig.PhotoPanel($poller,'000000000000000')
+try {
+    $photo.SetState($config,$false,$true,$false,$false)
+    Check ((Field $photo 'hint').Text.StartsWith('Камера C328') -and (Field $photo 'shoot').Enabled) 'camera ready without Wi-Fi'
+    $photo.SetState($config,$false,$true,$false,$true)
+    Check ((Field $photo 'hint').Text -eq 'Камера недоступна: порт RS-485 занят Wi-Fi-мостом.' -and -not (Field $photo 'shoot').Enabled) 'photo blocked by Wi-Fi bridge'
+}finally{$photo.Dispose()}
 Write-Output "PASS: $script:n Wi-Fi UI checks; no COM opened"

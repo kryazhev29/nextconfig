@@ -163,7 +163,7 @@ Public Class Form2
         btnTestOUT2.Enabled = btnTestOUT1.Enabled
         UpdateIoButtons()
         UpdateFirmwareAvailability()
-        photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, Camera232)
+        photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, Camera232, wifiPortBusy)
         If lastStatus = DateTime.MinValue Then
             SetHeadState(Theme.eDot.Waiting, "Ожидание данных")
         ElseIf DateTime.Now.Subtract(lastStatus).TotalSeconds > StaleSeconds Then
@@ -321,7 +321,7 @@ Public Class Form2
         status = _status
         lastStatus = DateTime.Now
         TmrTick()
-        photoCard.SetState(onBoard, status.readyToUpdate, True, Camera232)
+        photoCard.SetState(onBoard, status.readyToUpdate, True, Camera232, wifiPortBusy)
         Status485()
 
         Theme.SetText(lblTime, DeviceTimeText(status.time))
