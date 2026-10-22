@@ -1,4 +1,5 @@
-﻿param([string]$Mode='--demo',[switch]$Dpi120,[switch]$FullWindow,[string]$Output="$PSScriptRoot\..\..\Стенд_Domovoi\NextConfig_QA\2026-09-29-photo-menu")
+﻿param([string]$Mode='--demo',[switch]$Dpi120,[switch]$FullWindow,[string]$Output="$PSScriptRoot\..\..\Стенд_Domovoi\NextConfig_QA\2026-09-29-photo-menu",
+    [string]$AssemblyPath="$PSScriptRoot\..\NextConfig\bin\Release\NextConfig.exe")
 $ErrorActionPreference='Stop'
 $repo=Split-Path $PSScriptRoot
 $scripts=Join-Path (Split-Path $repo) 'Стенд_Domovoi\Скрипты'
@@ -8,11 +9,17 @@ $scale=if($Dpi120){'125'}else{'100'}
 $out=Join-Path $Output ("$tag-$scale" + $(if($FullWindow){"-full"}else{""}))
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $arguments=@($Mode);if(-not $FullWindow){$arguments+='--demo-laptop'};if($Dpi120){$arguments+='--demo-dpi=120'}else{$arguments+='--demo-dpi=96'}
-function Click([string]$caption) {
+# «Перейти в загрузчик» (oldfw48) запоминает демо-IMEI в migration.txt владельца - после прогона вернём файл.
+$migration=Join-Path $env:LOCALAPPDATA 'NextConfig\migration.txt'
+$migrationBefore=if(Test-Path -LiteralPath $migration){[IO.File]::ReadAllBytes($migration)}else{$null}
+# -Last: «Связь» есть и в главном меню, и среди разделов настроек; кнопки разделов
+# настроек идут в списке после меню, поэтому для них берём последнее совпадение.
+function Click([string]$caption,[switch]$Last) {
     $line=$null
     for($attempt=0;$attempt -lt 15 -and -not $line;$attempt++) {
         $list=& "$scripts\ui_click.ps1" -List
-        $line=$list | Where-Object {($_ -split ': ',2)[-1] -eq $caption} | Select-Object -First 1
+        $found=$list | Where-Object {($_ -split ': ',2)[-1] -eq $caption}
+        $line=if($Last){$found | Select-Object -Last 1}else{$found | Select-Object -First 1}
         if(-not $line){Start-Sleep -Milliseconds 300}
     }
     if(-not $line){throw "Button not found: $caption; $list"}
@@ -24,7 +31,7 @@ function Snap([string]$name) {
     if($live.Count -ne 1 -or $live[0].Id -ne $p.Id){throw 'Unexpected NextConfig window'}
     & "$scripts\ui_snap.ps1" -Smallest -Out (Join-Path $out "$name.png") | Out-Null
 }
-$p=Start-Process (Join-Path $repo 'NextConfig\bin\Release\NextConfig.exe') -ArgumentList $arguments -PassThru
+$p=Start-Process (Resolve-Path $AssemblyPath).Path -ArgumentList $arguments -PassThru
 try {
     Start-Sleep -Seconds 2
     if($Mode -eq '--demo' -or $Mode -eq '--demo:oldfw') {
@@ -32,9 +39,13 @@ try {
         Click 'Подключиться'
         Start-Sleep -Seconds 1
         if($Mode -eq '--demo:oldfw'){Snap 'boot-offer'; Click 'Позже'}
+    } else {
+        # Старая прошивка и загрузчик открываются без ПИН кнопкой «Открыть» стартового окна.
+        Click 'Открыть'
+        Start-Sleep -Seconds 1
     }
-    $sections=if($Mode -eq '--demo:oldfw48'){@('Устройство','Пользователи','Настройки','Расписания','Сервис')}elseif($Mode -in @('--demo:boot','--demo:oldboot')){@('Устройство')}else{@('Устройство','Пользователи','Журнал','Настройки','Сервис')}
-    $names=@{Устройство='device';Пользователи='users';Журнал='journal';Настройки='settings';Расписания='schedules';Сервис='service'}
+    $sections=if($Mode -eq '--demo:oldfw48'){@('Устройство','Пользователи','Настройки','Расписания','Сервис')}elseif($Mode -in @('--demo:boot','--demo:oldboot')){@('Устройство')}else{@('Устройство','Связь','Пользователи','Журнал','Настройки','Сервис')}
+    $names=@{Устройство='device';Связь='link';Пользователи='users';Журнал='journal';Настройки='settings';Расписания='schedules';Сервис='service'}
     foreach($section in $sections) {
         Click $section
         Snap $names[$section]
@@ -45,7 +56,7 @@ try {
         }
         if($section -eq 'Настройки' -and $Mode -ne '--demo:oldfw48') {
             foreach($sub in @('Связь','Доступ','485 и Wiegand')) {
-                Click $sub;$subName='settings-'+(@{'Связь'='connection';'Доступ'='access';'485 и Wiegand'='bus'}[$sub]);Snap $subName
+                Click $sub -Last;$subName='settings-'+(@{'Связь'='connection';'Доступ'='access';'485 и Wiegand'='bus'}[$sub]);Snap $subName
                 & "$PSScriptRoot\ui_scroll_target.ps1" -DemoPid $p.Id | Out-Null;Snap ($subName+'-lower')
                 & "$PSScriptRoot\ui_scroll_target.ps1" -DemoPid $p.Id -Direction 6 | Out-Null
             }
@@ -70,5 +81,6 @@ try {
     }
     "PASS UI: $Mode $scale; $out"
 } finally {
-    if(-not $p.HasExited){Stop-Process -Id $p.Id}
+    if(-not $p.HasExited){Stop-Process -Id $p.Id;$p.WaitForExit(5000) | Out-Null}
+    if($null -eq $migrationBefore){Remove-Item -LiteralPath $migration -ErrorAction SilentlyContinue}else{[IO.File]::WriteAllBytes($migration,$migrationBefore)}
 }
