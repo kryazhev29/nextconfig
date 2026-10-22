@@ -676,10 +676,11 @@ Public Module Theme
         Dim hosts As New List(Of Panel)
         Dim links As New List(Of Button)
         Dim content As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
-        Dim titles = New String() {"Связь", "485 и Wiegand", "Доступ", "Сервис"}
+        Dim titles = New String() {"Связь", "485 и Wiegand", "Доступ"}
         For i = 0 To pages.Length - 1
             Dim index = i
-            Dim host As New Panel With {.Dock = DockStyle.Fill, .AutoScroll = True, .Visible = False}
+            Dim host As New Panel With {.Name = "settingsPage" & i, .Dock = DockStyle.Fill,
+                .AutoScroll = True, .Visible = False, .BackColor = pages(i).BackColor}
             host.Controls.Add(pages(i))
             hosts.Add(host)
             content.Controls.Add(host)
@@ -691,15 +692,21 @@ Public Module Theme
             AddHandler link.Paint, AddressOf PaintButton
             links.Add(link)
             nav.Controls.Add(link)
-            AddHandler link.Click, Sub(sender, e)
+            ' Action доступен и для перехода со скрытой вкладки; PerformClick требует видимой кнопки.
+            link.Tag = New Action(Sub()
+                content.SuspendLayout()
+                hosts(index).BringToFront()
+                content.BackColor = hosts(index).BackColor
                 For j = 0 To hosts.Count - 1
-                    hosts(j).Visible = j = index
+                    If j <> index Then hosts(j).Visible = False
                     links(j).BackColor = If(j = index, SurfaceHover, WindowBack)
                     links(j).ForeColor = If(j = index, Accent, TextMain)
                     links(j).Font = If(j = index, FontBodyBold, FontBody)
                 Next
-                hosts(index).BringToFront()
-            End Sub
+                hosts(index).Visible = True
+                content.ResumeLayout(True)
+            End Sub)
+            AddHandler link.Click, Sub() DirectCast(link.Tag, Action).Invoke()
         Next
         body.Controls.Add(nav, 0, 0)
         body.Controls.Add(content, 0, 1)
@@ -735,11 +742,7 @@ Public Module Theme
         shell.Controls.Add(body, 0, 0)
         shell.Controls.Add(footer, 0, 1)
         ' Начальный раздел задаём до показа формы.
-        hosts(1).Visible = True
-        hosts(1).BringToFront()
-        links(1).BackColor = SurfaceHover
-        links(1).ForeColor = Accent
-        links(1).Font = FontBodyBold
+        DirectCast(links(0).Tag, Action).Invoke()
         Return shell
     End Function
 
@@ -1127,32 +1130,6 @@ Public Module Theme
             button.Margin = New Padding(0, 0, 0, GapRelated)
         Next
     End Sub
-
-    Public Sub BusOptions(panel As TableLayoutPanel)
-        panel.ColumnCount = 3
-        panel.RowCount = 1
-        panel.Height = Px(54)
-        panel.AutoSize = False
-        panel.Width = Px(700)
-        panel.Anchor = AnchorStyles.Left Or AnchorStyles.Right
-        panel.Margin = New Padding(0, 0, 0, GapBlock)
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 28))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 24))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 48))
-    End Sub
-
-    Public Function BusField(title As String, editor As Control) As Control
-        Dim field As New TableLayoutPanel With {.AutoSize = False, .ColumnCount = 1, .Width = Px(160), .Height = Px(54),
-            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, GapBlock, 0)}
-        field.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        Dim caption As New Label With {.AutoSize = True, .Text = title, .Margin = New Padding(0, 0, 0, GapLabel)}
-        Theme.Caption(caption)
-        editor.Dock = DockStyle.Fill
-        editor.Margin = New Padding(0)
-        field.Controls.Add(caption, 0, 0)
-        field.Controls.Add(editor, 0, 1)
-        Return field
-    End Function
 
     Public Sub BusTable(panel As TableLayoutPanel)
         panel.ColumnCount = 4

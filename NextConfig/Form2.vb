@@ -806,11 +806,12 @@ Public Class Form2
         Return valid
     End Function
 
-    ' Раздел настроек: 0 «Связь», 1 «485 и Wiegand», 2 «Доступ», 3 «Сервис».
+    ' Выбираем раздел до показа вкладки: предыдущий раздел не должен мелькать.
     Private Sub ShowSettingsSection(section As Integer)
-        tabs.SelectedTab = tabSettings
         Dim link = TryCast(tabSettings.Controls.Find("settingsSection" & section, True).FirstOrDefault(), Button)
-        If link IsNot Nothing Then link.PerformClick()
+        If link Is Nothing Then Return
+        DirectCast(link.Tag, Action).Invoke()
+        tabs.SelectedTab = tabSettings
     End Sub
 
     ' Перенести введённое в настройки. Список, который почему-то не выбран,

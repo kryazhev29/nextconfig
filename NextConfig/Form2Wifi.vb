@@ -10,7 +10,7 @@ Partial Public Class Form2
     Private wifiState As Label, wifiRule As Label
     Private wifiWrite As Button, wifiCheck As Button
     Private wifiBusy As Boolean, wifiLoaded As Boolean, wifiSelected As Boolean
-    Private wifiLoading As Boolean, wifiPortBusy As Boolean
+    Private wifiLoading As Boolean, wifiPortBusy As Boolean, wifiStateKnown As Boolean
     Private wifiBoardModel As Byte, wifiBoardPolicy As Byte
     Private wifiOptions As Control
     Private wifiSetupHint As Label
@@ -147,10 +147,12 @@ Partial Public Class Form2
             Return
         End If
         linkWifi = reply
+        wifiStateKnown = True
         If StatusIsFresh() Then UpdateDeviceSignal()
         If reply.Length < 6 OrElse reply(2) <> 1 OrElse reply(3) > 1 OrElse reply(4) > 2 Then
             wifiLoaded = False : WifiControls()
             Theme.DotText(wifiState, Theme.eDot.Idle, "Прошивка не поддерживает локальный выбор Wi-Fi-модема")
+            If warning485 IsNot Nothing Then Update485State()
             Return
         End If
         wifiBoardModel = reply(3) : wifiBoardPolicy = reply(4)

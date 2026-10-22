@@ -581,12 +581,12 @@ Partial Class Form2
                       Row("Точка доступа", Me.boxOperator),
                       Note(Hint("Пусто — параметры оператора. Иначе: точка доступа, логин, пароль.")),
                       Row("Разрешённые сети", Me.cmbNetType), Row("VoLTE", Me.cmbVoLTE)))
+        connectionPage.BackColor = Theme.Surface
         Dim busPage = Page(BuildWifi(), Build485())
-        busPage.BackColor = Theme.WindowBack
         Dim accessPage = Page(Theme.SettingsSection("Доступ", "Управление ПИН-кодом контроллера", Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)))
+        accessPage.BackColor = Theme.Surface
         Me.serviceRow.Controls.Add(Me.Button1)
         Theme.ServiceActions(Me.serviceRow, Me.Button1)
-        Dim servicePage = Page(Theme.SettingsSection("Сервис", "Чтение настроек и обслуживание контроллера", Me.serviceRow))
         Me.tabSettings.Controls.Add(Theme.SettingsWorkspace(
             New Control() {connectionPage, busPage, accessPage},
             Me.btnSave, Me.btnRevert, Me.lblSaveState, Me.btnDefault))
@@ -838,12 +838,6 @@ Partial Class Form2
         Me.tabs.Margin = New System.Windows.Forms.Padding(0)
         Me.tabs.Padding = New System.Drawing.Point(Theme.GapBlock, Theme.GapRelated)
         Me.tabs.SelectedIndex = 0
-        Me.tabs.Controls.Add(Me.tabState)
-        Me.tabs.Controls.Add(Me.tabSettings)
-        Me.tabs.Controls.Add(Me.tabIds)
-        Me.tabs.Controls.Add(Me.tabObject)
-        Me.tabs.Controls.Add(Me.tabFW)
-        Me.tabs.Controls.Add(Me.tabLog)
         ConfigureSections()
 
         ' ---- строка состояния: сообщения программы, время статуса, сохранение ----
@@ -926,6 +920,7 @@ Partial Class Form2
         p.AutoSize = True
         p.AutoSizeMode = AutoSizeMode.GrowAndShrink
         p.Dock = DockStyle.Top
+        p.BackColor = Theme.WindowBack
         p.Padding = New Padding(Theme.GapSection)
 
         For Each b As Control In blocks

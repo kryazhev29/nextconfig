@@ -55,7 +55,6 @@
         Next
         tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Объект, загрузчик и просмотр настроек платы"),
             shortcuts, objectCard, objectActions, bootCard, snapshotCard))
-        tabs.TabPages.Clear()
         ConfigureLinkSection()
         tabs.TabPages.AddRange({tabState, tabLink, tabIds, tabLog, tabSettings, tabObject})
     End Sub

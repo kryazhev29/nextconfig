@@ -137,6 +137,7 @@ Partial Public Class Form2
         section.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         section.Controls.Add(serverNote)
         section.Controls.Add(OperatorColumns(bus, reader, 1080))
+        Update485State()
         Return section
 
     End Function
@@ -151,18 +152,19 @@ Partial Public Class Form2
             Dim value = Value485(type485(i), 0)
             If value = 3 Then camera = True
             If value <> 0 Then count += 1
-            address485(i).Enabled = Value485(mode485, 0) = 1 AndAlso Not wifiPortBusy
+            address485(i).Enabled = wifiStateKnown AndAlso Value485(mode485, 0) = 1 AndAlso Not wifiPortBusy
             type485(i).Enabled = address485(i).Enabled
             Theme.BusRowAppearance(address485(i), type485(i), number485(i), value <> 0)
         Next
-        mode485.Enabled = Not wifiPortBusy : baud485.Enabled = Not wifiPortBusy
-        Theme.SetText(warning485, If(wifiPortBusy, "Порт 485 занят Wi-Fi-модемом, камера отключена",
-            "На порту RS-485 работает одно устройство: камера или Wi-Fi-модем"))
-        Theme.SetColor(warning485, If(wifiPortBusy, Theme.TextMuted, Theme.Danger))
+        mode485.Enabled = wifiStateKnown AndAlso Not wifiPortBusy : baud485.Enabled = mode485.Enabled
+        Theme.SetText(warning485, If(Not wifiStateKnown, "Проверяем, чем занят порт RS-485…",
+            If(wifiPortBusy, "Порт 485 занят Wi-Fi-модемом, камера отключена",
+            "На порту RS-485 работает одно устройство: камера или Wi-Fi-модем")))
+        Theme.SetColor(warning485, If(Not wifiStateKnown OrElse wifiPortBusy, Theme.TextMuted, Theme.Danger))
         warning485.BackColor = Theme.WindowBack
-        deviceTable485.Visible = Not wifiPortBusy
-        hint485.Visible = Not wifiPortBusy
-        warning485.Visible = wifiPortBusy OrElse (camera AndAlso count > 1)
+        deviceTable485.Visible = wifiStateKnown AndAlso Not wifiPortBusy
+        hint485.Visible = wifiStateKnown AndAlso Not wifiPortBusy
+        warning485.Visible = Not wifiStateKnown OrElse wifiPortBusy OrElse (camera AndAlso count > 1)
         Status485()
     End Sub
     Private Function Peripherals(c As clOpros.s_config) As clOpros.s_periphery()
