@@ -31,7 +31,7 @@ Check ($v.Headline -eq 'Нет связи с сервером' -and $v.Note -eq 
 $v=View ([byte[]](1,2,1,1,1,1)) 1 1 1 4 $cell
 Check ($v.Active -eq [NextConfig.eLinkChannel]::Wifi -and $v.Headline -eq 'На связи через Wi-Fi' -and $v.Header -eq 'Сервер через Wi-Fi') 'Wi-Fi headline'
 Check ($v.Policy -eq 'Логика: GSM, если нет Wi-Fi' -and ($v.Labels -join '|') -eq 'Мост|Сеть Wi-Fi|Сервер' -and $v.Steps -eq 3 -and $v.Problem -eq '') 'Wi-Fi chain'
-Check ($v.Rows[0].Name -eq 'Wi-Fi · USR-DR164' -and $v.Rows[0].Role -eq 'Активный' -and $v.Rows[0].Active -and $v.Rows[0].State -eq 'сервер на связи' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Good) 'Wi-Fi row active'
+Check ($v.Rows[0].Name -eq 'Wi-Fi · USR-DR164' -and $v.Rows[0].Role -eq 'Активный' -and $v.Rows[0].Active -and $v.Rows[0].State -eq '' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Good) 'Wi-Fi row active'
 Check ($v.Rows[1].Name -eq 'Сотовая · МегаФон · 4G' -and $v.Rows[1].Role -eq 'Резерв' -and -not $v.Rows[1].Active -and $v.Rows[1].State -eq 'сеть есть') 'cellular row reserve'
 # Главная ложная тревога старой карточки: модем без интернета (112 «Нет интернета», gprs 0), а сервер идёт через мост.
 $noPdp=New-Object NextConfig.LinkSnapshot; $noPdp.Version=5; $noPdp.State=3; $noPdp.Network=4
@@ -55,7 +55,7 @@ Check ((View ([byte[]](1,1,1,1,1,1)) 1 1 0).Rows[0].Tone -eq [NextConfig.eLinkTo
 $v=View ([byte[]](0,0,1,1,1,4)) 1 1 1 4 $cell
 Check ($v.Active -eq [NextConfig.eLinkChannel]::Cellular -and $v.Headline -eq 'На связи через 4G' -and $v.Labels[0] -eq 'SIM') 'fallback to cellular'
 Check ($v.Rows[0].Role -eq 'Основной' -and $v.Rows[0].State -eq 'мост не отвечает' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Bad -and -not $v.Rows[0].Active) 'primary Wi-Fi down is red'
-Check ($v.Rows[1].Role -eq 'Активный' -and $v.Rows[1].Active -and $v.Rows[1].State -eq 'сервер на связи') 'cellular row active'
+Check ($v.Rows[1].Role -eq 'Активный' -and $v.Rows[1].Active -and $v.Rows[1].State -eq '') 'cellular row active'
 $v=View ([byte[]](0,3,1,1,1,4)) 1 1 1 4
 Check ($v.Rows[0].State -eq 'соединение выключено, ожидание повтора' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Warn) 'primary waits for retry'
 $v=View ([byte[]](0,0,1,1,1,4)) 1 1 0 4 $null
@@ -99,13 +99,13 @@ $card=New-Object NextConfig.LinkOverview
 try {
     $card.Width=[NextConfig.Theme]::Px(410) # как в окне 1296 px при 125 %: карточка в половину страницы
     $card.Signal=[NextConfig.LinkDiag]::SignalView($cell,26)
-    $card.Cell=[NextConfig.LinkDiag]::CellText($cell,4); $card.Details="уровень −95 дБм`nкачество −9 дБ"
+    $card.Cell=[NextConfig.LinkDiag]::CellText($cell,4); $card.Details='уровень −95 дБм · качество −9 дБ'
     $cases=[ordered]@{
         'link_cellular.png'=@((View ([byte[]](0,0,1,0,0,4)) 1 1 1 4 $cell),282,$true)
         'link_wifi.png'=@((View (Ext ([byte[]](1,2,1,1,1,1)) 2 78 'Office-5G') 1 1 1 4 $cell),306,$false)
-        'link_fallback.png'=@((View ([byte[]](0,3,1,1,1,4,1,255)) 1 1 1 4 $cell),396,$true)
+        'link_fallback.png'=@((View ([byte[]](0,3,1,1,1,4,1,255)) 1 1 1 4 $cell),306,$false)
         'link_wifi_down.png'=@((View ([byte[]](1,1,1,1,2,1)) 1 0 0 4 $cell),350,$false)
-        'link_gsm_only.png'=@((View (Ext ([byte[]](0,3,1,1,0,4)) 2 100 'Office-5G') 1 1 1 4 $cell),396,$true)
+        'link_gsm_only.png'=@((View (Ext ([byte[]](0,3,1,1,0,4)) 2 100 'Office-5G') 1 1 1 4 $cell),306,$false)
     }
     foreach($wide in @($false,$true)){
     # Узкая — как в окне 1296 px при 125 %, широкая — развёрнутое окно.
@@ -115,8 +115,8 @@ try {
         $card.Channels=$cases[$key][0]
         Check ($card.DesignHeight -eq $cases[$key][1]) "$name design height $($card.DesignHeight)"
         $card.Height=[NextConfig.Theme]::ControlPx($card,$card.DesignHeight)
-        # Крупная шкала сотовой — только когда сервер идёт через сотовую; при Wi-Fi подробности открывает строка сотовой.
-        Check ($card.PanelVisible -eq $cases[$key][2]) "$name panel only for cellular"
+        # Крупная шкала — только при одном канале; при двух цифры сотовой в её строке, подробности открывает эта строка.
+        Check ($card.PanelVisible -eq $cases[$key][2]) "$name panel only for a single channel"
         Check (-not $card.MoreArea.IsEmpty -and $card.MoreArea.Bottom -le $card.Height) "$name details area inside"
         $bitmap=New-Object Drawing.Bitmap($card.Width,$card.Height)
         try {
@@ -132,20 +132,19 @@ try {
     $click=New-Object Windows.Forms.MouseEventArgs([Windows.Forms.MouseButtons]::Left,1,20,($row.Top+5),0)
     $card.GetType().GetMethod('OnMouseClick',$flags).Invoke($card,[object[]]@($click.PSObject.BaseObject)) | Out-Null
     Check ($script:more -eq 1) 'cellular row click opens Link'
-    # «Логика: …» в углу — ссылка на выбор Wi-Fi-модема; у карточки с одним каналом ссылки нет.
+    # «Логика: …» с кнопкой «Изменить» в углу — выбор Wi-Fi-модема; у карточки с одним каналом кнопки нет.
     $script:policy=0; $card.add_PolicyClick({ $script:policy++ })
-    $area=$card.PolicyArea
-    Check (-not $area.IsEmpty -and $area.Right -le $card.Width -and $area.Top -eq 0 -and $area.Width -gt [NextConfig.Theme]::ControlPx($card,100)) 'policy link area in the corner'
-    $click=New-Object Windows.Forms.MouseEventArgs([Windows.Forms.MouseButtons]::Left,1,($area.Left+5),($area.Top+5),0)
-    $card.GetType().GetMethod('OnMouseClick',$flags).Invoke($card,[object[]]@($click.PSObject.BaseObject)) | Out-Null
-    Check ($script:policy -eq 1 -and $script:more -eq 1) 'policy click opens Wi-Fi settings, not Link'
+    $button=$card.GetType().GetField('policy',$flags).GetValue($card)
+    Check ($button.Visible -and $button.Text -eq 'Изменить' -and $button.Top -eq 0 -and $button.Right -le $card.Width -and $button.Left -gt ($card.Width/2)) 'policy button in the corner'
+    $button.GetType().GetMethod('OnClick',$flags).Invoke($button,@([EventArgs]::Empty)) | Out-Null
+    Check ($script:policy -eq 1 -and $script:more -eq 1) 'policy button opens Wi-Fi settings, not Link'
     $card.Channels=$cases['link_cellular.png'][0]
-    Check ($card.PolicyArea.IsEmpty) 'single channel card has no policy link'
+    Check (-not $button.Visible) 'single channel card has no policy button'
 
     # 2G: та же крупная шкала, уровень в дБм из CSQ; при «Только GSM» Wi-Fi серый.
     $card.Width=[NextConfig.Theme]::Px(820)
     $card.Signal=[NextConfig.LinkDiag]::SignalView($null,[byte]12,[byte]1)
-    $card.Cell='МегаФон · 2G'; $card.Details="уровень −89 дБм`nкачество в 2G не измеряется"
+    $card.Cell='МегаФон · 2G'; $card.Details='уровень −89 дБм'
     $card.Channels=View (Ext ([byte[]](0,3,1,1,0,4)) 2 100 'Office-5G') 1 1 1 1
     Check ($card.Channels.Rows[1].Name -eq 'Сотовая · 2G' -and $card.Signal.Gsm -and $card.Signal.LevelText -eq 'Средне · −89 дБм') '2G card in dBm'
     $card.Height=[NextConfig.Theme]::ControlPx($card,$card.DesignHeight)

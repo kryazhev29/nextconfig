@@ -72,7 +72,7 @@
 
     Private Sub ReflowOverview()
         Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
-        Theme.ReflowOverview(overview, 60.0F) ' карточке «Связь» в широком окне — больше места, «Устройству» хватает 40 %
+        Theme.ReflowOverview(overview, 57.0F) ' карточке «Связь» в широком окне — больше места; при 60 % время и «Синхронизировать» в «Устройстве» не помещались в строку
         DirectCast(overview.Controls(1), TableLayoutPanel).GetControlFromPosition(0, 0).Dock = DockStyle.Top
     End Sub
 End Class

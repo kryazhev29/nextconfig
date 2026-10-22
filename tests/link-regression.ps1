@@ -248,7 +248,7 @@ try {
     [Windows.Forms.Application]::DoEvents()
     Check ((Field 'linkTimer').Enabled -and (Field 'linkTimer').Interval -eq 2000) 'Link keeps 2 second poll'
     Check ((Field 'linkGauges').Visible -and (Field 'linkPlotCard').Visible -and -not (Field 'linkCsqRow').Visible) 'LTE shows gauges and RSRP graph'
-    Check ([Object]::ReferenceEquals($overview.History, (Field 'linkPlot').History)) 'one history shared by both screens'
+    Check ([Object]::ReferenceEquals((Field 'signalHistory'), (Field 'linkPlot').History)) 'Link graph keeps the polled history'
     $form.Height = 1050
     Snapshot 'link_lte.png'
     (Field 'tabs').SelectedTab = Field 'tabIds'
@@ -261,15 +261,15 @@ try {
         Check (-not $overview.Signal.Lte -and $overview.Signal.LevelText -eq '20 из 31' -and $overview.Signal.Maximum -eq 31) 'v3/timeout silently use status CSQ'
     }
     Display (V4 $online 255 9)
-    Check ($overview.Signal.Lte -and $overview.Details -eq "уровень нет данных`nкачество −9 дБ") 'unknown RSRP keeps LTE card'
+    Check ($overview.Signal.Lte -and $overview.Details -eq 'уровень нет данных · качество −9 дБ') 'unknown RSRP keeps LTE card'
     Display (V4 $online 100 9); Display (V4 $online 255 255)
-    Check ($overview.Details -eq "уровень −100 дБм`nкачество −9 дБ") 'single missed LTE sample holds last values'
+    Check ($overview.Details -eq 'уровень −100 дБм · качество −9 дБ') 'single missed LTE sample holds last values'
     Display $lte
     $status.netType = 1
     Status
     Check (-not $overview.Signal.Lte) '2G status immediately discards cached LTE signal'
     Display $gsm
-    Check ($overview.Details -eq "уровень −73 дБм`nкачество в 2G не измеряется" -and $overview.Signal.Gsm -and $overview.Signal.Bars -eq 5) 'Device 2G in dBm'
+    Check ($overview.Details -eq 'уровень −73 дБм' -and $overview.Signal.Gsm -and $overview.Signal.Bars -eq 5) 'Device 2G in dBm'
     Snapshot 'device_2g.png'
     (Field 'tabs').SelectedTab = Field 'tabLink'
     [Windows.Forms.Application]::DoEvents()

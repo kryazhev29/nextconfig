@@ -196,6 +196,11 @@ Public Module LinkDiag
         Return If(grade < 0, "Сигнал не определён", New String() {"Сигнал слабый", "Сигнал средний", "Сигнал хороший"}(grade))
     End Function
 
+    ' Wi-Fi по уровню моста (WSLQ, %): больше 70 — хорошо, больше 40 — средне; -1 — нет данных.
+    Public Function WifiGrade(level As Integer) As Integer
+        Return If(level < 0, -1, If(level > 70, Good, If(level > 40, Medium, Poor)))
+    End Function
+
     Private Function MetricText(raw As Byte, grade As Integer, unit As String) As String
         If raw = 255 Then Return "Нет данных"
         Return GradeText(grade) & " · −" & raw & " " & unit

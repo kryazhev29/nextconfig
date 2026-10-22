@@ -105,8 +105,8 @@ Public Module LinkChannels
             .Role = If(bridge, "Активный", If(policy = 0, "Не используется", "Основной"))}
         Dim used = bridge OrElse policy <> 0 ' основной канал, который сейчас не везёт сервер, — повод для внимания
         Select Case wifi(1)
-            Case 2 ' одними словами с сотовой: «сервер на связи» — только когда сервер принял плату
-                wifiRow.State = If(Not bridge, "соединение открыто", If(result.Online, "сервер на связи", "соединение открыто, сервер не отвечает"))
+            Case 2 ' активный канал на связи — без второй строки: «на связи» уже сказано в итоге и цепочке
+                wifiRow.State = If(Not bridge, "соединение открыто", If(result.Online, "", "соединение открыто, сервер не отвечает"))
                 wifiRow.Tone = If(bridge AndAlso Not result.Online, eLinkTone.Bad, eLinkTone.Good)
             Case 1
                 wifiRow.State = If(ap = 1, "нет сети Wi-Fi", If(ap = 2, "сеть есть, соединения с сервером нет", "мост отвечает, соединения нет"))
@@ -121,7 +121,7 @@ Public Module LinkChannels
         Dim cellRow As New LinkChannelRow With {.Name = "Сотовая" & If(cell = "", "", " · " & cell), .Active = Not bridge, .Level = -1, .Channel = eLinkChannel.Cellular,
             .Role = If(Not bridge, "Активный", If(policy = 2, "Звонки и SMS", "Резерв"))}
         If Not bridge Then
-            cellRow.State = If(result.Online, "сервер на связи", CellularBreaks(Math.Max(0, Math.Min(3, result.Steps))))
+            cellRow.State = If(result.Online, "", CellularBreaks(Math.Max(0, Math.Min(3, result.Steps))))
             cellRow.Tone = If(result.Online, eLinkTone.Good, eLinkTone.Bad)
         ElseIf gsm = 1 Then
             cellRow.State = "сеть есть" : cellRow.Tone = eLinkTone.Good

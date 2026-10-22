@@ -33,7 +33,7 @@ Partial Public Class Form2
 
     Private Sub ConfigureLinkSection()
         tabLink.BackColor = Theme.WindowBack
-        deviceConnection.History = signalHistory : linkPlot.History = signalHistory
+        linkPlot.History = signalHistory
         AddHandler deviceConnection.More, Sub() tabs.SelectedTab = tabLink
         AddHandler deviceConnection.PolicyClick, Sub() ShowWifiSettings()
         Theme.Value(linkCsq) : Theme.Caption(linkHistoryNote) : Theme.Value(deviceMemory)
@@ -198,13 +198,12 @@ Partial Public Class Form2
         ShowLinkChannels(channels)
         deviceConnection.Cell = LinkDiag.CellText(linkSnapshot, CByte(status.netType))
         ' Две строки: уровень и качество не переносятся посередине числа в узкой карточке.
+        ' Одна строка цифр: качество в 2G не измеряется — об этом говорит страница «Связь».
         Dim rssi = LinkDiag.GsmLevel(status.signal)
         deviceConnection.Details = If(measuring, "уровень измеряется", If(signal.Lte,
-            "уровень " & If(snapshot.Rsrp = 255, "нет данных", "−" & snapshot.Rsrp & " дБм") & vbLf &
+            "уровень " & If(snapshot.Rsrp = 255, "нет данных", "−" & snapshot.Rsrp & " дБм") & " · " &
             "качество " & If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), If(signal.Gsm,
-            "уровень " & If(rssi = 255, "нет данных", "−" & rssi & " дБм") & vbLf &
-            "качество в " & LinkDiag.NetworkText(CByte(status.netType)) & " не измеряется", "CSQ " & signal.LevelText)))
-        deviceConnection.Seconds = linkClock.Elapsed.TotalSeconds
+            "уровень " & If(rssi = 255, "нет данных", "−" & rssi & " дБм"), "CSQ " & signal.LevelText)))
         deviceConnection.Invalidate()
     End Sub
 
