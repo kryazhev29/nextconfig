@@ -770,16 +770,16 @@ Public Module Theme
     End Function
 
     ' Доработка: Кряжев А., 2026. Общая композиция всех экранов и диалогов.
-    Public Sub PasswordField(box As Panel, field As TextBox)
+    Public Sub PasswordField(box As Panel, field As TextBox, Optional what As String = "ПИН-код")
         field.UseSystemPasswordChar = True
         Dim eye As New Button With {.Name = "showPin", .Dock = DockStyle.Right, .Width = Px(34), .FlatStyle = FlatStyle.Flat,
-            .BackColor = Surface, .Cursor = Cursors.Hand, .AccessibleName = "Показать ПИН-код", .TabStop = True}
+            .BackColor = Surface, .Cursor = Cursors.Hand, .AccessibleName = "Показать " & what, .TabStop = True}
         eye.FlatAppearance.BorderSize = 0
         Dim hint As New ToolTip()
-        hint.SetToolTip(eye, "Показать ПИН-код")
+        hint.SetToolTip(eye, "Показать " & what)
         AddHandler eye.Click, Sub(sender, e)
             field.UseSystemPasswordChar = Not field.UseSystemPasswordChar
-            eye.AccessibleName = If(field.UseSystemPasswordChar, "Показать ПИН-код", "Скрыть ПИН-код")
+            eye.AccessibleName = If(field.UseSystemPasswordChar, "Показать " & what, "Скрыть " & what)
             hint.SetToolTip(eye, eye.AccessibleName)
             eye.Invalidate()
         End Sub

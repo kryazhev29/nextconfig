@@ -41,6 +41,27 @@ Public Module Demo
     ' Выбор, «записанный» в демо командой 114: без --demo-link ответ 113 его возвращает.
     Public WifiChoice As Byte() = {0, 0}
 
+    ' Список сетей в демо (команда 115): 255 запускает поиск на 1,5 с, затем страницы по 60 байт — как у платы, но короче,
+    ' чтобы окно выбора сети проходило несколько страниц.
+    Private scanStarted As Long = -1
+    Private ReadOnly scanNetworks As (String, Byte)() = {("Office-5G", 78), ("TP-Link_15CB", 100), ("Office", 70),
+        ("MTS_Router_245888-", 52), ("Cafe Mocha", 47), ("Neighbour 2.4G", 25), ("RT-WiFi_27EB", 6)}
+
+    Public Function WifiScanReply(row As Byte) As Byte()
+        If row = 255 Then scanStarted = linkScenarioClock.ElapsedMilliseconds : Return New Byte() {1}
+        If scanStarted < 0 Then scanStarted = linkScenarioClock.ElapsedMilliseconds
+        If linkScenarioClock.ElapsedMilliseconds - scanStarted < 1500 Then Return New Byte() {1}
+        Dim page As New List(Of Byte) From {0, 255}
+        Dim i = CInt(row)
+        While i < scanNetworks.Length
+            Dim name = Text.Encoding.UTF8.GetBytes(scanNetworks(i).Item1)
+            If page.Count + 2 + name.Length > 60 Then page(1) = CByte(i) : Exit While
+            page.Add(scanNetworks(i).Item2) : page.Add(CByte(name.Length)) : page.AddRange(name)
+            i += 1
+        End While
+        Return page.ToArray()
+    End Function
+
     ' Ответ 113 в демо; без --demo-link Wi-Fi-модем не выбран, сервер через 4G.
     Public Function WifiReply() As Byte()
         Dim arg = Environment.GetCommandLineArgs().FirstOrDefault(Function(a) a.StartsWith("--demo-link="))

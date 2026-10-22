@@ -755,6 +755,53 @@ Partial Public Class clOpros
         End SyncLock
     End Function
 
+    ' Одна страница списка сетей (команда 115): тело [строка], 255 — искать заново. Nothing — ответа нет.
+    Public Function WifiScanPage(row As Byte) As Byte()
+        If Demo.IsOn Then Return Demo.WifiScanReply(row)
+        Dim reply As Byte() = Nothing
+        SyncLock Me
+            _isPause = True
+            Try
+                While _isSending
+                    Thread.Sleep(1)
+                End While
+                Dim rec As Byte() = Nothing
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_WIFI_SCAN, New Byte() {row}), 1500) Then
+                    If rec IsNot Nothing AndAlso rec.Length >= cmdIdx + 4 AndAlso rec(cmdIdx) = eCmd.CMD_WIFI_SCAN Then
+                        reply = rec.Skip(cmdIdx + 1).Take(rec.Length - cmdIdx - 3).ToArray()
+                    End If
+                End If
+            Finally
+                _isPause = False
+            End Try
+        End SyncLock
+        Return reply
+    End Function
+
+    ' Список сетей целиком: поиск заново, ожидание не дольше WifiNetworks.SearchLimitMs, затем страницы до конца.
+    Public Function WifiScan() As WifiScanResult
+        Dim result As New WifiScanResult
+        Dim started = Environment.TickCount, row = 255, misses = 0
+        Do
+            Dim nextRow = 255
+            Dim status = WifiNetworks.ParsePage(WifiScanPage(CByte(row)), result.Networks, nextRow)
+            If status = eWifiScan.NoReply Then
+                misses += 1
+                If misses >= 3 Then result.Status = eWifiScan.NoReply : Return result
+                Thread.Sleep(WifiNetworks.PollMs) : Continue Do
+            End If
+            misses = 0
+            If status = eWifiScan.Ready Then
+                If nextRow = 255 Then result.Status = eWifiScan.Ready : Return result
+                row = nextRow : Continue Do
+            End If
+            If status <> eWifiScan.Searching Then result.Status = status : Return result
+            If Environment.TickCount - started > WifiNetworks.SearchLimitMs Then result.Status = eWifiScan.Timeout : Return result
+            row = 0
+            Thread.Sleep(WifiNetworks.PollMs)
+        Loop
+    End Function
+
     Public Function StartUpdate(ByVal fwI As s_fwinfo) As eCmdAnswer
         If Demo.IsOn Then Return DemoStartUpdate(fwI)
         Dim rez As eCmdAnswer = eCmdAnswer.CMD_UNDEFRESULT

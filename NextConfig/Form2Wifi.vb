@@ -1,14 +1,15 @@
 ﻿' Доработка: Кряжев А., 2026. Локальный выбор Wi-Fi-модема хранится в device платы.
+' Сеть Wi-Fi выбирается из списка, найденного мостом (окно frmWifiPicker, USB 115), и записывается в мост командой 113.
 Imports System.Linq
 Imports System.Text
 Imports System.Threading.Tasks
 Imports System.Windows.Forms
 
 Partial Public Class Form2
-    Private wifiSsid As TextBox, wifiKey As TextBox
     Private wifiModel As ComboBox, wifiPolicy As ComboBox
     Private wifiState As Label, wifiRule As Label
     Private wifiWrite As Button, wifiCheck As Button
+    Private wifiCurrent As WifiRow
     Private wifiBusy As Boolean, wifiLoaded As Boolean, wifiSelected As Boolean
     Private wifiLoading As Boolean, wifiPortBusy As Boolean, wifiStateKnown As Boolean, wifiMisses As Integer
     Private wifiBoardModel As Byte, wifiBoardPolicy As Byte
@@ -68,11 +69,7 @@ Partial Public Class Form2
         wifiPolicy.Items.AddRange({"Только GSM", "GSM, если нет Wi-Fi", "Только Wi-Fi"})
         Theme.Combo(wifiModel, 240) : Theme.Combo(wifiPolicy, 300)
         wifiModel.SelectedIndex = 0 : wifiPolicy.SelectedIndex = 0
-        wifiSsid = New TextBox With {.Name = "wifiSsid", .MaxLength = 32}
-        wifiKey = New TextBox With {.Name = "wifiKey", .MaxLength = 63}
-        Dim ssidBox = Theme.FieldBox(wifiSsid, 240), keyBox = Theme.FieldBox(wifiKey, 240)
-        Theme.PasswordField(keyBox, wifiKey)
-        wifiWrite = New Button With {.Name = "wifiWrite", .Text = "Записать сеть"}
+        wifiWrite = New Button With {.Name = "wifiWrite", .Text = "Выбрать сеть…"}
         wifiCheck = New Button With {.Name = "wifiCheck", .Text = "Обновить статус"}
         For Each button In {wifiWrite, wifiCheck}
             Theme.Secondary(button)
@@ -80,12 +77,21 @@ Partial Public Class Form2
         Next
         AddHandler wifiModel.SelectedIndexChanged, Sub() WifiEdited()
         AddHandler wifiPolicy.SelectedIndexChanged, Sub() WifiEdited()
-        AddHandler wifiWrite.Click, Sub() WifiExchange(1)
-        AddHandler wifiCheck.Click, Sub() WifiExchange(0)
+        AddHandler wifiWrite.Click, Sub() ChooseWifiNetwork()
+        AddHandler wifiCheck.Click, Sub() WifiRefresh()
         Dim choice = Theme.Card("Подключение к серверу",
             OperatorColumns(OperatorField("Wi-Fi-модем", wifiModel), OperatorField("Канал связи с сервером", wifiPolicy), 600),
             OperatorNote("Примените выбор кнопкой «Сохранить изменения» внизу окна. Сервер этот выбор не меняет."))
-        Dim network = OperatorColumns(OperatorField("Название сети (SSID)", ssidBox), OperatorField("Пароль сети", keyBox), 600)
+        ' Текущая сеть моста строкой «как в Windows»: веер уровня, имя, «Подключено»; щелчок открывает выбор сети.
+        wifiCurrent = New WifiRow(New WifiNetwork With {.Name = "Сеть не выбрана", .Level = -1}, False)
+        wifiCurrent.Name = "wifiCurrent"
+        wifiCurrent.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        wifiCurrent.Margin = New Padding(0, 0, 0, Theme.GapRelated)
+        AddHandler wifiCurrent.Click, Sub() ChooseWifiNetwork()
+        Dim network As New TableLayoutPanel With {.Name = "wifiNetwork", .AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            .ColumnCount = 1, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        network.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        network.Controls.Add(wifiCurrent)
         wifiOptions = network
         Dim actions As New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
             .WrapContents = True, .Anchor = AnchorStyles.Left Or AnchorStyles.Right,
@@ -133,12 +139,27 @@ Partial Public Class Form2
         wifiCheck.Enabled = Not wifiBusy
         wifiOptions.Visible = selected
         wifiRule.Visible = selected
+        wifiCurrent.Enabled = wifiWrite.Enabled
         Theme.SetText(wifiSetupHint, If(Not selected, "Выберите Wi-Fi-модем и сохраните изменения, чтобы настроить сеть.",
             If(Not wifiSelected, "Сначала сохраните выбор модема кнопкой «Сохранить изменения» внизу окна.",
-                "«Записать сеть» сразу передаёт сеть и пароль в модем и перезапускает его. Пустой пароль — открытая сеть.")))
-        wifiSsid.Enabled = Not wifiBusy : wifiKey.Enabled = Not wifiBusy
+                "«Выбрать сеть…» показывает сети, которые видит мост; после выбора и ввода пароля мост перезапускается.")))
         If cmbVoLTE IsNot Nothing Then cmbVoLTE.Enabled = Not wifiSelected
     End Sub
+
+    ' Текущая сеть моста из хвоста ответа 113: байт 6 — точка доступа (0 нет данных, 1 нет, 2 есть), 7 — уровень, 8… — имя.
+    Private Sub WifiShowCurrent(reply As Byte())
+        Dim ap = If(reply.Length >= 8, reply(6), CByte(0))
+        Dim name = If(ap = 2 AndAlso reply.Length > 8, Encoding.UTF8.GetString(reply, 8, reply.Length - 8), "")
+        Dim level = If(ap = 2 AndAlso reply(7) <= 100, CInt(reply(7)), -1)
+        wifiCurrent.Network = If(name <> "", New WifiNetwork With {.Name = name, .Level = level, .Connected = True},
+            New WifiNetwork With {.Name = If(ap = 1, "Мост не подключён к сети Wi-Fi", "Сеть не определена"), .Level = -1})
+    End Sub
+
+    Public ReadOnly Property WifiCurrentName As String
+        Get
+            Return If(wifiCurrent.Network.Connected, wifiCurrent.Network.Name, "")
+        End Get
+    End Property
 
     ' Автоопрос обновляет факт работы, но не перетирает несохранённый выбор пользователя.
     Private Sub WifiApplyReply(reply As Byte(), Optional reload As Boolean = False)
@@ -171,6 +192,7 @@ Partial Public Class Form2
             wifiLoading = False
         End If
         wifiLoaded = True
+        WifiShowCurrent(reply)
         Dim text = "Wi-Fi-модем не выбран", dot = Theme.eDot.Idle
         If reply(1) = 4 Then
             text = "Мост не подтвердил выключение" : dot = Theme.eDot.Bad
@@ -216,27 +238,36 @@ Partial Public Class Form2
         WifiControls()
     End Sub
 
-    ' 0 — чтение, 1 — точка доступа.
-    Private Async Sub WifiExchange(action As Integer)
+    ' Окно выбора сети: список от моста, пароль, «Сохранить сеть» → запись в мост командой 113.
+    Private Sub ChooseWifiNetwork()
+        If wifiBusy OrElse busyWithBoard OrElse opros Is Nothing OrElse Not wifiWrite.Enabled Then Return
+        Using picker As New frmWifiPicker(opros, WifiCurrentName, wifiCurrent.Network.Level)
+            If picker.ShowDialog(Me) <> DialogResult.OK Then Return
+            WifiSetup(picker.Ssid, picker.Key)
+        End Using
+    End Sub
+
+    Private Sub WifiRefresh()
+        WifiExchange(Nothing)
+    End Sub
+
+    Private Sub WifiSetup(ssid As String, key As String)
+        Dim name = Encoding.UTF8.GetBytes(ssid), pass = Encoding.UTF8.GetBytes(key)
+        WifiExchange(name.Concat({CByte(0)}).Concat(pass).Concat({CByte(0)}).ToArray())
+    End Sub
+
+    ' Nothing — чтение состояния, иначе тело «SSID\0пароль\0» для записи в мост.
+    Private Async Sub WifiExchange(payload As Byte())
         If wifiBusy OrElse busyWithBoard OrElse opros Is Nothing Then Return
-        Dim payload As Byte() = {}
-        If action = 1 Then
-            Dim ssid = Encoding.UTF8.GetBytes(wifiSsid.Text.Trim()), key = Encoding.UTF8.GetBytes(wifiKey.Text)
-            If ssid.Length = 0 OrElse ssid.Length > 32 OrElse key.Length > 63 OrElse ssid.Contains(CByte(0)) OrElse key.Contains(CByte(0)) Then
-                Theme.DotText(wifiState, Theme.eDot.Bad, "Сеть 1–32 байта, пароль до 63; пустой пароль — открытая сеть")
-                Return
-            End If
-            payload = ssid.Concat({CByte(0)}).Concat(key).Concat({CByte(0)}).ToArray()
-        End If
         wifiBusy = True : WifiControls()
         Try
             Dim reply = Await Task.Run(Function() opros.WifiBridge(payload))
             If IsDisposed Then Return
-            If action = 1 Then
+            If payload IsNot Nothing Then
                 Dim ok = reply IsNot Nothing AndAlso reply.Length >= 2 AndAlso reply(0) = 0
                 Theme.DotText(wifiState, If(ok, Theme.eDot.Idle, Theme.eDot.Bad),
-                    If(ok, "Принято: мост перезапускается, проверка связи через 10–20 с", "Сеть не принята: проверьте поля и повторите запись"))
-                If ok Then wifiKey.Clear()
+                    If(ok, "Сеть принята: мост перезапускается, проверка связи через 10–20 с", "Сеть не принята: мост занят, повторите через несколько секунд"))
+                Notify("Сеть Wi-Fi", If(ok, "сеть записана в мост, мост перезапускается", "мост не принял сеть, повторите"), Not ok)
             Else
                 WifiApplyReply(reply, True)
             End If
