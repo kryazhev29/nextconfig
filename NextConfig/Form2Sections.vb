@@ -69,9 +69,9 @@
         snapshotGrid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
     End Sub
 
+    ' В широком окне «Устройству» — 580 точек: строке времени с «Синхронизировать» хватает, «Связь» берёт остальное.
+    ' Обе карточки одной высоты: Fill по строке сетки, низ на одной линии.
     Private Sub ReflowOverview()
-        Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
-        Theme.ReflowOverview(overview, 57.0F) ' карточке «Связь» в широком окне — больше места; при 60 % время и «Синхронизировать» в «Устройстве» не помещались в строку
-        DirectCast(overview.Controls(1), TableLayoutPanel).GetControlFromPosition(0, 0).Dock = DockStyle.Top
+        Theme.ReflowOverview(DirectCast(tabState.Controls(0), TableLayoutPanel), 580)
     End Sub
 End Class

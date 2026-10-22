@@ -247,24 +247,26 @@ Public Module Theme
     End Sub
 
     ' Блок с белой поверхностью и тонкой границей.
-    ' firstShare — доля первой карточки в широком окне (от 1250 точек), в обычном — пополам.
-    Public Sub ReflowOverview(overview As TableLayoutPanel, Optional firstShare As Single = 50.0F)
+    ' secondWidth — ширина второй карточки в широком окне (от 1250 точек), точки при 100 %; первая берёт остальное.
+    ' 0 — пополам, как в обычном окне.
+    Public Sub ReflowOverview(overview As TableLayoutPanel, Optional secondWidth As Integer = 0)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         Dim cards = grid.Controls.Cast(Of Control)().ToArray()
         Dim narrow = overview.ClientSize.Width < ControlPx(overview, 940)
         Dim gap = ControlPx(overview, 8)
         Dim wanted = If(narrow, 1, 2)
-        Dim share = If(overview.ClientSize.Width >= ControlPx(overview, 1250), firstShare, 50.0F)
+        Dim second = If(secondWidth > 0 AndAlso overview.ClientSize.Width >= ControlPx(overview, 1250), ControlPx(overview, secondWidth), 0)
         If grid.ColumnCount = wanted AndAlso CInt(If(grid.Tag, -1)) = cards.Length Then
-            If wanted = 2 AndAlso grid.ColumnStyles(0).Width <> share Then grid.ColumnStyles(0).Width = share : grid.ColumnStyles(1).Width = 100.0F - share
+            If wanted = 2 Then OverviewColumns(grid, second)
             Return
         End If
         grid.SuspendLayout()
         grid.Controls.Clear() : grid.ColumnStyles.Clear() : grid.RowStyles.Clear()
         grid.ColumnCount = wanted : grid.RowCount = If(narrow, cards.Length, cards.Length - 1)
         For i = 1 To wanted
-            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, If(wanted = 1, 100.0F, If(i = 1, share, 100.0F - share))))
+            grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / wanted))
         Next
+        If wanted = 2 Then OverviewColumns(grid, second)
         For i = 0 To grid.RowCount - 1
             grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         Next
@@ -278,6 +280,14 @@ Public Module Theme
                 If(Not narrow AndAlso i = 0, gap, 0), gap)
         Next
         grid.Tag = cards.Length : grid.ResumeLayout(True)
+    End Sub
+
+    ' Две колонки: вторая заданной ширины (second > 0) или обе пополам. Те же значения не переставляем — вызов из SizeChanged.
+    Private Sub OverviewColumns(grid As TableLayoutPanel, second As Integer)
+        Dim kind = If(second > 0, SizeType.Absolute, SizeType.Percent), width = If(second > 0, CSng(second), 50.0F)
+        If grid.ColumnStyles(1).SizeType = kind AndAlso grid.ColumnStyles(1).Width = width Then Return
+        grid.ColumnStyles(0).SizeType = SizeType.Percent : grid.ColumnStyles(0).Width = If(second > 0, 100.0F, 50.0F)
+        grid.ColumnStyles(1).SizeType = kind : grid.ColumnStyles(1).Width = width
     End Sub
 
     Public Function Card() As Panel

@@ -101,11 +101,11 @@ try {
     $card.Signal=[NextConfig.LinkDiag]::SignalView($cell,26)
     $card.Cell=[NextConfig.LinkDiag]::CellText($cell,4); $card.Details='уровень −95 дБм · качество −9 дБ'
     $cases=[ordered]@{
-        'link_cellular.png'=@((View ([byte[]](0,0,1,0,0,4)) 1 1 1 4 $cell),282,$true)
-        'link_wifi.png'=@((View (Ext ([byte[]](1,2,1,1,1,1)) 2 78 'Office-5G') 1 1 1 4 $cell),306,$false)
-        'link_fallback.png'=@((View ([byte[]](0,3,1,1,1,4,1,255)) 1 1 1 4 $cell),306,$false)
-        'link_wifi_down.png'=@((View ([byte[]](1,1,1,1,2,1)) 1 0 0 4 $cell),350,$false)
-        'link_gsm_only.png'=@((View (Ext ([byte[]](0,3,1,1,0,4)) 2 100 'Office-5G') 1 1 1 4 $cell),306,$false)
+        'link_cellular.png'=@((View ([byte[]](0,0,1,0,0,4)) 1 1 1 4 $cell),304,$true)
+        'link_wifi.png'=@((View (Ext ([byte[]](1,2,1,1,1,1)) 2 78 'Office-5G') 1 1 1 4 $cell),356,$false)
+        'link_fallback.png'=@((View ([byte[]](0,3,1,1,1,4,1,255)) 1 1 1 4 $cell),356,$false)
+        'link_wifi_down.png'=@((View ([byte[]](1,1,1,1,2,1)) 1 0 0 4 $cell),400,$false)
+        'link_gsm_only.png'=@((View (Ext ([byte[]](0,3,1,1,0,4)) 2 100 'Office-5G') 1 1 1 4 $cell),356,$false)
     }
     foreach($wide in @($false,$true)){
     # Узкая — как в окне 1296 px при 125 %, широкая — развёрнутое окно.
@@ -128,7 +128,7 @@ try {
     $card.Channels=$cases['link_wifi.png'][0]; $card.Height=[NextConfig.Theme]::ControlPx($card,$card.DesignHeight)
     $script:more=0; $card.add_More({ $script:more++ })
     $row=$card.MoreArea
-    Check ($row.Top -eq [NextConfig.Theme]::ControlPx($card,136)) 'Wi-Fi active: details open from cellular row'
+    Check ($row.Top -eq [NextConfig.Theme]::ControlPx($card,170)) 'Wi-Fi active: details open from cellular tile'
     $click=New-Object Windows.Forms.MouseEventArgs([Windows.Forms.MouseButtons]::Left,1,20,($row.Top+5),0)
     $card.GetType().GetMethod('OnMouseClick',$flags).Invoke($card,[object[]]@($click.PSObject.BaseObject)) | Out-Null
     Check ($script:more -eq 1) 'cellular row click opens Link'
@@ -170,7 +170,7 @@ try {
     $initial=(Field 'lblMessage').Text
     Reply ([byte[]](1,2,1,1,1,1))
     Check ((Field 'lblHeadLink').Text -eq 'Сервер через Wi-Fi' -and (Field 'lblMessage').Text -eq $initial) 'first answer sets channel silently'
-    Check ((Field 'deviceConnection').Height -eq [NextConfig.Theme]::ControlPx((Field 'deviceConnection'),306)) 'card grows for two channels'
+    Check ((Field 'deviceConnection').Height -eq [NextConfig.Theme]::ControlPx((Field 'deviceConnection'),356)) 'card grows for two channels'
     Reply $null
     Check ((Field 'lblHeadLink').Text -eq 'Сервер через Wi-Fi' -and (Field 'lblMessage').Text -eq $initial) 'missed 113 answer keeps channel'
     Reply ([byte[]](0,0,1,1,1,4))

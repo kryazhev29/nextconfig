@@ -381,15 +381,16 @@ Public Class ConnectionPhases
     End Sub
 End Class
 
-' Карточка «Связь» на странице устройства (22.10.2026): итог крупно; при выбранном Wi-Fi-модеме — строки каналов
-' со значком, ролью и оценкой сигнала словом справа; путь до сервера по активному каналу. Каждое сведение — один раз:
-' «на связи» — в итоге и цепочке; цифры сотовой — второй строкой её канала, отдельная шкала сигнала — только при одном
-' канале. «Логика: …» с кнопкой «Изменить» открывает выбор Wi-Fi-модема; память идентификаторов — в карточке
-' «Устройство». Размеры в точках при 100 %.
+' Карточка «Связь» на странице устройства (22.10.2026): итог крупно; при выбранном Wi-Fi-модеме — каналы плитками
+' (значок, имя, роль, оценка сигнала словом; вторая строка — состояние или цифры сотовой); путь до сервера по активному
+' каналу на всю ширину карточки. Каждое сведение — один раз: «на связи» — в итоге и цепочке; крупная шкала сигнала —
+' только при одном канале. «Логика: …» с кнопкой «Изменить» открывает выбор Wi-Fi-модема. Отступы — шкала оформления
+' (14 между строками, 18 внутри блока, 8 между связанными). Размеры в точках при 100 %.
 Public Class LinkOverview
     Inherits Control
-    Private Const RowsTop As Integer = 82, RowHeight As Integer = 50, RowPitch As Integer = 54
-    Private Const ChainHeight As Integer = 106, ProblemHeight As Integer = 44, PanelHeight As Integer = 90
+    Private Const HeadlineY As Integer = 62, RowsTop As Integer = 100, TileHeight As Integer = 62, TileGap As Integer = 8
+    Private Const ChainGap As Integer = 20, ChainHeight As Integer = 100, ProblemHeight As Integer = 44
+    Private Const PanelGap As Integer = 10, PanelHeight As Integer = 90
     Private ReadOnly nameFont As Font = AppFonts.Create(Theme.FontBody.Size * 1.1F, FontStyle.Regular)
     Private ReadOnly nameBold As Font = AppFonts.Create(Theme.FontBody.Size * 1.1F, FontStyle.Bold)
     Private ReadOnly policy As New Button With {.Name = "linkPolicy", .Text = "Изменить", .Visible = False}
@@ -433,17 +434,18 @@ Public Class LinkOverview
         End Get
     End Property
 
-    ' Крупная шкала сигнала — только при одном канале. При двух те же цифры стоят в строке сотовой: второй раз не повторяем.
+    ' Крупная шкала сигнала — только при одном канале. При двух те же цифры стоят в плитке сотовой: второй раз не повторяем.
     Public ReadOnly Property PanelVisible As Boolean
         Get
             Return Channels.Rows.Length = 0
         End Get
     End Property
 
-    ' Заголовок 30, итог 52, строки каналов по 54 и зазор 6, путь до сервера 106 (с подсказкой 150), шкала 90 (один канал), низ 4.
+    ' Заголовок 28, итог до 82, плитки каналов по 62 через 8, путь до сервера 100 (с подсказкой 144), шкала 90 (один канал).
     Private ReadOnly Property ChainDesign As Integer
         Get
-            Return RowsTop + If(Channels.Rows.Length = 0, 0, RowPitch * Channels.Rows.Length + 6)
+            Dim count = Channels.Rows.Length
+            Return RowsTop + If(count = 0, 0, count * (TileHeight + TileGap) - TileGap + ChainGap)
         End Get
     End Property
 
@@ -455,22 +457,22 @@ Public Class LinkOverview
 
     Public ReadOnly Property DesignHeight As Integer
         Get
-            Return SignalDesign + If(PanelVisible, PanelHeight, 0) + 4
+            Return SignalDesign + If(PanelVisible, PanelGap + PanelHeight, 0) + 4
         End Get
     End Property
 
     Public ReadOnly Property SignalTop As Integer
         Get
-            Return Theme.ControlPx(Me, SignalDesign)
+            Return Theme.ControlPx(Me, SignalDesign + PanelGap)
         End Get
     End Property
 
-    ' Куда нажимать за подробностями сотовой: крупная шкала или, при Wi-Fi, строка сотовой.
+    ' Куда нажимать за подробностями сотовой: крупная шкала или плитка сотовой.
     Public ReadOnly Property MoreArea As Rectangle
         Get
             If PanelVisible Then Return New Rectangle(0, SignalTop, Width, Theme.ControlPx(Me, PanelHeight))
             For i = 0 To Channels.Rows.Length - 1
-                If Channels.Rows(i).Channel = eLinkChannel.Cellular Then Return New Rectangle(0, Theme.ControlPx(Me, RowsTop + RowPitch * i), Width, Theme.ControlPx(Me, RowHeight))
+                If Channels.Rows(i).Channel = eLinkChannel.Cellular Then Return New Rectangle(0, Theme.ControlPx(Me, RowsTop + (TileHeight + TileGap) * i), Width, Theme.ControlPx(Me, TileHeight))
             Next
             Return Rectangle.Empty
         End Get
@@ -534,6 +536,15 @@ Public Class LinkOverview
         OneLine(g, row.Role, Theme.FontCaption, If(row.Active, Color.White, If(used, Theme.Accent, Theme.TextMuted)), pill, True)
     End Sub
 
+    ' Плитка со скруглением, как у карточек: канал — фоном окна, активный — оттенком выбора и тонкой рамкой акцента.
+    Private Sub DrawTile(g As Graphics, tile As Rectangle, active As Boolean)
+        Using path = Theme.RoundedPath(New RectangleF(tile.X + 0.5F, tile.Y + 0.5F, tile.Width - 1.0F, tile.Height - 1.0F), Theme.ControlPx(Me, 10)),
+              fill As New SolidBrush(If(active, Theme.SurfaceHover, Theme.WindowBack)), pen As New Pen(Color.FromArgb(110, Theme.Accent))
+            g.FillPath(fill, path)
+            If active Then g.DrawPath(pen, path)
+        End Using
+    End Sub
+
     Protected Overrides Sub OnPaint(e As PaintEventArgs)
         Dim g = e.Graphics, p = Theme.ControlPx(Me, 4), span = Math.Max(1, Width - 2 * p)
         g.SmoothingMode = SmoothingMode.AntiAlias
@@ -543,7 +554,7 @@ Public Class LinkOverview
             New Rectangle(Theme.ControlPx(Me, 80), 0, Math.Max(1, cornerRight - Theme.ControlPx(Me, 80)), Theme.ControlPx(Me, 28)), ContentAlignment.MiddleRight)
 
         ' Итог: на связи ли сервер и через какой канал.
-        Dim mark = Theme.ControlPx(Me, 15), markY = Theme.ControlPx(Me, 54), headColor = ToneDot(Channels.HeadTone)
+        Dim mark = Theme.ControlPx(Me, 16), markY = Theme.ControlPx(Me, HeadlineY), headColor = ToneDot(Channels.HeadTone)
         Using brush As New SolidBrush(Color.FromArgb(30, headColor))
             g.FillEllipse(brush, p, markY - mark, mark * 2, mark * 2)
         End Using
@@ -552,67 +563,61 @@ Public Class LinkOverview
         Else
             LinkDrawing.DrawLabel(g, If(Channels.HeadTone = eLinkTone.Good, "✓", "·"), Theme.FontValueBig, headColor, New Rectangle(p, markY - mark, mark * 2, mark * 2), ContentAlignment.MiddleCenter)
         End If
-        Dim headLeft = p + mark * 2 + Theme.ControlPx(Me, 10)
+        Dim headLeft = p + mark * 2 + Theme.ControlPx(Me, 12)
         Dim headWidth = Math.Min(Math.Max(1, p + span - headLeft), TextWidth(g, Channels.Headline, Theme.FontValueBig) + Theme.ControlPx(Me, 4))
         OneLine(g, Channels.Headline, Theme.FontValueBig, ToneText(Channels.HeadTone), New Rectangle(headLeft, markY - Theme.ControlPx(Me, 21), headWidth, Theme.ControlPx(Me, 42)))
-        ' Пояснение только целиком: обрезанное «попытка через сот…» хуже, чем никакого (канал виден и по строкам ниже).
+        ' Пояснение только целиком: обрезанное «попытка через сот…» хуже, чем никакого (канал виден и в плитках ниже).
         Dim noteLeft = headLeft + headWidth + Theme.ControlPx(Me, 8), noteWidth = p + span - noteLeft
         If Channels.Note <> "" AndAlso TextWidth(g, Channels.Note, Theme.FontCaption) <= noteWidth Then
             OneLine(g, Channels.Note, Theme.FontCaption, Theme.TextMuted, New Rectangle(noteLeft, markY - Theme.ControlPx(Me, 21), noteWidth, Theme.ControlPx(Me, 42)))
         End If
 
-        ' Каналы: значок с уровнем, имя, роль сразу за именем, оценка сигнала справа; состояние второй строкой.
-        ' Неиспользуемый канал — серым целиком, причина — в строке состояния. Без состояния (активный канал
-        ' без неполадок) строка одна и стоит посередине.
-        Dim top = Theme.ControlPx(Me, RowsTop)
+        ' Каналы плитками: значок с уровнем, имя, роль сразу за именем, оценка сигнала справа; вторая строка — состояние,
+        ' у сотовой на связи — её цифры. Неиспользуемый канал серым, причина — второй строкой. Без второй строки имя посередине.
+        Dim top = Theme.ControlPx(Me, RowsTop), lineHeight = Theme.ControlPx(Me, 24)
         For Each row In Channels.Rows
-            Dim area As New Rectangle(p, top, span, Theme.ControlPx(Me, RowHeight))
-            If row.Active Then
-                Using back As New SolidBrush(Theme.SurfaceHover), accent As New SolidBrush(Theme.Accent)
-                    g.FillRectangle(back, area)
-                    g.FillRectangle(accent, area.Left, area.Top, Theme.ControlPx(Me, 3), area.Height)
-                End Using
-            End If
+            Dim tile As New Rectangle(p, top, span, Theme.ControlPx(Me, TileHeight))
+            DrawTile(g, tile, row.Active)
             Dim muted = Unused(row)
-            Dim icon As New Rectangle(area.Left + Theme.ControlPx(Me, 12), area.Top + Theme.ControlPx(Me, 8), Theme.ControlPx(Me, 24), Theme.ControlPx(Me, 19))
-            If row.Channel = eLinkChannel.Wifi Then
-                LinkDrawing.WifiFan(g, icon, row.Level, muted)
-            Else
-                LinkDrawing.Bars(g, icon, Signal.Bars, Signal.Grade)
-            End If
-            ' Сотовая на связи — второй строкой её цифры («уровень −94 дБм · качество −9 дБ»), а не отдельной шкалой ниже.
             Dim state = row.State, stateColor = ToneText(row.Tone)
             If state = "" AndAlso row.Active AndAlso row.Channel = eLinkChannel.Cellular Then state = Details : stateColor = Theme.TextMuted
-            Dim grade = RowGrade(row), noState = state = "", nameTop = area.Top + Theme.ControlPx(Me, If(noState, 12, 3))
-            Dim value = If(grade < 0, "", LinkDiag.SignalTitle(grade).ToLowerInvariant())
-            Dim rowLeft = area.Left + Theme.ControlPx(Me, 48), rowRight = area.Right - Theme.ControlPx(Me, 10)
-            ' Строка сотовой открывает страницу «Связь»: стрелка — цветом ссылки, оценка — цветом оценки, как у Wi-Fi.
-            Dim arrowWidth = If(row.Channel = eLinkChannel.Cellular, TextWidth(g, "→", Theme.FontBody), 0)
-            If arrowWidth > 0 Then OneLine(g, "→", Theme.FontBody, Theme.Accent, New Rectangle(rowRight - arrowWidth, nameTop, arrowWidth, Theme.ControlPx(Me, 26)))
-            Dim valueRight = rowRight - If(arrowWidth > 0, arrowWidth + Theme.ControlPx(Me, 6), 0)
-            Dim valueWidth = If(value = "", 0, TextWidth(g, value, Theme.FontBody))
-            If value <> "" Then OneLine(g, value, Theme.FontBody, If(muted, Theme.TextMuted, LinkDrawing.GradeTextColor(grade)), New Rectangle(valueRight - valueWidth, nameTop, valueWidth, Theme.ControlPx(Me, 26)))
+            Dim grade = RowGrade(row), noState = state = ""
+            Dim nameTop = tile.Top + Theme.ControlPx(Me, If(noState, 19, 9))
+            Dim icon As New Rectangle(tile.Left + Theme.ControlPx(Me, 16), nameTop + Theme.ControlPx(Me, 3), Theme.ControlPx(Me, 24), Theme.ControlPx(Me, 19))
+            If row.Channel = eLinkChannel.Wifi Then LinkDrawing.WifiFan(g, icon, row.Level, muted) Else LinkDrawing.Bars(g, icon, Signal.Bars, Signal.Grade)
+            Dim rowLeft = tile.Left + Theme.ControlPx(Me, 54), rowRight = tile.Right - Theme.ControlPx(Me, 16)
             Dim rowFont = If(row.Active, nameBold, nameFont), pillWidth = TextWidth(g, row.Role, Theme.FontCaption) + Theme.ControlPx(Me, 18)
+            ' Плитка сотовой открывает страницу «Связь»: стрелка — цветом ссылки, оценка — цветом оценки, как у Wi-Fi.
+            Dim arrowWidth = If(row.Channel = eLinkChannel.Cellular, TextWidth(g, "→", Theme.FontBody), 0)
+            If arrowWidth > 0 Then OneLine(g, "→", Theme.FontBody, Theme.Accent, New Rectangle(rowRight - arrowWidth, nameTop, arrowWidth, lineHeight))
+            Dim valueRight = rowRight - If(arrowWidth > 0, arrowWidth + Theme.ControlPx(Me, 8), 0)
+            Dim value = If(grade < 0, "", LinkDiag.SignalTitle(grade).ToLowerInvariant())
+            ' Узкая плитка: «средний» вместо «сигнал средний» — имя канала важнее.
+            If value <> "" AndAlso rowLeft + TextWidth(g, row.Name, rowFont) + pillWidth + Theme.ControlPx(Me, 22) + TextWidth(g, value, Theme.FontBody) > valueRight Then value = value.Substring(value.IndexOf(" "c) + 1)
+            Dim valueWidth = If(value = "", 0, TextWidth(g, value, Theme.FontBody))
+            If value <> "" Then OneLine(g, value, Theme.FontBody, If(muted, Theme.TextMuted, LinkDrawing.GradeTextColor(grade)), New Rectangle(valueRight - valueWidth, nameTop, valueWidth, lineHeight))
             Dim nameWidth = Math.Max(1, Math.Min(TextWidth(g, row.Name, rowFont),
                 valueRight - valueWidth - Theme.ControlPx(Me, If(value = "", 0, 12)) - pillWidth - Theme.ControlPx(Me, 10) - rowLeft))
-            OneLine(g, row.Name, rowFont, If(muted, Theme.TextMuted, Theme.TextMain), New Rectangle(rowLeft, nameTop, nameWidth, Theme.ControlPx(Me, 26)))
-            DrawRole(g, New Rectangle(rowLeft + nameWidth + Theme.ControlPx(Me, 10), nameTop + Theme.ControlPx(Me, 3), pillWidth, Theme.ControlPx(Me, 20)), row)
-            If Not noState Then OneLine(g, state, Theme.FontBody, stateColor, New Rectangle(rowLeft, area.Top + Theme.ControlPx(Me, 28), Math.Max(1, rowRight - rowLeft), Theme.ControlPx(Me, 20)))
-            top += Theme.ControlPx(Me, RowPitch)
+            OneLine(g, row.Name, rowFont, If(muted, Theme.TextMuted, Theme.TextMain), New Rectangle(rowLeft, nameTop, nameWidth, lineHeight))
+            DrawRole(g, New Rectangle(rowLeft + nameWidth + Theme.ControlPx(Me, 10), nameTop + Theme.ControlPx(Me, 2), pillWidth, Theme.ControlPx(Me, 20)), row)
+            If Not noState Then OneLine(g, state, Theme.FontBody, stateColor, New Rectangle(rowLeft, tile.Top + Theme.ControlPx(Me, 33), Math.Max(1, rowRight - rowLeft), Theme.ControlPx(Me, 20)))
+            top += Theme.ControlPx(Me, TileHeight + TileGap)
         Next
 
-        ' Путь до сервера по активному каналу: крест — место обрыва. Шаг не шире 170 точек и от левого края, как строки выше.
+        ' Путь до сервера на всю ширину: первый кружок — под значками плиток, последний — у правого края; крест — место обрыва.
         Dim chainTop = Theme.ControlPx(Me, ChainDesign), labels = Channels.Labels, count = labels.Length
         OneLine(g, "Путь до сервера" & If(Channels.Via = "", "", " через " & Channels.Via), Theme.FontCaption, Theme.TextMuted, New Rectangle(p, chainTop, span, Theme.ControlPx(Me, 20)))
-        Dim chainSpan = Math.Min(span, Theme.ControlPx(Me, 170) * count), chainLeft = p
+        Dim radius = Theme.ControlPx(Me, 16), y = chainTop + Theme.ControlPx(Me, 50)
+        Dim first = p + Theme.ControlPx(Me, 28), last = p + span - Theme.ControlPx(Me, 28)
+        Dim stepWidth = If(count > 1, (last - first) \ (count - 1), 0)
         For i = 0 To count - 1
-            Dim x = chainLeft + chainSpan * (2 * i + 1) \ (2 * count), y = chainTop + Theme.ControlPx(Me, 50), radius = Theme.ControlPx(Me, 16)
+            Dim x = first + stepWidth * i
             Dim color = If(Steps < 0 OrElse i > Steps, Theme.Idle, If(i < Steps, Theme.Ok, Theme.Danger))
             If i > 0 Then
                 Using pen As New Pen(If(i < Steps, Theme.Ok, If(i = Steps, Theme.Danger, Theme.Border)), Theme.ControlPx(Me, 2))
-                    g.DrawLine(pen, x - chainSpan \ count + radius + Theme.ControlPx(Me, 8), y, x - radius - Theme.ControlPx(Me, 8), y)
+                    g.DrawLine(pen, x - stepWidth + radius + Theme.ControlPx(Me, 8), y, x - radius - Theme.ControlPx(Me, 8), y)
                 End Using
-                If i = Steps Then LinkDrawing.Cross(g, x - chainSpan \ (2 * count), y, Theme.ControlPx(Me, 4), Theme.Danger)
+                If i = Steps Then LinkDrawing.Cross(g, x - stepWidth \ 2, y, Theme.ControlPx(Me, 4), Theme.Danger)
             End If
             Using brush As New SolidBrush(Color.FromArgb(30, color))
                 g.FillEllipse(brush, x - radius, y - radius, radius * 2, radius * 2)
@@ -622,21 +627,22 @@ Public Class LinkOverview
             Else
                 LinkDrawing.DrawLabel(g, If(Steps < 0 OrElse i > Steps, "·", "✓"), Theme.FontGroup, color, New Rectangle(x - radius, y - radius, radius * 2, radius * 2), ContentAlignment.MiddleCenter)
             End If
-            LinkDrawing.DrawLabel(g, labels(i), Theme.FontBody, Theme.TextMain, New Rectangle(x - chainSpan \ (2 * count), chainTop + Theme.ControlPx(Me, 72), chainSpan \ count, Theme.ControlPx(Me, 24)), ContentAlignment.MiddleCenter)
+            ' Подпись — по центру кружка; у краёв карточки сдвигается внутрь.
+            Dim labelWidth = TextWidth(g, labels(i), Theme.FontBody) + Theme.ControlPx(Me, 8)
+            Dim labelLeft = Math.Max(p, Math.Min(p + span - labelWidth, x - labelWidth \ 2))
+            OneLine(g, labels(i), Theme.FontBody, Theme.TextMain, New Rectangle(labelLeft, chainTop + Theme.ControlPx(Me, 72), labelWidth, Theme.ControlPx(Me, 24)), True)
         Next
         LinkDrawing.DrawLabel(g, Problem, Theme.FontBody, If(Steps < 0, Theme.TextMuted, Theme.Danger), New Rectangle(p, chainTop + Theme.ControlPx(Me, 100), span, Theme.ControlPx(Me, 44)))
 
         If PanelVisible Then
+            ' Один канал: крупная шкала той же плиткой. Мини-графика нет — полный график на странице «Связь».
             Dim panel As New Rectangle(p, SignalTop, span, Theme.ControlPx(Me, PanelHeight))
-            Using brush As New SolidBrush(Theme.WindowBack)
-                g.FillRectangle(brush, panel)
-            End Using
-            LinkDrawing.Bars(g, New Rectangle(p + Theme.ControlPx(Me, 12), panel.Top + Theme.ControlPx(Me, 27), Theme.ControlPx(Me, 40), Theme.ControlPx(Me, 38)), Signal.Bars, Signal.Grade)
-            ' Мини-графика нет: без шкалы и времени он ничего не говорит, полный график — на странице «Связь».
-            Dim infoWidth = Math.Max(Theme.ControlPx(Me, 100), span - Theme.ControlPx(Me, 205))
-            OneLine(g, LinkDiag.SignalTitle(Signal.Grade), nameBold, Theme.TextMain, New Rectangle(p + Theme.ControlPx(Me, 66), panel.Top + Theme.ControlPx(Me, 9), infoWidth, Theme.ControlPx(Me, 27)))
-            LinkDrawing.DrawLabel(g, Details, Theme.FontBody, Theme.TextMuted, New Rectangle(p + Theme.ControlPx(Me, 66), panel.Top + Theme.ControlPx(Me, 37), infoWidth, Theme.ControlPx(Me, 46)))
-            LinkDrawing.DrawLabel(g, "Подробнее →", Theme.FontBody, Theme.Accent, New Rectangle(Width - Theme.ControlPx(Me, 136), panel.Top + Theme.ControlPx(Me, 29), Theme.ControlPx(Me, 130), Theme.ControlPx(Me, 32)), ContentAlignment.MiddleRight)
+            DrawTile(g, panel, False)
+            LinkDrawing.Bars(g, New Rectangle(p + Theme.ControlPx(Me, 16), panel.Top + Theme.ControlPx(Me, 26), Theme.ControlPx(Me, 40), Theme.ControlPx(Me, 38)), Signal.Bars, Signal.Grade)
+            Dim infoLeft = p + Theme.ControlPx(Me, 72), infoWidth = Math.Max(Theme.ControlPx(Me, 100), span - Theme.ControlPx(Me, 220))
+            OneLine(g, LinkDiag.SignalTitle(Signal.Grade), nameBold, Theme.TextMain, New Rectangle(infoLeft, panel.Top + Theme.ControlPx(Me, 14), infoWidth, Theme.ControlPx(Me, 26)))
+            LinkDrawing.DrawLabel(g, Details, Theme.FontBody, Theme.TextMuted, New Rectangle(infoLeft, panel.Top + Theme.ControlPx(Me, 42), infoWidth, Theme.ControlPx(Me, 40)))
+            LinkDrawing.DrawLabel(g, "Подробнее →", Theme.FontBody, Theme.Accent, New Rectangle(p + span - Theme.ControlPx(Me, 146), panel.Top + Theme.ControlPx(Me, 29), Theme.ControlPx(Me, 130), Theme.ControlPx(Me, 32)), ContentAlignment.MiddleRight)
         End If
     End Sub
 
