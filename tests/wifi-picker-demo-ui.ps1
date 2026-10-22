@@ -28,7 +28,7 @@ try {
     Start-Sleep -Seconds 2
     Agent click @('Настройки') | Out-Null
     Start-Sleep -Milliseconds 500
-    Agent click @('485 и Wiegand') | Out-Null
+    Agent click @('settingsSection1') | Out-Null   # вкладка «Wi-Fi-модем» по имени кнопки: текст совпадает с заголовком карточки
     Start-Sleep -Seconds 4   # первый ответ 113 демо включает «Выбрать сеть…»
     Snap 'settings-wifi'
     Agent click @('wifiWrite') | Out-Null

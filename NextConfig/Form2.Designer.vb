@@ -474,26 +474,27 @@ Partial Class Form2
         Me.chServer1.AutoSize = True
         Me.chServer1.Name = "chServer1"
         Me.chServer1.Text = "Использовать"
-        Me.chServer1.Font = Theme.FontCaption
-        Me.chServer1.ForeColor = Theme.TextMuted
+        Me.chServer1.Font = Theme.FontBody
+        Me.chServer1.ForeColor = Theme.TextMain
 
         Me.chServer2.AutoSize = True
         Me.chServer2.Name = "chServer2"
         Me.chServer2.Text = "Использовать"
-        Me.chServer2.Font = Theme.FontCaption
-        Me.chServer2.ForeColor = Theme.TextMuted
+        Me.chServer2.Font = Theme.FontBody
+        Me.chServer2.ForeColor = Theme.TextMain
 
         Me.Label21.Name = "Label21"
-        Me.Label21.Text = "Проверить"
+        Me.Label21.Text = "Проверить сервер 1"
         Theme.Secondary(Me.Label21)
         Theme.Small(Me.Label21)
+        Me.Label21.Margin = New System.Windows.Forms.Padding(0)
 
         Me.cmbVoLTE.Name = "cmbVoLTE"
         Me.cmbVoLTE.Items.AddRange(New Object() {"Выключено", "Включено"})
         Theme.Combo(Me.cmbVoLTE, 260)
 
         Me.cmbNetType.Name = "cmbNetType"
-        Me.cmbNetType.Items.AddRange(New Object() {"Авто", "GPRS/EDGE", "3G/4G", "3G", "4G"})
+        Me.cmbNetType.Items.AddRange(New Object() {"Авто", "2G (GPRS/EDGE)", "3G/4G", "3G", "4G"})
         Theme.Combo(Me.cmbNetType, 260)
 
         Me.lblPIN.AutoSize = True
@@ -571,24 +572,12 @@ Partial Class Form2
         Me.tabSettings.Text = "Настройки"
         Me.tabSettings.BackColor = Theme.WindowBack
         Me.tabSettings.AutoScroll = False
-        Dim connectionPage = Page(
-            Theme.SettingsSection("Серверы", "Адреса подключения контроллера",
-                      Row("Адрес сервера 1", Me.boxServer1, Me.Label21),
-                      Note(Me.lblServer1Err), Row("", Me.chServer1),
-                      Row("Адрес сервера 2", Me.boxServer2),
-                      Note(Me.lblServer2Err), Row("", Me.chServer2)),
-            Theme.SettingsSection("Мобильная связь", "",
-                      Row("Точка доступа", Me.boxOperator),
-                      Note(Hint("Пусто — параметры оператора. Иначе: точка доступа, логин, пароль.")),
-                      Row("Разрешённые сети", Me.cmbNetType), Row("VoLTE", Me.cmbVoLTE)))
-        connectionPage.BackColor = Theme.Surface
-        Dim busPage = Page(BuildWifi(), Build485())
-        Dim accessPage = Page(Theme.SettingsSection("Доступ", "Управление ПИН-кодом контроллера", Row("ПИН-код", Me.lblPIN, Me.btnChangePIN)))
-        accessPage.BackColor = Theme.Surface
         Me.serviceRow.Controls.Add(Me.Button1)
         Theme.ServiceActions(Me.serviceRow, Me.Button1)
+        ' Три вкладки одной раскладки: карточки на сером фоне, подпись над полем (Form2Settings.vb, Form2Wifi.vb, Rs485.vb).
         Me.tabSettings.Controls.Add(Theme.SettingsWorkspace(
-            New Control() {connectionPage, busPage, accessPage},
+            New Control() {BuildBasics(), BuildWifi(), Build485()},
+            New String() {"Основные", "Wi-Fi-модем", "RS-485 и Wiegand"},
             Me.btnSave, Me.btnRevert, Me.lblSaveState, Me.btnDefault))
 
         ' ---- вкладка «Идентификаторы» ----
@@ -641,7 +630,7 @@ Partial Class Form2
         Me.tabIds.BackColor = Theme.WindowBack
         Me.tabIds.AutoScroll = True
         Me.tabIds.Controls.Add(Page(
-            Theme.PageHeading("Идентификаторы", "Память контроллера и обслуживание базы доступа"),
+            Theme.PageHeading("Пользователи", "Память идентификаторов и база доступа контроллера"),
             CardBlock("Память идентификаторов",
                       Row("Занято", Me.lblUsedMem),
                       Note(Me.meterMem)),
@@ -890,8 +879,11 @@ Partial Class Form2
         Me.root.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.root.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize))
         Me.root.Dock = System.Windows.Forms.DockStyle.Fill
+        ' Колонка логотипа в шапке равна ширине меню слева: меню теперь по самой длинной подписи.
+        Dim navigation = Theme.MainNavigation(Me.tabs)
+        Me.headRow.ColumnStyles(0).Width = DirectCast(navigation, TableLayoutPanel).ColumnStyles(0).Width
         Me.root.Controls.Add(Me.pnlHead, 0, 0)
-        Me.root.Controls.Add(Theme.MainNavigation(Me.tabs), 0, 1)
+        Me.root.Controls.Add(navigation, 0, 1)
         Me.root.Controls.Add(Me.pnlStatusBar, 0, 2)
 
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None

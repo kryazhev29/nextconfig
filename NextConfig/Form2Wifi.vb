@@ -16,52 +16,8 @@ Partial Public Class Form2
     Private wifiOptions As Control
     Private wifiSetupHint As Label
 
-    ' Поля измеряются по содержимому: фиксированная высота обрезала нижнюю рамку.
-    Private Function OperatorField(title As String, editor As Control) As Control
-        Dim field As New TableLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            .ColumnCount = 1, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, Theme.GapRow)}
-        field.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        field.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        field.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        field.Controls.Add(New Label With {.Text = title, .AutoSize = True, .Font = Theme.FontBody,
-            .ForeColor = Theme.TextMain, .Margin = New Padding(0, 0, 0, Theme.GapLabel)}, 0, 0)
-        editor.Anchor = AnchorStyles.Left Or AnchorStyles.Right
-        editor.Margin = New Padding(0)
-        field.Controls.Add(editor, 0, 1)
-        Return field
-    End Function
-
-    Private Function OperatorNote(text As String) As Label
-        Return New Label With {.Text = text, .AutoSize = True, .Font = Theme.FontCaption,
-            .ForeColor = Theme.TextMuted, .Anchor = AnchorStyles.Left Or AnchorStyles.Right,
-            .Margin = New Padding(0, 0, 0, Theme.GapRelated)}
-    End Function
-
-    Private Function OperatorColumns(left As Control, right As Control, Optional breakpoint As Integer = 760) As Control
-        Dim grid As New TableLayoutPanel With {.Name = "operatorColumns", .AutoSize = True,
-            .AutoSizeMode = AutoSizeMode.GrowAndShrink, .ColumnCount = 2, .RowCount = 1,
-            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
-        grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
-        grid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50))
-        grid.Controls.Add(left, 0, 0) : grid.Controls.Add(right, 1, 0)
-        Dim arrange As EventHandler = Sub()
-            Dim stacked = grid.Width < Theme.ControlPx(grid, breakpoint)
-            Dim column = If(stacked, 0, 1), row = If(stacked, 1, 0)
-            If grid.GetColumn(right) = column AndAlso grid.GetRow(right) = row Then Return
-            grid.SuspendLayout()
-            grid.ColumnStyles(0).Width = If(stacked, 100, 50)
-            grid.ColumnStyles(1).Width = If(stacked, 0, 50)
-            grid.SetCellPosition(right, New TableLayoutPanelCellPosition(column, row))
-            left.Margin = New Padding(0, 0, If(stacked, 0, Theme.GapRelated), Theme.GapRow)
-            right.Margin = New Padding(If(stacked, 0, Theme.GapRelated), 0, 0, Theme.GapRow)
-            grid.ResumeLayout(True)
-        End Sub
-        left.Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRow)
-        right.Margin = New Padding(Theme.GapRelated, 0, 0, Theme.GapRow)
-        AddHandler grid.SizeChanged, arrange
-        Return grid
-    End Function
-
+    ' Вкладка «Wi-Fi-модем»: полоса состояния моста, слева модем и канал связи, справа сеть Wi-Fi.
+    ' Кирпичи раскладки (SettingsField, SettingsColumns, SettingsNote) — в Form2Settings.vb.
     Private Function BuildWifi() As Control
         wifiModel = New ComboBox With {.Name = "wifiModel"}
         wifiModel.Items.AddRange({"Не выбран", "USR-DR164"})
@@ -79,9 +35,11 @@ Partial Public Class Form2
         AddHandler wifiPolicy.SelectedIndexChanged, Sub() WifiEdited()
         AddHandler wifiWrite.Click, Sub() ChooseWifiNetwork()
         AddHandler wifiCheck.Click, Sub() WifiRefresh()
-        Dim choice = Theme.Card("Подключение к серверу",
-            OperatorColumns(OperatorField("Wi-Fi-модем", wifiModel), OperatorField("Канал связи с сервером", wifiPolicy), 600),
-            OperatorNote("Примените выбор кнопкой «Сохранить изменения» внизу окна. Сервер этот выбор не меняет."))
+        wifiRule = SettingsNote("Wi-Fi-модем занимает порт RS-485: камера недоступна, VoLTE выключен. В режиме «Только Wi-Fi» сотовая связь остаётся для звонков.")
+        Dim modem = Theme.Card("Wi-Fi-модем",
+            SettingsColumns(SettingsField("Модем", wifiModel), SettingsField("Канал связи с сервером", wifiPolicy), 600),
+            SettingsNote("Выбор применяется кнопкой «Сохранить изменения» внизу окна. Сервер этот выбор не меняет."),
+            wifiRule)
         ' Текущая сеть моста строкой «как в Windows»: веер уровня, имя, «Подключено»; щелчок открывает выбор сети.
         wifiCurrent = New WifiRow(New WifiNetwork With {.Name = "Сеть не выбрана", .Level = -1}, False)
         wifiCurrent.Name = "wifiCurrent"
@@ -97,31 +55,13 @@ Partial Public Class Form2
             .WrapContents = True, .Anchor = AnchorStyles.Left Or AnchorStyles.Right,
             .Margin = New Padding(0, 0, 0, Theme.GapRelated)}
         actions.Controls.AddRange({wifiWrite, wifiCheck})
-        wifiState = Theme.BusNotice("Состояние моста не запрашивалось", False)
+        wifiState = Theme.Band("Состояние моста не запрашивалось")
         wifiState.Name = "wifiState"
-        wifiState.Font = Theme.FontBody
-        wifiState.ForeColor = Theme.TextMain
-        wifiState.BackColor = Theme.SurfaceHover
-        wifiSetupHint = OperatorNote("")
+        wifiSetupHint = SettingsNote("")
         Dim networkCard = Theme.Card("Сеть Wi-Fi", network, actions, wifiSetupHint)
-        choice.Dock = DockStyle.Fill : networkCard.Dock = DockStyle.Fill
-        wifiRule = OperatorNote("Wi-Fi-модем занимает RS-485: камера недоступна, VoLTE выключен. В режиме «Только Wi-Fi» сотовая связь остаётся для звонков.")
+        modem.Dock = DockStyle.Fill : networkCard.Dock = DockStyle.Fill
         WifiControls()
-        Dim heading As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 2,
-            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, Theme.GapRow)}
-        heading.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Theme.Px(210)))
-        heading.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        heading.Controls.Add(New Label With {.Text = "Wi-Fi-модем", .AutoSize = True, .Font = Theme.FontTitle,
-            .ForeColor = Theme.TextMain, .Anchor = AnchorStyles.Left, .Margin = New Padding(0)}, 0, 0)
-        wifiState.Margin = New Padding(0)
-        heading.Controls.Add(wifiState, 1, 0)
-        Dim section As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .BackColor = Theme.WindowBack,
-            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0, 0, 0, Theme.GapRow)}
-        section.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        section.Controls.Add(heading)
-        section.Controls.Add(OperatorColumns(choice, networkCard))
-        section.Controls.Add(wifiRule)
-        Return section
+        Return Page(wifiState, SettingsColumns(modem, networkCard))
     End Function
 
     Private Sub WifiEdited()
@@ -219,7 +159,7 @@ Partial Public Class Form2
     Private Sub WifiChanges(list As List(Of String))
         If Not WifiDiffers() Then Return
         AddChange(list, "Wi-Fi-модем", CStr(wifiModel.Items(wifiBoardModel)), CStr(wifiModel.SelectedItem))
-        AddChange(list, "Логика работы", CStr(wifiPolicy.Items(wifiBoardPolicy)), CStr(wifiPolicy.SelectedItem))
+        AddChange(list, "Канал связи с сервером", CStr(wifiPolicy.Items(wifiBoardPolicy)), CStr(wifiPolicy.SelectedItem))
     End Sub
 
     Private Function SaveWifiChoice() As Boolean

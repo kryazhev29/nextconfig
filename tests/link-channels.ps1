@@ -30,7 +30,7 @@ Check ($v.Headline -eq 'Нет связи с сервером' -and $v.Note -eq 
 # Сервер через Wi-Fi, сотовая в резерве.
 $v=View ([byte[]](1,2,1,1,1,1)) 1 1 1 4 $cell
 Check ($v.Active -eq [NextConfig.eLinkChannel]::Wifi -and $v.Headline -eq 'На связи через Wi-Fi' -and $v.Header -eq 'Сервер через Wi-Fi') 'Wi-Fi headline'
-Check ($v.Policy -eq 'Логика: GSM, если нет Wi-Fi' -and ($v.Labels -join '|') -eq 'Мост|Сеть Wi-Fi|Сервер' -and $v.Steps -eq 3 -and $v.Problem -eq '') 'Wi-Fi chain'
+Check ($v.Policy -eq 'Канал связи: GSM, если нет Wi-Fi' -and ($v.Labels -join '|') -eq 'Мост|Сеть Wi-Fi|Сервер' -and $v.Steps -eq 3 -and $v.Problem -eq '') 'Wi-Fi chain'
 Check ($v.Rows[0].Name -eq 'Wi-Fi · USR-DR164' -and $v.Rows[0].Role -eq 'Активный' -and $v.Rows[0].Active -and $v.Rows[0].State -eq '' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Good) 'Wi-Fi row active'
 Check ($v.Rows[1].Name -eq 'Сотовая · МегаФон · 4G' -and $v.Rows[1].Role -eq 'Резерв' -and -not $v.Rows[1].Active -and $v.Rows[1].State -eq 'сеть есть') 'cellular row reserve'
 # Главная ложная тревога старой карточки: модем без интернета (112 «Нет интернета», gprs 0), а сервер идёт через мост.
@@ -62,7 +62,7 @@ $v=View ([byte[]](0,0,1,1,1,4)) 1 1 0 4 $null
 Check ($v.Rows[1].State -eq 'сервер не отвечает' -and $v.Rows[1].Tone -eq [NextConfig.eLinkTone]::Bad -and $v.Note -eq 'попытка через 4G') 'active cellular break in row'
 # «Только GSM» при выбранном модеме: мост не используется и не тревожит.
 $v=View ([byte[]](0,3,1,1,0,4)) 1 1 1 4
-Check ($v.Policy -eq 'Логика: только GSM' -and $v.Rows[0].Role -eq 'Не используется' -and $v.Rows[0].State -eq 'выключен: выбрано «Только GSM»' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Muted) 'Wi-Fi not used is grey and names the reason'
+Check ($v.Policy -eq 'Канал связи: только GSM' -and $v.Rows[0].Role -eq 'Не используется' -and $v.Rows[0].State -eq 'выключен: выбрано «Только GSM»' -and $v.Rows[0].Tone -eq [NextConfig.eLinkTone]::Muted) 'Wi-Fi not used is grey and names the reason'
 Check ((View ([byte[]](0,0,1,1,0,4))).Rows[0].Tone -eq [NextConfig.eLinkTone]::Muted) 'unused silent bridge is grey'
 Check ((View ([byte[]](0,4,1,0,0,4))).Rows.Length -eq 0) 'deselected modem shows one channel'
 Check ((View ([byte[]](0,4,1,1,0,4))).Rows[0].Tone -eq [NextConfig.eLinkTone]::Bad) 'bridge shutdown without ACK is red'
@@ -132,7 +132,7 @@ try {
     $click=New-Object Windows.Forms.MouseEventArgs([Windows.Forms.MouseButtons]::Left,1,20,($row.Top+5),0)
     $card.GetType().GetMethod('OnMouseClick',$flags).Invoke($card,[object[]]@($click.PSObject.BaseObject)) | Out-Null
     Check ($script:more -eq 1) 'cellular row click opens Link'
-    # «Логика: …» с кнопкой «Изменить» в углу — выбор Wi-Fi-модема; у карточки с одним каналом кнопки нет.
+    # «Канал связи: …» с кнопкой «Изменить» в углу — выбор Wi-Fi-модема; у карточки с одним каналом кнопки нет.
     $script:policy=0; $card.add_PolicyClick({ $script:policy++ })
     $button=$card.GetType().GetField('policy',$flags).GetValue($card)
     Check ($button.Visible -and $button.Text -eq 'Изменить' -and $button.Top -eq 0 -and $button.Right -le $card.Width -and $button.Left -gt ($card.Width/2)) 'policy button in the corner'

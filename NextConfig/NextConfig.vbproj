@@ -124,6 +124,7 @@
     </Compile>
     <Compile Include="Form2Sections.vb" />
     <Compile Include="Form2Link.vb" />
+    <Compile Include="Form2Settings.vb" />
     <Compile Include="Form2Wifi.vb" />
     <Compile Include="WifiNetworks.vb" />
     <Compile Include="frmWifiPicker.vb"><SubType>Form</SubType></Compile>

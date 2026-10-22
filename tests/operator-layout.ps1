@@ -44,7 +44,7 @@ function LayoutCheck($parent){
             }else{[NextConfig.Theme]::Px(65)}
             Check ($control.Width -ge $minimum) "field too narrow: $($control.Name) $($control.GetType().Name) $($control.Width) < $minimum"
         }
-        if($parent.Name -eq 'operatorColumns'){
+        if($parent.Name -eq 'settingsColumns'){
             Check ($control.Right -le $parent.ClientSize.Width) 'card overflows columns'
         }
         LayoutCheck $control
@@ -68,9 +68,12 @@ try {
     Call 'Load485' | Out-Null
     $form.ShowInTaskbar=$false;$form.Opacity=0;$form.Show()
     (Field 'tabs').SelectedTab=Field 'tabSettings'
-    (Field 'tabSettings').Controls.Find('settingsSection1',$true)[0].PerformClick()
-    $page=(Field 'wifiModel').Parent
-    while($page.Parent -and $page.Dock -ne [Windows.Forms.DockStyle]::Top){$page=$page.Parent}
+    # С 23.10.2026 Wi-Fi-модем и RS-485 — разные вкладки настроек (settingsSection1 и settingsSection2):
+    # каждая проверяется на своей странице, видимость таблицы 485 — только при открытой вкладке RS-485.
+    $wifiTab=(Field 'tabSettings').Controls.Find('settingsSection1',$true)[0]
+    $busTab=(Field 'tabSettings').Controls.Find('settingsSection2',$true)[0]
+    function PageOf($control){$page=$control.Parent;while($page.Parent -and $page.Dock -ne [Windows.Forms.DockStyle]::Top){$page=$page.Parent};$page}
+    $wifiPage=PageOf (Field 'wifiModel');$busPage=PageOf (Field 'mode485')
     foreach($width in @(1920,1280,$form.MinimumSize.Width)){
         $form.Size=New-Object Drawing.Size($width,1000)
         foreach($mode in @('gsm','wifi','none','unsupported')){
@@ -80,23 +83,22 @@ try {
                 'none' {Reply ([byte[]](0,0,1,0,0,4))}
                 'unsupported' {Reply ([byte[]](0,0))}
             }
-            [Windows.Forms.Application]::DoEvents()
-            LayoutCheck $page
+            $wifiTab.PerformClick();[Windows.Forms.Application]::DoEvents()
+            LayoutCheck $wifiPage
+            if($mode -in @('gsm','wifi')){Check ((Field 'wifiWrite').Enabled) 'saved bridge can receive network'}
+            if($mode -eq 'none'){Check (-not (Field 'wifiOptions').Visible -and -not (Field 'wifiWrite').Enabled) 'no modem cannot write network'}
+            if($mode -eq 'unsupported'){Check (-not (Field 'wifiModel').Enabled -and -not (Field 'wifiWrite').Enabled) 'legacy firmware cannot write Wi-Fi'}
+            Snapshot $wifiPage "wifi-$mode-$width"
+            if($mode -eq 'gsm'){Snapshot (Field 'tabSettings') "viewport-$width"}
+            $busTab.PerformClick();[Windows.Forms.Application]::DoEvents()
+            LayoutCheck $busPage
             Check ((Field 'wiegand485').Enabled) 'Wiegand stays available'
             if($mode -in @('gsm','wifi')){
                 Check (-not (Field 'mode485').Enabled -and -not (Field 'baud485').Enabled) 'bridge owns RS-485'
                 Check (-not (Field 'deviceTable485').Visible) 'bridge hides unused peripheral table'
-                Check ((Field 'wifiWrite').Enabled) 'saved bridge can receive network'
             }
-            if($mode -eq 'none'){
-                Check ((Field 'deviceTable485').Visible) 'peripherals available without bridge'
-                Check (-not (Field 'wifiOptions').Visible -and -not (Field 'wifiWrite').Enabled) 'no modem cannot write network'
-            }
-            if($mode -eq 'unsupported'){
-                Check (-not (Field 'wifiModel').Enabled -and -not (Field 'wifiWrite').Enabled) 'legacy firmware cannot write Wi-Fi'
-            }
-            Snapshot $page "$mode-$width"
-            if($mode -eq 'gsm'){Snapshot (Field 'tabSettings') "viewport-$width"}
+            if($mode -eq 'none'){Check ((Field 'deviceTable485').Visible) 'peripherals available without bridge'}
+            Snapshot $busPage "bus-$mode-$width"
         }
     }
     "PASS: $script:checks layout/state checks, DPI $($form.DeviceDpi), scale $([NextConfig.Theme]::Px(100))%; 1920/1280/minimum $($form.MinimumSize.Width) px; no COM"

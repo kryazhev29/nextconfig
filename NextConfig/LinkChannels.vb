@@ -98,7 +98,7 @@ Public Module LinkChannels
         If Not selected Then Return result
 
         Dim policy = If(local, CInt(wifi(4)), -1)
-        If policy >= 0 Then result.Policy = "Логика: " & Policies(policy)
+        If policy >= 0 Then result.Policy = "Канал связи: " & Policies(policy)
         Dim cell = LinkDiag.CellText(snapshot, network, False) ' диапазон — в подробностях: в строке канала не помещается
         Dim wifiRow As New LinkChannelRow With {.Channel = eLinkChannel.Wifi, .Active = bridge, .Level = level,
             .Name = If(ssid <> "", "Wi-Fi · " & ssid, If(local, "Wi-Fi · USR-DR164", "Wi-Fi-мост")),

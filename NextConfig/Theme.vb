@@ -672,31 +672,32 @@ Public Module Theme
 
     ' Доработка: Кряжев А., 2026. Общие стили панели наладки.
     ' Доработка: Кряжев А., 2026. Разделы сохраняют свои поля при переключении.
-    Public Function SettingsWorkspace(pages As Control(), save As Button, revert As Button, state As Label, Optional defaults As Button = Nothing) As Control
-        Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .ColumnCount = 1, .RowCount = 2, .BackColor = Surface}
-        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-        shell.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        Dim body As New TableLayoutPanel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .ColumnCount = 1, .RowCount = 2}
-        body.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        body.RowStyles.Add(New RowStyle(SizeType.Absolute, Px(64)))
-        body.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
-        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .WrapContents = False,
-            .Margin = New Padding(0), .Padding = New Padding(Px(12), Px(12), Px(12), 0), .BackColor = WindowBack}
+    ' Подразделы — кнопки по ширине подписи. Верх и низ закреплены Dock-ом: таблица с процентной строкой
+    ' не ужимала страницу при уменьшении окна и выталкивала кнопки сохранения за край.
+    Public Function SettingsWorkspace(pages As Control(), titles As String(), save As Button, revert As Button, state As Label, Optional defaults As Button = Nothing) As Control
+        Dim shell As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .BackColor = WindowBack}
+        Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Top, .Height = Px(64), .FlowDirection = FlowDirection.LeftToRight,
+            .WrapContents = False, .Margin = New Padding(0), .Padding = New Padding(Px(12), Px(12), Px(12), 0), .BackColor = WindowBack}
+        AddHandler nav.Paint, Sub(sender, e)
+            Using pen As New Pen(Border)
+                e.Graphics.DrawLine(pen, 0, nav.Height - 1, nav.Width, nav.Height - 1)
+            End Using
+        End Sub
         Dim hosts As New List(Of Panel)
         Dim links As New List(Of Button)
-        Dim content As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0)}
-        Dim titles = New String() {"Связь", "485 и Wiegand", "Доступ"}
+        Dim content As New Panel With {.Dock = DockStyle.Fill, .Margin = New Padding(0), .BackColor = WindowBack}
         For i = 0 To pages.Length - 1
             Dim index = i
             Dim host As New Panel With {.Name = "settingsPage" & i, .Dock = DockStyle.Fill,
-                .AutoScroll = True, .Visible = False, .BackColor = pages(i).BackColor}
+                .AutoScroll = True, .Visible = False, .BackColor = WindowBack}
             host.Controls.Add(pages(i))
             hosts.Add(host)
             content.Controls.Add(host)
-            Dim link As New Button With {.Text = titles(i), .Name = "settingsSection" & i, .Size = New Size(Px(150), Px(42)),
-                .FlatStyle = FlatStyle.Flat, .TextAlign = ContentAlignment.MiddleLeft, .Padding = New Padding(Px(10), 0, 0, 0),
-                .Font = FontBody, .Margin = New Padding(0, 0, 0, Px(4)), .Cursor = Cursors.Hand, .UseVisualStyleBackColor = False}
+            ' Ширина по жирному начертанию выбранного раздела: кнопка не прыгает при выборе.
+            Dim link As New Button With {.Text = titles(i), .Name = "settingsSection" & i,
+                .Size = New Size(Math.Max(Px(120), TextRenderer.MeasureText(titles(i), FontBodyBold).Width + Px(32)), Px(42)),
+                .FlatStyle = FlatStyle.Flat, .TextAlign = ContentAlignment.MiddleCenter, .Padding = New Padding(0),
+                .Font = FontBody, .Margin = New Padding(0, 0, Px(4), Px(4)), .Cursor = Cursors.Hand, .UseVisualStyleBackColor = False}
             link.FlatAppearance.BorderSize = 0
             link.FlatAppearance.MouseOverBackColor = SurfaceHover
             AddHandler link.Paint, AddressOf PaintButton
@@ -706,7 +707,6 @@ Public Module Theme
             link.Tag = New Action(Sub()
                 content.SuspendLayout()
                 hosts(index).BringToFront()
-                content.BackColor = hosts(index).BackColor
                 For j = 0 To hosts.Count - 1
                     If j <> index Then hosts(j).Visible = False
                     links(j).BackColor = If(j = index, SurfaceHover, WindowBack)
@@ -718,9 +718,8 @@ Public Module Theme
             End Sub)
             AddHandler link.Click, Sub() DirectCast(link.Tag, Action).Invoke()
         Next
-        body.Controls.Add(nav, 0, 0)
-        body.Controls.Add(content, 0, 1)
-        Dim footer As New TableLayoutPanel With {.Dock = DockStyle.Fill, .AutoSize = True, .ColumnCount = 2, .Margin = New Padding(0), .Padding = New Padding(GapSection, GapRelated, GapSection, GapRelated)}
+        Dim footer As New TableLayoutPanel With {.Dock = DockStyle.Bottom, .AutoSize = True, .ColumnCount = 2, .Margin = New Padding(0),
+            .Padding = New Padding(GapSection, GapRelated, GapSection, GapRelated), .BackColor = Surface}
         footer.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         footer.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
         AddHandler footer.Paint, Sub(sender, e)
@@ -749,24 +748,22 @@ Public Module Theme
         actions.Controls.Add(save)
         footer.Controls.Add(summary, 0, 0)
         footer.Controls.Add(actions, 1, 0)
-        shell.Controls.Add(body, 0, 0)
-        shell.Controls.Add(footer, 0, 1)
+        shell.Controls.Add(content)
+        shell.Controls.Add(nav)
+        shell.Controls.Add(footer)
+        content.BringToFront()
         ' Начальный раздел задаём до показа формы.
         DirectCast(links(0).Tag, Action).Invoke()
         Return shell
     End Function
 
-    Public Function SettingsSection(title As String, description As String, ParamArray controls As Control()) As Control
-        Dim section As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0), .BackColor = Surface}
-        section.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        section.Controls.Add(New Label With {.Text = title, .AutoSize = True, .Font = FontTitle, .ForeColor = TextMain, .Margin = New Padding(0, 0, 0, GapLabel)})
-        If description <> "" Then
-        section.Controls.Add(New Label With {.Text = description, .AutoSize = True, .Font = FontCaption, .ForeColor = TextMuted, .Margin = New Padding(0, 0, 0, GapBlock)})
-        End If
-        For Each control In controls
-            section.Controls.Add(control)
-        Next
-        Return section
+    ' Полоса на всю ширину страницы или карточки: состояние моста, занятость порта RS-485,
+    ' пояснение страницы, итог поиска сетей. Один вид для всех.
+    Public Function Band(text As String) As Label
+        Return New Label With {.Text = text, .AutoSize = True, .Font = FontBody, .ForeColor = TextMain,
+            .BackColor = SurfaceHover, .Padding = New Padding(Px(12), Px(10), Px(12), Px(10)),
+            .Margin = New Padding(0, 0, 0, GapRow), .MaximumSize = New Size(0, 0),
+            .Anchor = AnchorStyles.Left Or AnchorStyles.Right}
     End Function
 
     ' Доработка: Кряжев А., 2026. Общая композиция всех экранов и диалогов.
@@ -1058,9 +1055,15 @@ Public Module Theme
     End Function
 
     ' Одно меню для NEXT, старой прошивки и загрузчика. Карточки остаются на своих TabPage.
+    ' Ширина меню — по самой длинной подписи жирным: при 100 % «Пользователи» резалось до «Пользовате…».
     Public Function MainNavigation(tabs As TabControl) As Control
+        Dim longest = 0
+        For Each page As TabPage In tabs.TabPages
+            longest = Math.Max(longest, TextRenderer.MeasureText(page.Text, FontBodyBold).Width)
+        Next
+        Dim linkWidth = Math.Max(Px(160), longest + Px(40) + Px(12))
         Dim shell As New TableLayoutPanel With {.Dock = DockStyle.Fill, .ColumnCount = 2, .RowCount = 1, .Margin = New Padding(0)}
-        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, Px(176)))
+        shell.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, linkWidth + Px(16)))
         shell.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         shell.RowStyles.Add(New RowStyle(SizeType.Percent, 100))
         Dim nav As New FlowLayoutPanel With {.Dock = DockStyle.Fill, .FlowDirection = FlowDirection.TopDown,
@@ -1070,7 +1073,7 @@ Public Module Theme
         For i = 0 To tabs.TabPages.Count - 1
             Dim index = i
             Dim link As New Button With {.Text = tabs.TabPages(i).Text, .Name = "mainSection" & i, .FlatStyle = FlatStyle.Flat,
-                .Font = FontBody, .Height = Px(46), .Width = Px(160), .TextAlign = ContentAlignment.MiddleLeft,
+                .Font = FontBody, .Height = Px(46), .Width = linkWidth, .TextAlign = ContentAlignment.MiddleLeft,
                 .Padding = New Padding(Px(40), 0, Px(8), 0), .Margin = New Padding(0, 0, 0, Px(4)),
                 .BackColor = Surface, .ForeColor = TextMuted, .Cursor = Cursors.Hand}
             link.FlatAppearance.BorderSize = 0
@@ -1175,14 +1178,6 @@ Public Module Theme
         editor.Anchor = AnchorStyles.Left Or AnchorStyles.Right
         editor.Margin = New Padding(Px(8), Px(4), Px(12), Px(4))
     End Sub
-
-    Public Function BusNotice(text As String, warning As Boolean) As Label
-        Return New Label With {.Text = If(warning, "!  ", "ℹ  ") & text, .AutoSize = True,
-            .Font = FontCaption, .ForeColor = If(warning, Theme.Warning, TextMuted),
-            .BackColor = If(warning, Color.FromArgb(255, 248, 231), Color.FromArgb(239, 245, 253)), .Padding = New Padding(Px(10)),
-            .Margin = New Padding(0, 0, 0, GapRelated), .MaximumSize = New Size(0, 0),
-            .Anchor = AnchorStyles.Left Or AnchorStyles.Right}
-    End Function
 
     Public Sub BusStatus(label As Label, responds As Boolean, configured As Boolean)
         SetText(label, If(Not configured, "—", If(responds, "● Отвечает", "○ Не отвечает")))

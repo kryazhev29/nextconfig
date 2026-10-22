@@ -35,7 +35,8 @@ try {
     $hosts=@($busHost.Parent.Controls)
     $tabs.SelectedTab=$settings
     Check (-not $busHost.Visible) 'settings initially opens Connection, not RS-485'
-    Call 'ShowSettingsSection' @(1) | Out-Null
+    # С 23.10.2026 таблица RS-485 — на третьей вкладке (settingsSection2), Wi-Fi-модем — на второй.
+    Call 'ShowSettingsSection' @(2) | Out-Null
     Check (-not (Field 'deviceTable485').Visible) 'no peripheral table before first Wi-Fi reply'
     Check (-not (Field 'mode485').Enabled) 'unknown port ownership disables RS-485 editing'
     Reply $null
@@ -51,7 +52,7 @@ try {
     $settings.remove_VisibleChanged($entry)
     Check (-not $script:busAtEntry) 'direct Access navigation never exposes previous RS-485 section'
     Check (@($hosts | Where-Object Visible).Count -eq 1) 'one settings host visible'
-    Call 'ShowSettingsSection' @(1) | Out-Null
+    Call 'ShowSettingsSection' @(2) | Out-Null
     Reply ([byte[]](0,0,1,0,0,4))
     Check ((Field 'deviceTable485').Visible -and (Field 'mode485').Enabled) 'no modem shows configured peripherals'
     Check ((Field 'hint485').Visible) 'address hint follows confirmed free port'
@@ -75,7 +76,7 @@ try {
             }
         }
     }
-    Call 'ShowSettingsSection' @(1) | Out-Null
+    Call 'ShowSettingsSection' @(2) | Out-Null
     Reply ([byte[]](0,0))
     Check ((Field 'deviceTable485').Visible -and (Field 'mode485').Enabled) 'legacy reply keeps RS-485 usable'
     Check (-not (Field 'wifiModel').Enabled) 'legacy reply cannot edit Wi-Fi model'

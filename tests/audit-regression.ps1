@@ -89,7 +89,7 @@ try {
     $f.GetType().GetField('config',$flags).SetValue($f,$config)
     $changes = (Invoke $f 'ChangeList') -join ' '
     Check ($changes -notmatch '0123|4567|demo-secret|apn,user') 'confirmation contains no credentials'
-    Check ($changes.Contains('ПИН') -and $changes.Contains('Точка')) 'masked changes still listed'
+    Check ($changes.Contains('ПИН') -and $changes.Contains('APN')) 'masked changes still listed'
     Invoke $f 'ConfirmConfigSnapshot'
     Check ($f.ConfirmedPin -eq '4567') 'successful change refreshes reconnect PIN'
     Check ($f.GetType().GetField('pinCode',$flags).GetValue($f) -eq $config.pin) 'next PIN dialog receives confirmed PIN bits'

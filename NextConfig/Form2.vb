@@ -790,7 +790,7 @@ Public Class Form2
     Private Function ValidateFields() As Boolean
         If System.Text.Encoding.UTF8.GetByteCount(txtOperator.Text.Trim()) > 31 Then
             ShowSettingsSection(0)
-            Notify("Точка доступа", "Точка доступа, логин и пароль вместе должны занимать не более 31 байта UTF-8.", True)
+            Notify("APN", "APN, логин и пароль вместе должны занимать не более 31 байта UTF-8.", True)
             txtOperator.Focus()
             Return False
         End If
@@ -839,7 +839,7 @@ Public Class Form2
         AddChange(list, "Использовать сервер 1", YesNo(onBoard.useServer1), YesNo(config.useServer1))
         AddChange(list, "Адрес сервера 2", onBoard.server2, config.server2)
         AddChange(list, "Использовать сервер 2", YesNo(onBoard.useserver2), YesNo(config.useserver2))
-        If onBoard.opType <> config.opType Then list.Add("• Точка доступа: параметры изменены (скрыто)")
+        If onBoard.opType <> config.opType Then list.Add("• APN: изменён (скрыто)")
         AddChange(list, "Тип сети", opros.NetTypeToString(onBoard.netType), opros.NetTypeToString(config.netType))
         AddChange(list, "VoLTE", OnOff(onBoard.VoLTE), OnOff(config.VoLTE))
         If onBoard.pin <> config.pin Then list.Add("• ПИН-код: изменён (скрыто)")

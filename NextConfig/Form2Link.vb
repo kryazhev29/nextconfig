@@ -207,7 +207,7 @@ Partial Public Class Form2
         deviceConnection.Invalidate()
     End Sub
 
-    ' «Логика: …» на карточке «Связь»: выбор Wi-Fi-модема — первый блок раздела «485 и Wiegand».
+    ' «Канал связи: …» на карточке «Связь»: выбор Wi-Fi-модема — вкладка «Wi-Fi-модем» в настройках.
     Private Sub ShowWifiSettings()
         ShowSettingsSection(1)
         Dim host = wifiModel.Parent

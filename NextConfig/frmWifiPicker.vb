@@ -40,8 +40,8 @@ Public Class frmWifiPicker
         nameField = Theme.FieldBox(nameBox, 320)
         keyField = Theme.FieldBox(keyBox, 320)
         Theme.PasswordField(DirectCast(keyField, Panel), keyBox, "пароль")
-        state = Theme.BusNotice("", False)
-        state.Name = "wifiScanState" : state.Font = Theme.FontBody : state.ForeColor = Theme.TextMain : state.BackColor = Theme.SurfaceHover
+        state = Theme.Band("")
+        state.Name = "wifiScanState"
         Build()
         AddHandler Shown, Sub() StartScan()
     End Sub

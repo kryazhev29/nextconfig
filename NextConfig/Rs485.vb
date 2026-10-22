@@ -89,7 +89,7 @@ Partial Public Class Form2
         mode485.Items.Add(New IndexedName(1, "Активный"))
         AddHandler mode485.SelectedIndexChanged, AddressOf Changed485
         baud485 = Combo485("baud") : wiegand485 = Combo485("wiegand")
-        Dim options = OperatorColumns(OperatorField("Режим работы", mode485), OperatorField("Скорость, бод", baud485), 400)
+        Dim options = SettingsColumns(SettingsField("Режим работы", mode485), SettingsField("Скорость, бод", baud485), 400)
 
         Dim devices As New TableLayoutPanel
         Theme.BusTable(devices)
@@ -126,20 +126,17 @@ Partial Public Class Form2
         AddHandler type485(0).SizeChanged, sizeRows
         AddHandler devices.DpiChangedAfterParent, sizeRows
         sizeRows(devices, EventArgs.Empty)
-        warning485 = Theme.BusNotice("На порту RS-485 работает одно устройство: камера или Wi-Fi-модем", True)
-        Dim serverNote = OperatorNote("Параметры RS-485 и Wiegand задаёт сервер. При подключении локальные значения заменятся серверными.")
-        hint485 = Hint("Адрес в списке должен совпадать с адресом, заданным в самом устройстве.")
+        warning485 = Theme.Band("На порту RS-485 работает одно устройство: камера или Wi-Fi-модем")
+        warning485.Name = "warning485"
+        hint485 = SettingsNote("Адрес в списке должен совпадать с адресом, заданным в самом устройстве.")
         Dim bus = Theme.Card("Порт RS-485", options, warning485, devices, hint485)
-        Dim reader = Theme.Card("Считыватель Wiegand", OperatorField("Формат считывателя", wiegand485),
-            OperatorNote("Отдельный вход для считывателя. Доступен и при подключённом Wi-Fi-модеме."))
-        Dim section As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .BackColor = Theme.WindowBack,
-            .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
-        section.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        section.Controls.Add(serverNote)
-        section.Controls.Add(OperatorColumns(bus, reader, 1080))
+        Dim reader = Theme.Card("Считыватель Wiegand", SettingsField("Формат считывателя", wiegand485),
+            SettingsNote("Отдельный вход для считывателя. Доступен и при подключённом Wi-Fi-модеме."))
+        ' Серверная природа этих параметров — полосой над карточками, как состояние моста на вкладке Wi-Fi.
+        Dim serverNote = Theme.Band("Параметры RS-485 и Wiegand задаёт сервер. При подключении локальные значения заменятся серверными.")
+        serverNote.Name = "note485"
         Update485State()
-        Return section
-
+        Return Page(serverNote, SettingsColumns(bus, reader, 1080))
     End Function
     Private Sub Changed485(sender As Object, e As EventArgs)
         If updatingFields OrElse warning485 Is Nothing Then Return
@@ -160,8 +157,7 @@ Partial Public Class Form2
         Theme.SetText(warning485, If(Not wifiStateKnown, "Проверяем, чем занят порт RS-485…",
             If(wifiPortBusy, "Порт 485 занят Wi-Fi-модемом, камера отключена",
             "На порту RS-485 работает одно устройство: камера или Wi-Fi-модем")))
-        Theme.SetColor(warning485, If(Not wifiStateKnown OrElse wifiPortBusy, Theme.TextMuted, Theme.Danger))
-        warning485.BackColor = Theme.WindowBack
+        Theme.SetColor(warning485, If(Not wifiStateKnown OrElse wifiPortBusy, Theme.TextMain, Theme.Danger))
         deviceTable485.Visible = wifiStateKnown AndAlso Not wifiPortBusy
         hint485.Visible = wifiStateKnown AndAlso Not wifiPortBusy
         warning485.Visible = Not wifiStateKnown OrElse wifiPortBusy OrElse (camera AndAlso count > 1)
@@ -193,10 +189,13 @@ Partial Public Class Form2
         config.periph1 = p(0) : config.periph2 = p(1) : config.periph3 = p(2) : config.periph4 = p(3)
         config.periph5 = p(4) : config.periph6 = p(5) : config.periph7 = p(6) : config.periph8 = p(7)
     End Sub
+    Private Function ModeName485(mode As Byte) As String
+        Return If(mode = 1, "Активный", If(mode = 0, "Пассивный", mode.ToString()))
+    End Function
     Private Sub Changes485(list As List(Of String))
-        AddChange(list, "Режим 485", onBoard.rs485Mode.ToString(), config.rs485Mode.ToString())
-        AddChange(list, "Скорость 485", names485.Name("baud", onBoard.rs485Baud), names485.Name("baud", config.rs485Baud))
-        AddChange(list, "Тип Wiegand", names485.Name("wiegand", onBoard.wiegandType), names485.Name("wiegand", config.wiegandType))
+        AddChange(list, "Режим RS-485", ModeName485(onBoard.rs485Mode), ModeName485(config.rs485Mode))
+        AddChange(list, "Скорость RS-485", names485.Name("baud", onBoard.rs485Baud), names485.Name("baud", config.rs485Baud))
+        AddChange(list, "Формат считывателя Wiegand", names485.Name("wiegand", onBoard.wiegandType), names485.Name("wiegand", config.wiegandType))
         Dim old = Peripherals(onBoard), current = Peripherals(config)
         For i = 0 To 7
             AddChange(list, "Устройство " & (i + 1) & " адрес", old(i).rs485Adr.ToString(), current(i).rs485Adr.ToString())

@@ -285,7 +285,7 @@ Partial Public Class clOpros
             Case eNetType._4G
                 Return "4G"
             Case eNetType._GPRS_EDGE
-                Return "GPRS/EDGE"
+                Return "2G (GPRS/EDGE)"
             Case eNetType._Авто
                 Return "Авто"
         End Select

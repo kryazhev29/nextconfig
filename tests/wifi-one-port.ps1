@@ -61,7 +61,7 @@ try {
     Check (Call 'WifiDiffers') 'only GSM is a pending change'
     $list=New-Object 'System.Collections.Generic.List[string]'
     Call 'WifiChanges' $list | Out-Null
-    Check ($list.Count -eq 1 -and $list[0] -eq '• Логика работы: GSM, если нет Wi-Fi → Только GSM') 'confirmation lists the logic change'
+    Check ($list.Count -eq 1 -and $list[0] -eq '• Канал связи с сервером: GSM, если нет Wi-Fi → Только GSM') 'confirmation lists the logic change'
     Reply $form ([byte[]](1,2,1,1,1,1))
     Check ((Field $form 'wifiPolicy').SelectedIndex -eq 0 -and (Call 'WifiDiffers')) 'poll keeps the pending change'
     Call 'RevertWifi' | Out-Null

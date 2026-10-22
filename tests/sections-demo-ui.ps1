@@ -55,8 +55,8 @@ try {
             & "$PSScriptRoot\ui_scroll_target.ps1" -DemoPid $p.Id -Direction 6 | Out-Null
         }
         if($section -eq 'Настройки' -and $Mode -ne '--demo:oldfw48') {
-            foreach($sub in @('Связь','Доступ','485 и Wiegand')) {
-                Click $sub -Last;$subName='settings-'+(@{'Связь'='connection';'Доступ'='access';'485 и Wiegand'='bus'}[$sub]);Snap $subName
+            foreach($sub in @('Основные','Wi-Fi-модем','RS-485 и Wiegand')) {
+                Click $sub -Last;$subName='settings-'+(@{'Основные'='basics';'Wi-Fi-модем'='wifi';'RS-485 и Wiegand'='bus'}[$sub]);Snap $subName
                 & "$PSScriptRoot\ui_scroll_target.ps1" -DemoPid $p.Id | Out-Null;Snap ($subName+'-lower')
                 & "$PSScriptRoot\ui_scroll_target.ps1" -DemoPid $p.Id -Direction 6 | Out-Null
             }
