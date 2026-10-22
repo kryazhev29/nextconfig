@@ -10,7 +10,7 @@ Partial Public Class Form2
     Private wifiState As Label, wifiRule As Label
     Private wifiWrite As Button, wifiCheck As Button
     Private wifiBusy As Boolean, wifiLoaded As Boolean, wifiSelected As Boolean
-    Private wifiLoading As Boolean, wifiPortBusy As Boolean, wifiStateKnown As Boolean
+    Private wifiLoading As Boolean, wifiPortBusy As Boolean, wifiStateKnown As Boolean, wifiMisses As Integer
     Private wifiBoardModel As Byte, wifiBoardPolicy As Byte
     Private wifiOptions As Control
     Private wifiSetupHint As Label
@@ -144,10 +144,17 @@ Partial Public Class Form2
     Private Sub WifiApplyReply(reply As Byte(), Optional reload As Boolean = False)
         If reply Is Nothing OrElse reply.Length < 2 Then
             Theme.DotText(wifiState, Theme.eDot.Bad, "Плата не ответила на запрос состояния Wi-Fi")
+            ' Прошивка без команды 113 (до 19.10.2026) не ответит никогда: после двух пропусков порт RS-485 считаем
+            ' свободным, как до выбора Wi-Fi. Один пропуск — ещё не старая прошивка, раскладка не дёргается.
+            wifiMisses += 1
+            If Not wifiStateKnown AndAlso wifiMisses >= 2 Then
+                wifiStateKnown = True
+                If warning485 IsNot Nothing Then Update485State()
+            End If
             Return
         End If
         linkWifi = reply
-        wifiStateKnown = True
+        wifiStateKnown = True : wifiMisses = 0
         If StatusIsFresh() Then UpdateDeviceSignal()
         If reply.Length < 6 OrElse reply(2) <> 1 OrElse reply(3) > 1 OrElse reply(4) > 2 Then
             wifiLoaded = False : WifiControls()

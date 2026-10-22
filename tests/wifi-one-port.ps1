@@ -19,6 +19,12 @@ try {
     $form.GetType().GetField('lastStatus',$flags).SetValue($form,[DateTime]::Now)
     function Link { (Field $form 'deviceConnection').Channels }
     Check (-not (Field $form 'wifiModel').Enabled) 'no editing before protocol capability'
+    # Прошивка без команды 113 (до 19.10.2026) не отвечает: таблица RS-485 не должна ждать ответа вечно.
+    Check (-not (Field $form 'mode485').Enabled -and (Field $form 'warning485').Text -eq 'Проверяем, чем занят порт RS-485…') 'RS-485 waits for the first Wi-Fi answer'
+    Reply $form $null
+    Check (-not (Field $form 'mode485').Enabled) 'one missed 113 answer keeps RS-485 waiting'
+    Reply $form $null
+    Check ((Field $form 'mode485').Enabled -and (Field $form 'warning485').Text -ne 'Проверяем, чем занят порт RS-485…') 'two missed 113 answers (old firmware) free RS-485 table'
     Reply $form ([byte[]](0,0))
     Check (-not (Field $form 'wifiModel').Enabled) 'legacy reply cannot enable local Wi-Fi'
     Reply $form ([byte[]](0,0,1,0,0,4))
