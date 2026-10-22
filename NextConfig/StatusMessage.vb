@@ -43,7 +43,14 @@ Public Class StatusMessage
                                  End Sub
     End Sub
 
+    ' Строка как в образце Алексея (почтовая программа, 22.10.2026): «дата, время: операция - итог».
     ' Многострочный текст собирается в одну строку; полный текст - в подсказке при наведении.
+    Public Shared Function Line(title As String, text As String, time As DateTime) As String
+        Dim body = String.Join(" ", text.Split({vbCr, vbLf}, StringSplitOptions.RemoveEmptyEntries).Select(Function(s) s.Trim()))
+        Return time.ToString("dd.MM.yyyy, HH:mm:ss", Globalization.CultureInfo.InvariantCulture) & ": " &
+            If(String.IsNullOrEmpty(title), "", title & " - ") & body
+    End Function
+
     Public Sub Show(title As String, text As String, Optional isError As Boolean = False)
         If bar.IsDisposed Then Return
         If bar.InvokeRequired Then
@@ -51,8 +58,7 @@ Public Class StatusMessage
             Return
         End If
         AgentLog.Message(title, text, False)
-        Dim line = String.Join(" ", text.Split({vbCr, vbLf}, StringSplitOptions.RemoveEmptyEntries).Select(Function(s) s.Trim()))
-        message.Text = DateTime.Now.ToString("HH:mm") & "   " & line
+        message.Text = Line(title, text, DateTime.Now)
         tip.SetToolTip(message, text)
         failed = isError
         timer.Stop()
