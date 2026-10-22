@@ -4,6 +4,13 @@ param([string]$AssemblyPath='', [string]$Output='',
 $ErrorActionPreference='Stop'
 if(-not $AssemblyPath){$AssemblyPath=Join-Path $PSScriptRoot '..\NextConfig\bin\OperatorReview\NextConfig.exe'}
 if(-not $Output){$Output=Join-Path $PSScriptRoot '..\artifacts\operator-review'}
+# Theme.Px берёт масштаб с экрана (150 % → 1,5), а DeviceDpi формы в PowerShell остаётся 96: WinForms без своего
+# app.config высокий DPI не включает, и ControlPx расходится с Px (колонки не складывались, поля сжимались до 33 px).
+# Один масштаб даёт --demo-dpi: без него тест перезапускает себя при 100 %; 125 % — вызов с --demo --demo-dpi=120.
+if(-not ($DemoArgs -match '^--demo-dpi=')){
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -AssemblyPath $AssemblyPath -Output $Output --demo --demo-dpi=96
+    exit $LASTEXITCODE
+}
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
