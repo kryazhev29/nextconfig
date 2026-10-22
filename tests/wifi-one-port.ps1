@@ -11,24 +11,34 @@ function Reply($f,[byte[]]$bytes,[bool]$reload=$false){$f.GetType().GetMethod('W
 $poller=[Runtime.Serialization.FormatterServices]::GetUninitializedObject([NextConfig.clOpros])
 $form=New-Object NextConfig.Form2($poller,'OFFLINE','000000000000000',0)
 try {
+    # Свежий статус «на связи»: ответ 113 сразу перерисовывает карточку «Связь» и шапку (22.10.2026).
+    $status=New-Object 'NextConfig.clOpros+s_status'
+    $status.gsm=1; $status.gprs=1; $status.connectToServer=1; $status.netType=4
+    $form.GetType().GetField('status',$flags).SetValue($form,$status)
+    $form.GetType().GetField('lastStatus',$flags).SetValue($form,[DateTime]::Now)
+    function Link { (Field $form 'deviceConnection').Channels }
     Check (-not (Field $form 'wifiSave').Enabled) 'no editing before protocol capability'
     Reply $form ([byte[]](0,0))
     Check (-not (Field $form 'wifiModel').Enabled) 'legacy reply cannot enable local Wi-Fi'
     Reply $form ([byte[]](0,0,1,0,0,4))
     Check ((Field $form 'wifiModel').SelectedIndex -eq 0) 'default is no modem'
     Check ((Field $form 'wifiPolicy').SelectedIndex -eq 0) 'default only GSM'
-    Check ((Field $form 'wifiChannel').Text -eq 'Связь: 4G') 'actual cellular generation'
+    Check ((Field $form 'lblHeadLink').Text -eq 'Сервер через 4G' -and (Link).Rows.Length -eq 0) 'actual cellular generation, one channel'
     Reply $form ([byte[]](1,2,1,1,1,1)) $true
     Check ((Field $form 'wifiModel').SelectedIndex -eq 1) 'read local model'
     Check ((Field $form 'wifiPolicy').SelectedIndex -eq 1) 'read local fallback logic'
     Check ((Field $form 'warning485').Text -eq 'Порт 485 занят Wi-Fi-модемом, камера отключена') 'exclusive port explanation'
     Check (-not (Field $form 'mode485').Enabled) 'server table does not own selected port'
     Check (-not (Field $form 'cmbVoLTE').Enabled) 'effective VoLTE forced off'
-    Check ((Field $form 'wifiChannel').Text -eq 'Связь: Wi-Fi') 'Wi-Fi status'
+    Check ((Field $form 'lblHeadLink').Text -eq 'Сервер через Wi-Fi' -and (Link).Headline -eq 'На связи через Wi-Fi') 'Wi-Fi status'
+    Check ((Link).Rows[0].Role -eq 'Активный' -and (Link).Rows[1].Role -eq 'Резерв') 'Wi-Fi active, cellular reserve'
+    Check ((Field $form 'lblMessage').Text -match ': Связь - переключение с сотовой сети на Wi-Fi$') 'switch to Wi-Fi in status line'
     (Field $form 'wifiPolicy').SelectedIndex=2
+    $status.netType=1; $form.GetType().GetField('status',$flags).SetValue($form,$status)
     Reply $form ([byte[]](0,0,1,1,1,2))
     Check ((Field $form 'wifiPolicy').SelectedIndex -eq 2) 'poll preserves unsaved choice'
-    Check ((Field $form 'wifiChannel').Text -eq 'Связь: 2G') 'GSM fallback generation'
+    Check ((Field $form 'lblHeadLink').Text -eq 'Сервер через 2G' -and (Link).Rows[0].Role -eq 'Основной' -and (Link).Rows[0].Tone -eq [NextConfig.eLinkTone]::Bad) 'GSM fallback generation'
+    Check ((Field $form 'lblMessage').Text -match ': Связь - переключение с Wi-Fi на сотовую сеть 2G$') 'switch to cellular in status line'
     Check ((Field $form 'wifiState').ForeColor -eq [NextConfig.Theme]::Danger) 'bridge fault red'
     Reply $form ([byte[]](0,3,1,1,0,4)) $true
     Check ((Field $form 'wifiState').Text.Contains('только GSM')) 'disabled bridge state'

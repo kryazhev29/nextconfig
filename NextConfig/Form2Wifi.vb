@@ -12,7 +12,6 @@ Partial Public Class Form2
     Private wifiBusy As Boolean, wifiLoaded As Boolean, wifiSelected As Boolean
     Private wifiLoading As Boolean, wifiPortBusy As Boolean
     Private wifiOptions As Control
-    Private ReadOnly wifiChannel As New Label With {.Name = "wifiChannel", .AutoSize = True, .Text = "Связь: нет данных"}
 
     Private Function BuildWifi() As Control
         wifiModel = New ComboBox With {.Name = "wifiModel"}
@@ -76,13 +75,13 @@ Partial Public Class Form2
     ' Автоопрос обновляет факт работы, но не перетирает несохранённый выбор пользователя.
     Private Sub WifiApplyReply(reply As Byte(), Optional reload As Boolean = False)
         If reply Is Nothing OrElse reply.Length < 2 Then
-            Theme.DotText(wifiChannel, Theme.eDot.Idle, "Связь: нет свежих данных")
             Theme.DotText(wifiState, Theme.eDot.Bad, "Плата не ответила на запрос состояния Wi-Fi")
             Return
         End If
+        linkWifi = reply
+        If StatusIsFresh() Then UpdateDeviceSignal()
         If reply.Length < 6 OrElse reply(2) <> 1 OrElse reply(3) > 1 OrElse reply(4) > 2 Then
             wifiLoaded = False : WifiControls()
-            Theme.DotText(wifiChannel, Theme.eDot.Idle, If(reply(0) <> 0, "Связь: через Wi-Fi", "Связь: через GSM"))
             Theme.DotText(wifiState, Theme.eDot.Idle, "Прошивка не поддерживает локальный выбор Wi-Fi-модема")
             Return
         End If
@@ -94,8 +93,6 @@ Partial Public Class Form2
             wifiLoading = False
         End If
         wifiLoaded = True
-        Dim channel = If(reply(5) = 1, "Wi-Fi", If(reply(5) = 2, "2G", If(reply(5) = 4, "4G", "нет данных")))
-        Theme.DotText(wifiChannel, If(reply(5) = 0, Theme.eDot.Idle, Theme.eDot.Good), "Связь: " & channel)
         Dim text = "Wi-Fi-модем не выбран", dot = Theme.eDot.Idle
         If reply(1) = 4 Then
             text = "Мост не подтвердил выключение" : dot = Theme.eDot.Bad

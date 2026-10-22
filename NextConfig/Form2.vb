@@ -179,11 +179,8 @@ Public Class Form2
             lblSig.Text = "Нет свежих данных" : pbSig.Value = 0
             If linkSnapshot IsNot Nothing Then DisplayLink(Nothing)
             deviceConnection.Signal = LinkDiag.SignalView(Nothing, 99)
-            deviceConnection.Steps = -1 : deviceConnection.Problem = "Нет свежих данных"
             deviceConnection.Cell = "" : deviceConnection.Details = "Нет свежих данных"
-            deviceConnection.Height = Theme.ControlPx(deviceConnection, 299)
-            deviceConnection.Invalidate()
-            Theme.DotText(wifiChannel, Theme.eDot.Idle, "Связь: нет свежих данных")
+            ResetLinkChannels()
             lblNet.Text = "—"
             Status485()
         End If

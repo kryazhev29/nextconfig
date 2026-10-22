@@ -13,6 +13,8 @@ Imports System.Threading
 '   NextConfig.exe --demo:oldfw     новая прошивка под старым загрузчиком (шаг 2 перевода)
 '   NextConfig.exe --demo:oldfw48   старая прошивка v5 (чтение и перевод)
 '   NextConfig.exe --demo:two       две платы NEXT: на связи и без сети
+'   --demo-link=wifi | fallback | switch   вместе с --demo: сервер через Wi-Fi (сотовая в резерве),
+'                       мост не отвечает и сервер через 4G, смена канала каждые 40 с (событие в строке состояния)
 Public Enum eDemoMode
     Off = 0
     Found = 1
@@ -33,6 +35,20 @@ Public Module Demo
 
 
     Public ReadOnly Mode As eDemoMode = ParseArgs()
+
+    Private ReadOnly linkScenarioClock As Diagnostics.Stopwatch = Diagnostics.Stopwatch.StartNew()
+
+    ' Ответ 113 в демо; без --demo-link Wi-Fi-модем не выбран, сервер через 4G.
+    Public Function WifiReply() As Byte()
+        Dim arg = Environment.GetCommandLineArgs().FirstOrDefault(Function(a) a.StartsWith("--demo-link="))
+        Dim scenario = If(arg Is Nothing, "", arg.Substring(12))
+        If scenario = "switch" Then scenario = If((linkScenarioClock.ElapsedMilliseconds \ 40000) Mod 2 = 0, "wifi", "fallback")
+        Select Case scenario
+            Case "wifi" : Return New Byte() {1, 2, 1, 1, 1, 1}
+            Case "fallback" : Return New Byte() {0, 0, 1, 1, 1, 4}
+            Case Else : Return New Byte() {0, 0, 1, 0, 0, 4}
+        End Select
+    End Function
 
     Public ReadOnly Property IsOn As Boolean
         Get

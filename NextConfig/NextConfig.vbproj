@@ -129,6 +129,7 @@
     <Compile Include="PinFormat.vb" />
     <Compile Include="LinkDiag.vb" />
     <Compile Include="LinkGraphics.vb" />
+    <Compile Include="LinkChannels.vb" />
     <Compile Include="ConfigSnapshot.vb" />
     <Compile Include="Form2.vb">
       <SubType>Form</SubType>

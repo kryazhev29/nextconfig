@@ -173,6 +173,10 @@ Partial Public Class Form2
         UpdateLinkCountdown()
     End Sub
 
+    ' Канал сервера (Wi-Fi или сотовая) из последнего ответа 113: один сорвавшийся опрос не переключает карточку.
+    Private linkWifi As Byte()
+    Private lastChannels As LinkChannelView
+
     Private Sub UpdateDeviceSignal()
         Dim snapshot = If(status.netType = clOpros.eNetType._4G, linkSnapshot, Nothing)
         Dim measuring = status.netType = clOpros.eNetType._4G AndAlso Not linkTried
@@ -180,16 +184,30 @@ Partial Public Class Form2
         Theme.SetText(lblSig, signal.LevelText)
         pbSig.Maximum = signal.Maximum : pbSig.Value = signal.Value
         deviceConnection.Signal = signal
-        deviceConnection.Steps = LinkDiag.ConnectionSteps(linkSnapshot, status.gsm, status.gprs, status.connectToServer)
-        deviceConnection.Problem = LinkDiag.ConnectionProblem(linkSnapshot, deviceConnection.Steps)
-        deviceConnection.Height = Theme.ControlPx(deviceConnection, If(deviceConnection.Problem = "", 255, 299))
+        Dim channels = LinkChannels.View(linkWifi, linkSnapshot, status.gsm, status.gprs, status.connectToServer, CByte(status.netType))
+        Dim switched = LinkChannels.SwitchText(lastChannels, channels)
+        lastChannels = channels
+        If switched <> "" Then Notify("Связь", switched)
+        ShowLinkChannels(channels)
         deviceConnection.Cell = LinkDiag.CellText(linkSnapshot, CByte(status.netType))
-        deviceConnection.NetworkLabel = If(status.netType = 0, "Сеть", "Сеть " & LinkDiag.NetworkText(CByte(status.netType)))
         ' Две строки: уровень и качество не переносятся посередине числа в узкой карточке.
         deviceConnection.Details = If(measuring, "уровень измеряется", If(signal.Lte,
             "уровень " & If(snapshot.Rsrp = 255, "нет данных", "−" & snapshot.Rsrp & " дБм") & vbLf &
             "качество " & If(snapshot.Rsrq = 255, "нет данных", "−" & snapshot.Rsrq & " дБ"), "CSQ " & signal.LevelText))
         deviceConnection.MemoryUsed = status.usedMem : deviceConnection.Seconds = linkClock.Elapsed.TotalSeconds
+        deviceConnection.Invalidate()
+    End Sub
+
+    Private Sub ShowLinkChannels(channels As LinkChannelView)
+        deviceConnection.Channels = channels
+        deviceConnection.Height = Theme.ControlPx(deviceConnection, deviceConnection.DesignHeight)
+        Theme.SetText(lblHeadLink, channels.Header)
+    End Sub
+
+    ' Статус устарел: канал неизвестен, после возврата данных смена канала не объявляется.
+    Private Sub ResetLinkChannels()
+        linkWifi = Nothing : lastChannels = Nothing
+        ShowLinkChannels(LinkChannels.Stale())
         deviceConnection.Invalidate()
     End Sub
 

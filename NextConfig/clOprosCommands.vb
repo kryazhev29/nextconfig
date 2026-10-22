@@ -711,7 +711,7 @@ Partial Public Class clOpros
     ' Ответ два байта: после записи — код (0 принято, 1 занято, 2 неверные данные);
     ' при запросе — канал сервера через мост (0/1) и связь (0 нет точки, 1 точка есть, 2 TCP открыт). Nothing — ответа нет.
     Public Function WifiBridge(ByVal payload As Byte()) As Byte()
-        If Demo.IsOn Then Return New Byte() {0, 0, 1, 0, 0, 4}
+        If Demo.IsOn Then Return Demo.WifiReply()
         Dim reply As Byte() = Nothing
         SyncLock Me
             _isPause = True

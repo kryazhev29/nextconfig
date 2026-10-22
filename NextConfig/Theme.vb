@@ -286,7 +286,7 @@ Public Module Theme
         Return p
     End Function
 
-    Private Function RoundedPath(bounds As RectangleF, radius As Single) As GraphicsPath
+    Public Function RoundedPath(bounds As RectangleF, radius As Single) As GraphicsPath
         Dim path As New GraphicsPath()
         Dim diameter = Math.Min(radius * 2, Math.Min(bounds.Width, bounds.Height))
         path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90)

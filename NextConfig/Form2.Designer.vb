@@ -33,6 +33,7 @@ Partial Class Form2
         Me.lblIMEI = New System.Windows.Forms.Label()
         Me.headVersions = New System.Windows.Forms.FlowLayoutPanel()
         Me.lblHeadModel = New System.Windows.Forms.Label()
+        Me.lblHeadLink = New System.Windows.Forms.Label()
         Me.lblHeadHW = New System.Windows.Forms.Label()
         Me.lblHeadFW = New System.Windows.Forms.Label()
         Me.lblHeadBoot = New System.Windows.Forms.Label()
@@ -210,7 +211,13 @@ Partial Class Form2
         Me.lblHeadBoot.Margin = New System.Windows.Forms.Padding(0)
         Theme.Caption(Me.lblHeadBoot)
 
-        For Each detail As Label In New Label() {Me.lblHeadModel, Me.lblHeadHW, Me.lblHeadFW, Me.lblHeadBoot}
+        ' Канал сервера рядом с версиями: виден на любой вкладке (22.10.2026).
+        Me.lblHeadLink.AutoSize = True
+        Me.lblHeadLink.Name = "lblHeadLink"
+        Me.lblHeadLink.Text = "Сервер: нет данных"
+        Theme.Caption(Me.lblHeadLink)
+
+        For Each detail As Label In New Label() {Me.lblHeadModel, Me.lblHeadHW, Me.lblHeadFW, Me.lblHeadBoot, Me.lblHeadLink}
             detail.Padding = New Padding(Theme.Px(9), Theme.Px(4), Theme.Px(9), Theme.Px(4))
             detail.Margin = New Padding(0)
             detail.ForeColor = Theme.BrandMuted
@@ -223,7 +230,7 @@ Partial Class Form2
         Me.headVersions.Dock = DockStyle.Top
         Me.headVersions.BackColor = Color.Transparent
         Me.headVersions.Margin = New Padding(0, Theme.Px(8), 0, 0)
-        For Each detail As Label In New Label() {Me.lblHeadModel, Me.lblHeadHW, Me.lblHeadFW, Me.lblHeadBoot}
+        For Each detail As Label In New Label() {Me.lblHeadModel, Me.lblHeadHW, Me.lblHeadFW, Me.lblHeadBoot, Me.lblHeadLink}
             Dim chip As New TableLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 .ColumnCount = 1, .RowCount = 1, .Margin = New Padding(0, 0, Theme.Px(6), Theme.Px(4))}
             Theme.HeaderPill(chip)
@@ -435,7 +442,7 @@ Partial Class Form2
         Me.tabState.BackColor = Theme.WindowBack
         Me.tabState.AutoScroll = True
         Me.tabState.Controls.Add(Theme.Overview(New Control() {
-            CardBlock("", Me.wifiChannel, Me.deviceConnection),
+            CardBlock("", Me.deviceConnection),
             CardBlock("Устройство",
                       CompactRow("Модуль связи", Me.lblModuleType, Me.Label19),
                       CompactRow("Версия платы", Me.lblHW),
@@ -1046,6 +1053,7 @@ Partial Class Form2
     Friend WithEvents lblIMEI As Label
     Friend WithEvents headVersions As FlowLayoutPanel
     Friend WithEvents lblHeadModel As Label
+    Friend WithEvents lblHeadLink As Label
     Friend WithEvents lblHeadHW As Label
     Friend WithEvents lblHeadFW As Label
     Friend WithEvents lblHeadBoot As Label

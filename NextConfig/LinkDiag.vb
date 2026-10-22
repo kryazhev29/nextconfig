@@ -225,7 +225,7 @@ Public Module LinkDiag
         Return "полоса " & New String() {"1,4", "3", "5", "10", "15", "20"}(bandwidth) & " МГц"
     End Function
 
-    Public Function CellText(snapshot As LinkSnapshot, Optional network As Byte = 0) As String
+    Public Function CellText(snapshot As LinkSnapshot, Optional network As Byte = 0, Optional withBand As Boolean = True) As String
         Dim parts As New List(Of String)
         If snapshot IsNot Nothing Then
             If snapshot.Plmn <> "" Then
@@ -235,7 +235,7 @@ Public Module LinkDiag
             network = snapshot.Network
         End If
         If network <> 0 Then parts.Add(NetworkText(network))
-        If snapshot IsNot Nothing AndAlso network = 4 AndAlso snapshot.Version >= 5 AndAlso snapshot.Band <> 255 Then parts.Add(BandText(snapshot.Band))
+        If withBand AndAlso snapshot IsNot Nothing AndAlso network = 4 AndAlso snapshot.Version >= 5 AndAlso snapshot.Band <> 255 Then parts.Add(BandText(snapshot.Band))
         Return String.Join(" · ", parts)
     End Function
 

@@ -13,6 +13,9 @@ Public Class AuditOpros
     Return False
    End Get
   End Property
+  Public Shared Function WifiReply() As Byte()
+   Return Nothing
+  End Function
  End Class
  Public LastCommand As Byte
  Public LastPayload As Byte()

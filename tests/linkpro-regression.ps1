@@ -147,7 +147,7 @@ try {
     $status.gsm=0; $status.gprs=0; $status.signal=99; $status.netType=0; Status; Display $sim
     Check ((Field 'deviceConnection').Steps -eq 0 -and (Field 'deviceConnection').Signal.Bars -eq 0) 'no SIM break and empty signal'
     Snapshot 'device_no_sim.png'
-    $click=New-Object Windows.Forms.MouseEventArgs([Windows.Forms.MouseButtons]::Left,1,10,([NextConfig.Theme]::Px(170)),0)
+    $click=New-Object Windows.Forms.MouseEventArgs([Windows.Forms.MouseButtons]::Left,1,10,((Field 'deviceConnection').SignalTop+5),0)
     (Field 'deviceConnection').GetType().GetMethod('OnMouseClick',$flags).Invoke((Field 'deviceConnection'),[object[]]@($click.PSObject.BaseObject)) | Out-Null
     Check ((Field 'tabs').SelectedTab -eq (Field 'tabLink')) 'More opens Link'
     Display $ring
