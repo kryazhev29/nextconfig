@@ -4,6 +4,7 @@ Imports System.Windows.Forms
 
 ' Доработка: Кряжев А., 2026
 Public Class PeripheryNames
+    Public Const CameraType As Byte = 2 ' Тип 485 «Фотокамера» (C328) по списку сервера, 23.10.2026.
     Public ReadOnly Sections As New Dictionary(Of String, SortedDictionary(Of Byte, String))
     Public Notice As String = ""
     Public Sub New()
@@ -147,7 +148,7 @@ Partial Public Class Form2
         Dim camera As Boolean = False, count As Integer = 0
         For i = 0 To 7
             Dim value = Value485(type485(i), 0)
-            If value = 3 Then camera = True
+            If value = PeripheryNames.CameraType Then camera = True
             If value <> 0 Then count += 1
             address485(i).Enabled = wifiStateKnown AndAlso Value485(mode485, 0) = 1 AndAlso Not wifiPortBusy
             type485(i).Enabled = address485(i).Enabled

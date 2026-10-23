@@ -537,7 +537,7 @@ Partial Public Class clOpros
         c.rs485Mode = If(PhotoDemoWire.Scenario = "no-camera", CByte(0), CByte(1))
         c.rs485Baud = 0
         c.periph1.rs485Adr = 1
-        c.periph1.rs485Type = 3
+        c.periph1.rs485Type = PeripheryNames.CameraType
         c.enableNTPsync = 1
         c.wiegandType = 0
         c.in1Func = 0

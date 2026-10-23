@@ -107,7 +107,7 @@ Public Class PhotoPanel
         blocked = updating OrElse Not fresh
         Dim available = {config.periph1, config.periph2, config.periph3, config.periph4,
             config.periph5, config.periph6, config.periph7, config.periph8}.
-            Where(Function(p) p.rs485Type = 3).Select(Function(p) p.rs485Adr).Distinct().ToArray()
+            Where(Function(p) p.rs485Type = PeripheryNames.CameraType).Select(Function(p) p.rs485Adr).Distinct().ToArray()
         configured = config.rs485Mode = 1 AndAlso available.Length > 0 AndAlso Not wifiPort
         addressCaption.Visible = Not camera232 : addresses.Visible = Not camera232
         If camera232 Then
@@ -131,7 +131,7 @@ Public Class PhotoPanel
             If(Not fresh, "Ожидание свежего состояния платы…", If(wifiPort,
             "Камера недоступна: порт RS-485 занят Wi-Fi-мостом.", If(configured,
             "Камера C328 · адрес RS-485. Нажмите на фото, чтобы открыть крупнее.",
-            "Для съёмки нужны активный RS-485 и периферия C328 (тип 3). Проверьте настройки; они не изменены."))))
+            "Для съёмки нужны активный RS-485 и периферия «Фотокамера» (тип 2). Проверьте настройки; они не изменены."))))
         UpdateButtons()
     End Sub
 

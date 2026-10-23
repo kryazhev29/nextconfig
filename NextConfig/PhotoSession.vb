@@ -186,7 +186,7 @@ Public NotInheritable Class PhotoSession
     Private Shared Sub CheckAnswer(code As Byte, downloading As Boolean)
         Select Case code
             Case 0 : Return
-            Case 1 : Throw New IOException("Камера не настроена: нужен активный RS-485 и периферия C328 (тип 3) с выбранным адресом.")
+            Case 1 : Throw New IOException("Камера не настроена: нужен активный RS-485 и периферия «Фотокамера» (тип 2) с выбранным адресом.")
             Case 2
                 If downloading Then Throw New PhotoBusyException("Плата занята съёмкой, обновлением или подготовкой памяти. Повторите выгрузку позже.")
                 Throw New IOException("Плата занята или не может начать съёмку. Проверьте камеру и свободную память.")
