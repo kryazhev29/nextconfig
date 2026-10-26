@@ -744,6 +744,52 @@ Partial Public Class clOpros
         Return reply
     End Function
 
+    ' Одна страница базы ID (команда 116): тело [первая ячейка]. Nothing — ответа нет (и у прошивок без 116).
+    Public Function IdsPage(first As UShort) As Byte()
+        If Demo.IsOn Then Return Demo.IdsReply(first)
+        Dim reply As Byte() = Nothing
+        SyncLock Me
+            _isPause = True
+            Try
+                While _isSending
+                    Thread.Sleep(1)
+                End While
+                Dim rec As Byte() = Nothing
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_IDS_PAGE, BitConverter.GetBytes(first)), 1500) Then
+                    If rec IsNot Nothing AndAlso rec.Length >= cmdIdx + 6 AndAlso rec(cmdIdx) = eCmd.CMD_IDS_PAGE Then
+                        reply = rec.Skip(cmdIdx + 1).Take(rec.Length - cmdIdx - 3).ToArray()
+                    End If
+                End If
+            Finally
+                _isPause = False
+            End Try
+        End SyncLock
+        Return reply
+    End Function
+
+    ' Вся база ID страницами; progress — сколько записей прочитано. Nothing — плата не отдала базу.
+    Public Function ReadIds(progress As IProgress(Of Integer)) As List(Of IdCell)
+        Dim cells As New List(Of IdCell)
+        Dim cell = 1, misses = 0, busy = 0
+        Do
+            Dim nextCell = 0
+            Select Case IdsExport.ParsePage(IdsPage(CUShort(cell)), cells, nextCell)
+                Case eIdsPage.Ready
+                    misses = 0 : busy = 0
+                    If progress IsNot Nothing Then progress.Report(cells.Count)
+                    If nextCell = 0 Then Return cells
+                    cell = nextCell
+                Case eIdsPage.Busy
+                    busy += 1
+                    If busy >= 50 Then Return Nothing
+                    Thread.Sleep(200)
+                Case Else
+                    misses += 1
+                    If misses >= 3 Then Return Nothing
+            End Select
+        Loop
+    End Function
+
     ' Список сетей целиком: поиск заново, ожидание не дольше WifiNetworks.SearchLimitMs, затем страницы до конца.
     Public Function WifiScan() As WifiScanResult
         Dim result As New WifiScanResult

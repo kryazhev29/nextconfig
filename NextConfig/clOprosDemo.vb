@@ -62,6 +62,26 @@ Public Module Demo
         Return page.ToArray()
     End Function
 
+    ' Страница 116 в демо: 30 телефонов в ячейках 1, 3, 5…, по 7 записей и не больше 256 ячеек за ответ.
+    Public Function IdsReply(first As UShort) As Byte()
+        Dim page As New List(Of Byte) From {0, 0, 0, 0}
+        Dim cell = Math.Max(1, CInt(first)), last = Math.Min(cell + 256, 50001), count = 0
+        While cell < last AndAlso count < 7
+            If cell Mod 2 = 1 AndAlso cell < 60 Then
+                Dim raw(31) As Byte
+                BitConverter.GetBytes(CUShort(cell)).CopyTo(raw, 0)
+                Text.Encoding.ASCII.GetBytes((9130000000L + cell).ToString()).CopyTo(raw, 2)
+                raw(12) = 1 : raw(19) = 1 : raw(20) = If(cell = 3, CByte(2), CByte(255))
+                If cell = 5 Then BitConverter.GetBytes(1793000000UI).CopyTo(raw, 13) : BitConverter.GetBytes(CUShort(60)).CopyTo(raw, 17)
+                page.AddRange(raw) : count += 1
+            End If
+            cell += 1
+        End While
+        If cell > 50000 Then cell = 0
+        page(1) = CByte(cell And 255) : page(2) = CByte(cell >> 8) : page(3) = CByte(count)
+        Return page.ToArray()
+    End Function
+
     ' Ответ 113 в демо; без --demo-link Wi-Fi-модем не выбран, сервер через 4G.
     Public Function WifiReply() As Byte()
         Dim arg = Environment.GetCommandLineArgs().FirstOrDefault(Function(a) a.StartsWith("--demo-link="))

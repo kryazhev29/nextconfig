@@ -109,6 +109,7 @@ Partial Class Form2
         Me.btnTranspMode = New System.Windows.Forms.Button()
         Me.Label20 = New System.Windows.Forms.Button()
         Me.saveRow = New System.Windows.Forms.FlowLayoutPanel()
+        Me.btnExportIds = New System.Windows.Forms.Button()
         Me.serviceRow = New System.Windows.Forms.FlowLayoutPanel()
 
         ' прошивка
@@ -385,6 +386,11 @@ Partial Class Form2
         Me.lblTime.Text = "---"
         Theme.Value(Me.lblTime)
 
+        Me.btnExportIds.Name = "btnExportIds"
+        Me.btnExportIds.Text = "Выгрузить"
+        Theme.Secondary(Me.btnExportIds)
+        Theme.Small(Me.btnExportIds)
+
         Me.Label16.Name = "Label16"
         Me.Label16.Text = "Синхронизировать"
         Theme.Secondary(Me.Label16)
@@ -430,7 +436,7 @@ Partial Class Form2
                       CompactRow("Версия прошивки", Me.lblFW),
                       CompactRow("Версия загрузчика", Me.lblBoot),
                       CompactRow("Время устройства", Me.lblTime, Me.Label16),
-                      CompactRow("Память ID", Theme.LinkSignal(Me.deviceMemoryMeter, Me.deviceMemory))),
+                      CompactRow("Память ID", Theme.LinkSignal(Me.deviceMemoryMeter, Me.deviceMemory), Me.btnExportIds)),
             CardBlock("Входы и выходы", IoBlock())}))
 
         ' ---- вкладка «Настройки» ----
@@ -985,6 +991,7 @@ Partial Class Form2
     Friend WithEvents btnTranspMode As Button
     Friend WithEvents Label20 As Button
     Friend WithEvents saveRow As FlowLayoutPanel
+    Friend WithEvents btnExportIds As Button
     Friend WithEvents serviceRow As FlowLayoutPanel
 
 

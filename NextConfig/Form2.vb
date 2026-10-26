@@ -1000,6 +1000,32 @@ Public Class Form2
         Return Theme.TextMain
     End Function
 
+    ' Резервная копия базы ID с платы в CSV сервера (Алексей 26.10.2026): только чтение, страницами по USB 116.
+    Private Async Sub btnExportIds_Click(sender As Object, e As EventArgs) Handles btnExportIds.Click
+        Dim path As String
+        Using d As New SaveFileDialog With {.Filter = "CSV (*.csv)|*.csv",
+            .FileName = "customers_" & lblIMEI.Text.Trim() & "_" & DateTime.Now.ToString("yyyy-MM-dd_HH-mm") & ".csv"}
+            If d.ShowDialog(Me) <> DialogResult.OK Then Return
+            path = d.FileName
+        End Using
+        Dim country = If(HasConfigSnapshot() AndAlso Not String.IsNullOrEmpty(onBoard.countryCode), onBoard.countryCode, "+7")
+        Dim progress As New Progress(Of Integer)(Sub(n) Notify("Выгрузка базы", "Прочитано записей: " & n & "…"))
+        btnExportIds.Enabled = False
+        Try
+            Dim cells = Await Threading.Tasks.Task.Run(Function() opros.ReadIds(progress))
+            If cells Is Nothing Then
+                Notify("Выгрузка базы", "Плата не отдала базу идентификаторов. Повторите выгрузку.", True)
+                Return
+            End If
+            IO.File.WriteAllText(path, IdsExport.Csv(cells, country), New Text.UTF8Encoding(True))
+            Notify("Выгрузка базы", "Выгружено записей: " & cells.Count & ", файл " & IO.Path.GetFileName(path) & ".")
+        Catch ex As Exception
+            Notify("Выгрузка базы", "Файл не записан: " & ex.GetBaseException().Message, True)
+        Finally
+            If Not IsDisposed Then btnExportIds.Enabled = True
+        End Try
+    End Sub
+
     Private Sub Label16_Click(sender As Object, e As EventArgs) Handles Label16.Click
         ' Контроллер и сервер считают время в UTC; местное время уводило часы на пояс вперёд.
         Dim ok = opros.SetTime(DateTimeToUnixTimestamp(DateTime.UtcNow))
