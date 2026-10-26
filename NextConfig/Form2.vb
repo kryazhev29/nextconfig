@@ -54,7 +54,8 @@ Public Class Form2
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         grid.RowCount = 4
         grid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        grid.Controls.Add(photoCard, 0, 3) : grid.SetColumnSpan(photoCard, 2)
+        Dim media = MediaRow()
+        grid.Controls.Add(media, 0, 3) : grid.SetColumnSpan(media, 2)
         grid.AutoSize = True : grid.Dock = DockStyle.Top
         grid.RowStyles(0).SizeType = SizeType.AutoSize
         overview.RowStyles(1).SizeType = SizeType.AutoSize

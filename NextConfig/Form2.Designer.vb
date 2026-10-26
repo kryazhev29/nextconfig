@@ -387,7 +387,7 @@ Partial Class Form2
         Theme.Value(Me.lblTime)
 
         Me.btnExportIds.Name = "btnExportIds"
-        Me.btnExportIds.Text = "Выгрузить"
+        Me.btnExportIds.Text = "Выгрузить базу"
         Theme.Secondary(Me.btnExportIds)
         Theme.Small(Me.btnExportIds)
 
@@ -435,8 +435,7 @@ Partial Class Form2
                       CompactRow("Версия платы", Me.lblHW),
                       CompactRow("Версия прошивки", Me.lblFW),
                       CompactRow("Версия загрузчика", Me.lblBoot),
-                      CompactRow("Время устройства", Me.lblTime, Me.Label16),
-                      CompactRow("Память ID", Theme.LinkSignal(Me.deviceMemoryMeter, Me.deviceMemory), Me.btnExportIds)),
+                      CompactRow("Время устройства", Me.lblTime, Me.Label16)),
             CardBlock("Входы и выходы", IoBlock())}))
 
         ' ---- вкладка «Настройки» ----

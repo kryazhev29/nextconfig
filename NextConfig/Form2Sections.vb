@@ -70,5 +70,6 @@
     ' Обе карточки одной высоты: Fill по строке сетки, низ на одной линии.
     Private Sub ReflowOverview()
         Theme.ReflowOverview(DirectCast(tabState.Controls(0), TableLayoutPanel), 580)
+        ArrangeMediaRow()
     End Sub
 End Class

@@ -31,6 +31,60 @@ Partial Public Class Form2
     Private linkSnapshot As LinkSnapshot
     Private ReadOnly linkAge As New Diagnostics.Stopwatch
 
+    ' Нижний ряд главной: фото с камеры и справа память идентификаторов с выгрузкой базы
+    ' (владелец 26.10: на пустом месте справа от фото). В тесном окне память уходит под фото.
+    Private ReadOnly mediaGrid As New TableLayoutPanel With {.Name = "mediaGrid", .AutoSize = True, .Margin = New Padding(0)}
+    Private memoryCard As Control
+
+    Private Function MediaRow() As Control
+        memoryCard = Theme.Card("Память идентификаторов", MemoryBlock())
+        ArrangeMediaRow()
+        Return mediaGrid
+    End Function
+
+    Private Function MemoryBlock() As Control
+        Dim line As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 2, .Anchor = AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        line.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        line.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        deviceMemory.Anchor = AnchorStyles.Left : deviceMemory.Margin = New Padding(0)
+        btnExportIds.Anchor = AnchorStyles.Right : btnExportIds.Margin = New Padding(Theme.GapRelated, 0, 0, 0)
+        line.Controls.Add(deviceMemory, 0, 0) : line.Controls.Add(btnExportIds, 1, 0)
+        deviceMemoryMeter.Anchor = AnchorStyles.Left Or AnchorStyles.Right
+        deviceMemoryMeter.Height = Theme.Px(6) : deviceMemoryMeter.Margin = New Padding(0, Theme.GapBlock, 0, 0)
+        Dim hint As New Label With {.AutoSize = True, .Margin = New Padding(0, Theme.GapBlock, 0, 0),
+            .Text = "«Выгрузить базу» сохраняет идентификаторы с платы в файл CSV в формате сервера — резервная копия."}
+        Theme.Note(hint, False)
+        Dim block As New TableLayoutPanel With {.AutoSize = True, .ColumnCount = 1, .Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right, .Margin = New Padding(0)}
+        block.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        block.Controls.Add(line) : block.Controls.Add(deviceMemoryMeter) : block.Controls.Add(hint)
+        AddHandler block.SizeChanged, Sub() hint.MaximumSize = New Size(Math.Max(1, block.ClientSize.Width), 0)
+        Return block
+    End Function
+
+    ' Рядом, пока справа от фото остаётся не меньше 380 точек; иначе друг под другом.
+    Private Sub ArrangeMediaRow()
+        If memoryCard Is Nothing Then Return
+        Dim overview = tabState.Controls(0)
+        Dim narrow = overview.ClientSize.Width < photoCard.PreferredSize.Width + Theme.ControlPx(overview, 380 + 2 * 24)
+        Dim columns = If(narrow, 1, 2)
+        If mediaGrid.ColumnCount = columns AndAlso mediaGrid.Controls.Count = 2 Then Return
+        Dim gap = Theme.ControlPx(mediaGrid, 8)
+        mediaGrid.SuspendLayout()
+        mediaGrid.Controls.Clear() : mediaGrid.ColumnStyles.Clear() : mediaGrid.RowStyles.Clear()
+        mediaGrid.ColumnCount = columns : mediaGrid.RowCount = 3 - columns
+        mediaGrid.ColumnStyles.Add(New ColumnStyle(If(narrow, SizeType.Percent, SizeType.AutoSize), 100))
+        If Not narrow Then mediaGrid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        For i = 1 To mediaGrid.RowCount
+            mediaGrid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Next
+        photoCard.Dock = DockStyle.Fill : memoryCard.Dock = DockStyle.Fill
+        photoCard.Margin = New Padding(0, 0, If(narrow, 0, gap), If(narrow, gap, 0))
+        memoryCard.Margin = New Padding(If(narrow, 0, gap), 0, 0, 0)
+        mediaGrid.Controls.Add(photoCard, 0, 0)
+        mediaGrid.Controls.Add(memoryCard, If(narrow, 0, 1), If(narrow, 1, 0))
+        mediaGrid.ResumeLayout(True)
+    End Sub
+
     Private Sub ConfigureLinkSection()
         tabLink.BackColor = Theme.WindowBack
         linkPlot.History = signalHistory
