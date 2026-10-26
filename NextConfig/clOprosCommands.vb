@@ -418,36 +418,6 @@ Partial Public Class clOpros
         Return rez
     End Function
 
-    Public Function ClearMem() As Boolean
-        Dim rez As Boolean = False
-
-        SyncLock Me
-
-            _isPause = True
-            Try
-
-                While _isSending
-                    Thread.Sleep(1)
-                End While
-
-                Dim rec As Byte()
-
-                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_CLEARMEM, Nothing), 15000) Then
-                    If rec(cmdIdx) = eCmd.CMD_CLEARMEM Then
-                        'If rec(payloadIdx + 1) = 0 Then
-                        rez = True
-                        'End If
-                    End If
-                End If
-
-            Finally
-                _isPause = False
-            End Try
-        End SyncLock
-
-        Return rez
-    End Function
-
     Public Function SetTime(ByVal _t As UInteger) As Boolean
         Dim rez As Boolean = False
 
@@ -502,10 +472,6 @@ Partial Public Class clOpros
     '    End SyncLock
 
     '    Return rez
-    'End Function
-
-    'Public Function UnConnectObject() As Boolean
-    '    Return False
     'End Function
 
     ' ПИН уходит текстом, 4 или 5 цифр: так его разбирает прошивка (user_parse_pin).

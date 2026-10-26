@@ -251,7 +251,7 @@ try {
     Check ([Object]::ReferenceEquals((Field 'signalHistory'), (Field 'linkPlot').History)) 'Link graph keeps the polled history'
     $form.Height = 1050
     Snapshot 'link_lte.png'
-    (Field 'tabs').SelectedTab = Field 'tabIds'
+    (Field 'tabs').SelectedTab = Field 'tabLog'
     [Windows.Forms.Application]::DoEvents()
     Check (-not (Field 'linkTimer').Enabled) 'other tabs stop diagnostic poll'
     (Field 'tabs').SelectedTab = Field 'tabState'

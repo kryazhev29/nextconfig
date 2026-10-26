@@ -21,8 +21,8 @@ Public Module AgentChannel
     ' Кнопки, которые пишут в плату или запускают действие на ней.
     Private ReadOnly BlockedNames As New HashSet(Of String) From {
         "oldTestOutputDevice", "oldWriteSchedules",
-        "oldWriteRfid", "oldTestOutput", "oldAutoregistration", "oldFactoryReset", "oldAddNumber", "oldEditNumber", "oldDeleteNumber", "oldImportNumbers", "oldCompressNumbers", "oldWriteSettings", "oldConfirmWrite", "btnSave", "btnDefault", "btnFactory", "btnClear", "btnUpdateFW", "btnUpdateBoot",
-        "btnTestOUT1", "btnTestOUT2", "btnTranspMode", "btnUnConnect", "btnImport",
+        "oldWriteRfid", "oldTestOutput", "oldAutoregistration", "oldFactoryReset", "oldAddNumber", "oldEditNumber", "oldDeleteNumber", "oldImportNumbers", "oldCompressNumbers", "oldWriteSettings", "oldConfirmWrite", "btnSave", "btnDefault", "btnFactory", "btnUpdateFW", "btnUpdateBoot",
+        "btnTestOUT1", "btnTestOUT2", "btnTranspMode",
         "Label16", "Label19", "Label20"}
     Private ReadOnly BlockedTexts As New HashSet(Of String) From {
         "Перевести на новую систему", "Обновить прошивку", "Записать прошивку", "Заменить загрузчик", "Сделать снимок", "Забрать фото", "Записать в мост", "Сохранить сеть"}

@@ -44,7 +44,7 @@ try {
         Click 'Открыть'
         Start-Sleep -Seconds 1
     }
-    $sections=if($Mode -eq '--demo:oldfw48'){@('Устройство','Пользователи','Настройки','Расписания','Сервис')}elseif($Mode -in @('--demo:boot','--demo:oldboot')){@('Устройство')}else{@('Устройство','Связь','Пользователи','Журнал','Настройки','Сервис')}
+    $sections=if($Mode -eq '--demo:oldfw48'){@('Устройство','Пользователи','Настройки','Расписания','Сервис')}elseif($Mode -in @('--demo:boot','--demo:oldboot')){@('Устройство')}else{@('Устройство','Связь','Журнал','Настройки','Сервис')}
     $names=@{Устройство='device';Связь='link';Пользователи='users';Журнал='journal';Настройки='settings';Расписания='schedules';Сервис='service'}
     foreach($section in $sections) {
         Click $section

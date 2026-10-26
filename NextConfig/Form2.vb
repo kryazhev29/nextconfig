@@ -344,8 +344,6 @@ Public Class Form2
         UpdateDeviceSignal()
         Theme.SetText(lblNet, CurrentNetName(status.netType))
 
-        Theme.SetText(lblUsedMem, status.usedMem & " из 50 000")
-        meterMem.Value = status.usedMem
         Theme.SetText(deviceMemory, CUInt(status.usedMem).ToString("N0", Globalization.CultureInfo.GetCultureInfo("ru-RU")) & " из 50 000 · " & Math.Min(100, status.usedMem * 100 \ 50000) & " %")
         deviceMemoryMeter.Value = status.usedMem
 
@@ -947,55 +945,6 @@ Public Class Form2
         ReadConfig(False)
     End Sub
 
-    ' Выгрузки и загрузки базы идентификаторов в программе нет: в протоколе с
-    ' контроллером она не заведена. Кнопка должна об этом сказать, а не молчать.
-    Private Sub btnExport_Click(sender As Object, e As EventArgs) Handles btnExport.Click
-        Notify("База идентификаторов", "Выгрузка базы идентификаторов пока не сделана.")
-    End Sub
-
-    Private Sub btnImport_Click(sender As Object, e As EventArgs) Handles btnImport.Click
-        Notify("База идентификаторов", "Загрузка базы идентификаторов пока не сделана.")
-    End Sub
-
-    Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
-        Using f As New frmInfo("Очистка памяти", "Вы уверены что хотите удалить из памяти все идентификаторы?",, True)
-            f.Button1.Text = "Очистить"
-            f.Button2.Text = "Отмена"
-            If f.ShowDialog(Me) = DialogResult.OK Then
-                If opros.ClearMem() Then
-                    Notify("Очистка памяти", "Память идентификаторов очищена.")
-                Else
-                    Notify("Очистка памяти", "Не удалось очистить память идентификаторов. Повторите операцию.", True)
-                End If
-            End If
-        End Using
-    End Sub
-
-    Private Async Sub btnUpdateObj_Click(sender As Object, e As EventArgs) Handles btnUpdateObj.Click
-
-        Await QueryObject(17)
-
-    End Sub
-
-    Private Async Sub btnUnConnect_Click(sender As Object, e As EventArgs) Handles btnUnConnect.Click
-        Using f As New frmInfo("Отвязка от объекта", "Вы уверены что хотите отвязать контроллер от объекта?",, True)
-            f.Button1.Text = "Отвязать"
-            f.Button2.Text = "Отмена"
-            If f.ShowDialog(Me) = DialogResult.OK Then
-                Await QueryObject(18)
-                'Dim str As String
-                'If opros.UnConnectObject() Then
-                '    str = "Команда выполнена!"
-                'Else
-                '    str = "Не удалось выполнить!" & vbCrLf & "Повторите операцию!"
-                'End If
-                'Using f2 As New frmInfo("Информация", str)
-                '    f2.ShowDialog()
-                'End Using
-            End If
-        End Using
-    End Sub
-
     Private Sub btnClearLog_Click(sender As Object, e As EventArgs) Handles btnClearLog.Click
         RichTextBox1.Clear()
         logTail = ""
@@ -1170,46 +1119,6 @@ Public Class Form2
         Clipboard.SetText(RichTextBox1.Text)
     End Sub
 
-    Private Async Function QueryObject(cmd As Byte) As Threading.Tasks.Task
-        Dim imei = lblIMEI.Text.Trim()
-        btnUpdateObj.Enabled = False : btnUnConnect.Enabled = False
-        Try
-            Dim rec = Await Threading.Tasks.Task.Run(Function() SldnStream.QueryServer("93.189.229.197", 15010, cmd, imei))
-            If IsDisposed OrElse Disposing Then Return
-            Dim message As String
-            Dim failed = True
-            Select Case rec(9)
-                Case 1
-                    message = "Контроллер отсутствует в базе."
-                Case 2
-                    message = If(cmd = 17, "Контроллер не привязан к объекту.", "Контроллер отвязан от всех объектов.")
-                    failed = False
-                    lblObjNum.Text = "" : lblObjName.Text = "" : lblObjController.Text = "" : lblAdmin.Text = ""
-                Case 3
-                    If cmd = 17 Then
-                        lblObjNum.Text = System.Text.Encoding.UTF8.GetString(rec, 10, 8).TrimEnd(ChrW(0))
-                        lblObjName.Text = System.Text.Encoding.UTF8.GetString(rec, 18, 128).TrimEnd(ChrW(0))
-                        lblObjController.Text = System.Text.Encoding.UTF8.GetString(rec, 146, 128).TrimEnd(ChrW(0))
-                        lblAdmin.Text = System.Text.Encoding.UTF8.GetString(rec, 274, 16).TrimEnd(ChrW(0))
-                        message = "Данные о привязке получены."
-                        failed = False
-                    Else
-                        message = "Не удалось отвязать контроллер."
-                    End If
-                Case Else
-                    message = "Сервер не подтвердил выполнение запроса."
-            End Select
-            Notify("Объект", message, failed)
-        Catch ex As Exception
-            If Not IsDisposed AndAlso Not Disposing Then
-                Notify("Объект", "Запрос к серверу не выполнен: " & ex.GetBaseException().Message, True)
-            End If
-        Finally
-            If Not IsDisposed AndAlso Not Disposing Then
-                btnUpdateObj.Enabled = Not busyWithBoard : btnUnConnect.Enabled = Not busyWithBoard
-            End If
-        End Try
-    End Function
     Private Sub Label21_Click(sender As Object, e As EventArgs) Handles Label21.Click
         Dim socket As New Net.Sockets.TcpClient
         Dim sList As String() = txtServer1.Text.Trim().Split(":"c)

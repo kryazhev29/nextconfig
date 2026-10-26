@@ -45,7 +45,6 @@ Partial Class Form2
         Me.tabs = New System.Windows.Forms.TabControl()
         Me.tabState = New System.Windows.Forms.TabPage()
         Me.tabSettings = New System.Windows.Forms.TabPage()
-        Me.tabIds = New System.Windows.Forms.TabPage()
         Me.tabObject = New System.Windows.Forms.TabPage()
         Me.tabFW = New System.Windows.Forms.TabPage()
         Me.tabLog = New System.Windows.Forms.TabPage()
@@ -111,24 +110,6 @@ Partial Class Form2
         Me.Label20 = New System.Windows.Forms.Button()
         Me.saveRow = New System.Windows.Forms.FlowLayoutPanel()
         Me.serviceRow = New System.Windows.Forms.FlowLayoutPanel()
-
-        ' идентификаторы
-        Me.lblUsedMem = New System.Windows.Forms.Label()
-        Me.meterMem = New Meter()
-        Me.btnImport = New System.Windows.Forms.Button()
-        Me.btnExport = New System.Windows.Forms.Button()
-        Me.btnClear = New System.Windows.Forms.Button()
-        Me.idsRow = New System.Windows.Forms.FlowLayoutPanel()
-        Me.idsClearRow = New System.Windows.Forms.FlowLayoutPanel()
-
-        ' объект
-        Me.lblObjNum = New System.Windows.Forms.Label()
-        Me.lblObjName = New System.Windows.Forms.Label()
-        Me.lblObjController = New System.Windows.Forms.Label()
-        Me.lblAdmin = New System.Windows.Forms.Label()
-        Me.btnUpdateObj = New System.Windows.Forms.Button()
-        Me.btnUnConnect = New System.Windows.Forms.Button()
-        Me.objRow = New System.Windows.Forms.FlowLayoutPanel()
 
         ' прошивка
         Me.btnUpdateFW = New System.Windows.Forms.Button()
@@ -580,122 +561,9 @@ Partial Class Form2
             New String() {"Основные", "Wi-Fi-модем", "RS-485 и Wiegand"},
             Me.btnSave, Me.btnRevert, Me.lblSaveState, Me.btnDefault))
 
-        ' ---- вкладка «Идентификаторы» ----
-        Me.lblUsedMem.AutoSize = True
-        Me.lblUsedMem.Name = "lblUsedMem"
-        Me.lblUsedMem.Text = "---"
-        Me.lblUsedMem.Margin = New System.Windows.Forms.Padding(0, 0, 0, Theme.GapRelated)
-        Theme.BigValue(Me.lblUsedMem)
-
-        Me.meterMem.Name = "meterMem"
-        Me.meterMem.Maximum = 50000
-        Me.meterMem.Value = 0
-        Me.meterMem.Size = New System.Drawing.Size(Theme.Px(240), Theme.Px(8))
-        Me.meterMem.Margin = New System.Windows.Forms.Padding(0)
-
-        Me.btnImport.Name = "btnImport"
-        Me.btnImport.Text = "Загрузить из файла"
-        Me.btnImport.Width = Theme.Px(188)
-        Me.btnImport.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
-        Theme.Secondary(Me.btnImport)
-        Theme.Small(Me.btnImport)
-
-        Me.btnExport.Name = "btnExport"
-        Me.btnExport.Text = "Выгрузить в файл"
-        Me.btnExport.Width = Theme.Px(188)
-        Me.btnExport.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
-        Theme.Secondary(Me.btnExport)
-        Theme.Small(Me.btnExport)
-
-        Me.btnClear.Name = "btnClear"
-        Me.btnClear.Text = "Очистить память"
-        Me.btnClear.Width = Theme.Px(188)
-        Theme.DangerOutline(Me.btnClear)
-        Theme.Small(Me.btnClear)
-
-        Me.idsRow.AutoSize = True
-        Me.idsRow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.idsRow.WrapContents = False
-        Me.idsRow.Margin = New System.Windows.Forms.Padding(0)
-        Me.idsRow.Controls.Add(Me.btnImport)
-        Me.idsRow.Controls.Add(Me.btnExport)
-
-        Me.idsClearRow.AutoSize = True
-        Me.idsClearRow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.idsClearRow.WrapContents = False
-        Me.idsClearRow.Margin = New System.Windows.Forms.Padding(0)
-        Me.idsClearRow.Controls.Add(Me.btnClear)
-
-        Me.tabIds.Text = "Идентификаторы"
-        Me.tabIds.BackColor = Theme.WindowBack
-        Me.tabIds.AutoScroll = True
-        Me.tabIds.Controls.Add(Page(
-            Theme.PageHeading("Пользователи", "Память идентификаторов и база доступа контроллера"),
-            CardBlock("Память идентификаторов",
-                      Row("Занято", Me.lblUsedMem),
-                      Note(Me.meterMem)),
-            CardBlock("База идентификаторов",
-                      Me.idsRow,
-                      Hint("Импорт и экспорт файлов пока недоступны.")),
-            CardBlock("Очистка",
-                      Me.idsClearRow,
-                      Hint("Удаляет из памяти контроллера все идентификаторы. Вернуть их можно только повторной загрузкой с сервера."))))
-
-        ' ---- вкладка «Объект» ----
-        Me.lblObjNum.AutoSize = True
-        Me.lblObjNum.Name = "lblObjNum"
-        Me.lblObjNum.Text = "---"
-        Theme.Value(Me.lblObjNum)
-
-        Me.lblObjName.AutoSize = True
-        Me.lblObjName.Name = "lblObjName"
-        Me.lblObjName.Text = "---"
-        Theme.Value(Me.lblObjName)
-
-        Me.lblObjController.AutoSize = True
-        Me.lblObjController.Name = "lblObjController"
-        Me.lblObjController.Text = "---"
-        Theme.Value(Me.lblObjController)
-
-        Me.lblAdmin.AutoSize = True
-        Me.lblAdmin.Name = "lblAdmin"
-        Me.lblAdmin.Text = "---"
-        Theme.Value(Me.lblAdmin)
-
-        Me.btnUpdateObj.Name = "btnUpdateObj"
-        Me.btnUpdateObj.Text = "Обновить с сервера"
-        Me.btnUpdateObj.Width = Theme.Px(200)
-        Me.btnUpdateObj.Margin = New System.Windows.Forms.Padding(0, 0, Theme.GapRelated, 0)
-        Theme.Secondary(Me.btnUpdateObj)
-        Theme.Small(Me.btnUpdateObj)
-
-        Me.btnUnConnect.Name = "btnUnConnect"
-        Me.btnUnConnect.Text = "Отвязать от объекта"
-        Me.btnUnConnect.Width = Theme.Px(200)
-        Theme.DangerOutline(Me.btnUnConnect)
-        Theme.Small(Me.btnUnConnect)
-
-        Me.objRow.AutoSize = True
-        Me.objRow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.objRow.WrapContents = False
-        Me.objRow.Margin = New System.Windows.Forms.Padding(0)
-        Me.objRow.Controls.Add(Me.btnUpdateObj)
-        Me.objRow.Controls.Add(Me.btnUnConnect)
-
-        Me.tabObject.Text = "Объект"
+        ' ---- вкладка «Сервис»: карточки собирает ConfigureSections ----
         Me.tabObject.BackColor = Theme.WindowBack
         Me.tabObject.AutoScroll = True
-        Me.tabObject.Controls.Add(Page(
-            Theme.PageHeading("Объект", "Привязка контроллера и сведения с сервера"),
-            CardBlock("Объект",
-                      Row("Уникальный номер", Me.lblObjNum),
-                      Row("Наименование", Me.lblObjName),
-                      Row("Контроллер на объекте", Me.lblObjController),
-                      Row("Администратор", Me.lblAdmin),
-                      Hint("Сведения приходят с сервера и здесь только показываются.")),
-            CardBlock("Действия",
-                      Me.objRow,
-                      Hint("«Обновить с сервера» запрашивает привязку заново. «Отвязать от объекта» снимает её - это делается на сервере и назад само не вернётся."))))
 
         ' ---- вкладка «Прошивка» ----
         Me.btnUpdateFW.Name = "btnUpdateFW"
@@ -1054,7 +922,6 @@ Partial Class Form2
     Friend WithEvents tabs As TabControl
     Friend WithEvents tabState As TabPage
     Friend WithEvents tabSettings As TabPage
-    Friend WithEvents tabIds As TabPage
     Friend WithEvents tabObject As TabPage
     Friend WithEvents tabFW As TabPage
     Friend WithEvents tabLog As TabPage
@@ -1120,21 +987,6 @@ Partial Class Form2
     Friend WithEvents saveRow As FlowLayoutPanel
     Friend WithEvents serviceRow As FlowLayoutPanel
 
-    Friend WithEvents lblUsedMem As Label
-    Friend WithEvents meterMem As Meter
-    Friend WithEvents btnImport As Button
-    Friend WithEvents btnExport As Button
-    Friend WithEvents btnClear As Button
-    Friend WithEvents idsRow As FlowLayoutPanel
-    Friend WithEvents idsClearRow As FlowLayoutPanel
-
-    Friend WithEvents lblObjNum As Label
-    Friend WithEvents lblObjName As Label
-    Friend WithEvents lblObjController As Label
-    Friend WithEvents lblAdmin As Label
-    Friend WithEvents btnUpdateObj As Button
-    Friend WithEvents btnUnConnect As Button
-    Friend WithEvents objRow As FlowLayoutPanel
 
     Friend WithEvents btnUpdateFW As Button
     Friend WithEvents lblFwHint As Label

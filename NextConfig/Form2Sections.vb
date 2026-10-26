@@ -5,7 +5,7 @@
 
     ' Переносим существующие контролы вместе с обработчиками, не создаём копии карточек.
     Private Sub ConfigureSections()
-        tabState.Text = "Устройство" : tabIds.Text = "Пользователи"
+        tabState.Text = "Устройство"
         Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         Dim deviceCard = DirectCast(grid.GetControlFromPosition(1, 0), TableLayoutPanel)
@@ -16,9 +16,6 @@
 
         Dim firmwarePage = DirectCast(tabFW.Controls(0), TableLayoutPanel)
         Dim bootCard = firmwarePage.Controls(2)
-        Dim objectPage = DirectCast(tabObject.Controls(0), TableLayoutPanel)
-        Dim objectCard = objectPage.Controls(1)
-        Dim objectActions = objectPage.Controls(2)
         tabObject.Controls.Clear() : tabObject.Text = "Сервис"
 
         Theme.ReadOnlyGrid(snapshotGrid)
@@ -44,8 +41,8 @@
         grid.SetColumnSpan(maintenanceCard, 2)
         Dim shortcuts As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill,
             .Margin = New Padding(0, 0, 0, Theme.GapSection)}
-        Dim captions = {"Объект", "Загрузчик", "Настройки платы"}
-        Dim targets As Control() = {objectCard, bootCard, snapshotCard}
+        Dim captions = {"Загрузчик", "Настройки платы"}
+        Dim targets As Control() = {bootCard, snapshotCard}
         For i = 0 To captions.Length - 1
             Dim target = targets(i)
             Dim link As New Button With {.Text = captions(i), .Width = Theme.Px(155), .Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRelated)}
@@ -53,10 +50,10 @@
             AddHandler link.Click, Sub() tabObject.ScrollControlIntoView(target)
             shortcuts.Controls.Add(link)
         Next
-        tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Объект, загрузчик и просмотр настроек платы"),
-            shortcuts, objectCard, objectActions, bootCard, snapshotCard))
+        tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Загрузчик и просмотр настроек платы"),
+            shortcuts, bootCard, snapshotCard))
         ConfigureLinkSection()
-        tabs.TabPages.AddRange({tabState, tabLink, tabIds, tabLog, tabSettings, tabObject})
+        tabs.TabPages.AddRange({tabState, tabLink, tabLog, tabSettings, tabObject})
     End Sub
 
     Private Sub RefreshSnapshot()

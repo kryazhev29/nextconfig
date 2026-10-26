@@ -31,7 +31,7 @@ try {
     Call 'SetDefaultConfig' | Out-Null
     $form.ShowInTaskbar=$false;$form.Opacity=0;$form.Show()
     $tabs=Field 'tabs';$settings=Field 'tabSettings';$busHost=HostOf (Field 'wifiModel')
-    Check ($tabs.TabPages.Count -eq 6) 'only six current main pages, no old registrations'
+    Check ($tabs.TabPages.Count -eq 5) 'only five current main pages, no old registrations'
     $hosts=@($busHost.Parent.Controls)
     $tabs.SelectedTab=$settings
     Check (-not $busHost.Visible) 'settings initially opens Connection, not RS-485'
@@ -81,5 +81,5 @@ try {
     Check ((Field 'deviceTable485').Visible -and (Field 'mode485').Enabled) 'legacy reply keeps RS-485 usable'
     Check (-not (Field 'wifiModel').Enabled) 'legacy reply cannot edit Wi-Fi model'
     if($script:failures.Count){throw ($script:failures -join "`n")}
-    "PASS: $script:checks startup/navigation checks; six main pages, three settings pages; no COM"
+    "PASS: $script:checks startup/navigation checks; five main pages, three settings pages; no COM"
 }finally{$form.Dispose()}

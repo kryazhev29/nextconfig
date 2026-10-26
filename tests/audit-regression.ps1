@@ -17,7 +17,7 @@ $empty = New-Object 'NextConfig.clOpros+s_config'
 Check (-not $poller.SetConfig($empty)) 'unread configuration rejected before transport'
 $empty.rawConfig = New-Object byte[] 511
 Check (-not $poller.SetConfig($empty)) 'incomplete original configuration rejected'
-foreach ($name in @('SetOut','ResetController','SetDefault','SetTransparentMode','ClearMem','SetTime','Autorize','SetModuleType','EnableLog','StartUpdate','WriteFWBlock','BootManual')) {
+foreach ($name in @('SetOut','ResetController','SetDefault','SetTransparentMode','SetTime','Autorize','SetModuleType','EnableLog','StartUpdate','WriteFWBlock','BootManual')) {
     $method = [NextConfig.clOpros].GetMethod($name,$flags)
     $arguments = @($method.GetParameters() | ForEach-Object {
         $t=$_.ParameterType; if($t.IsByRef){$t=$t.GetElementType()}
