@@ -73,6 +73,21 @@ Public Class SldnStream
         Throw New TimeoutException("Нет полного ответа от сервера.")
     End Function
 
+    Public Shared Function QueryServer(host As String, port As Integer, cmd As Byte, imei As String) As Byte()
+        Dim payload = Text.Encoding.ASCII.GetBytes(imei)
+        If payload.Length <> 15 OrElse imei.Any(Function(c) c < "0"c OrElse c > "9"c) Then Throw New ArgumentException("Некорректный IMEI")
+        Using client As New Net.Sockets.TcpClient()
+            Dim connect = client.ConnectAsync(host, port)
+            If Not connect.Wait(2000) Then Throw New TimeoutException("Сервер не ответил на подключение.")
+            Dim request = Frame(cmd, payload)
+            Using stream = client.GetStream()
+                stream.WriteTimeout = 2000
+                stream.Write(request, 0, request.Length)
+                Return ReadReply(stream, request, 2000)
+            End Using
+        End Using
+    End Function
+
     Public Function Feed(bytes As Byte()) As List(Of Byte())
         pending.AddRange(bytes)
         Dim frames As New List(Of Byte())

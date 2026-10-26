@@ -41,8 +41,9 @@
         grid.SetColumnSpan(maintenanceCard, 2)
         Dim shortcuts As New FlowLayoutPanel With {.AutoSize = True, .Dock = DockStyle.Fill,
             .Margin = New Padding(0, 0, 0, Theme.GapSection)}
-        Dim captions = {"Загрузчик", "Настройки платы"}
-        Dim targets As Control() = {bootCard, snapshotCard}
+        Dim captions = {"Объект", "Загрузчик", "Настройки платы"}
+        Dim bindingCard = ObjectCard()
+        Dim targets As Control() = {bindingCard, bootCard, snapshotCard}
         For i = 0 To captions.Length - 1
             Dim target = targets(i)
             Dim link As New Button With {.Text = captions(i), .Width = Theme.Px(155), .Margin = New Padding(0, 0, Theme.GapRelated, Theme.GapRelated)}
@@ -50,8 +51,8 @@
             AddHandler link.Click, Sub() tabObject.ScrollControlIntoView(target)
             shortcuts.Controls.Add(link)
         Next
-        tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Загрузчик и просмотр настроек платы"),
-            shortcuts, bootCard, snapshotCard))
+        tabObject.Controls.Add(Page(Theme.PageHeading("Сервис", "Объект, загрузчик и просмотр настроек платы"),
+            shortcuts, bindingCard, bootCard, snapshotCard))
         ConfigureLinkSection()
         tabs.TabPages.AddRange({tabState, tabLink, tabLog, tabSettings, tabObject})
     End Sub

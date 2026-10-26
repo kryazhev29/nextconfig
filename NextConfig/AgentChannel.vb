@@ -22,7 +22,7 @@ Public Module AgentChannel
     Private ReadOnly BlockedNames As New HashSet(Of String) From {
         "oldTestOutputDevice", "oldWriteSchedules",
         "oldWriteRfid", "oldTestOutput", "oldAutoregistration", "oldFactoryReset", "oldAddNumber", "oldEditNumber", "oldDeleteNumber", "oldImportNumbers", "oldCompressNumbers", "oldWriteSettings", "oldConfirmWrite", "btnSave", "btnDefault", "btnFactory", "btnUpdateFW", "btnUpdateBoot",
-        "btnTestOUT1", "btnTestOUT2", "btnTranspMode",
+        "btnTestOUT1", "btnTestOUT2", "btnTranspMode", "btnUnConnect",
         "Label16", "Label19", "Label20"}
     Private ReadOnly BlockedTexts As New HashSet(Of String) From {
         "Перевести на новую систему", "Обновить прошивку", "Записать прошивку", "Заменить загрузчик", "Сделать снимок", "Забрать фото", "Записать в мост", "Сохранить сеть"}

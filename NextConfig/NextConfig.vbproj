@@ -128,6 +128,9 @@
     <Compile Include="Form2Wifi.vb" />
     <Compile Include="WifiNetworks.vb" />
     <Compile Include="IdsExport.vb" />
+    <Compile Include="Form2Object.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="frmWifiPicker.vb"><SubType>Form</SubType></Compile>
     <Compile Include="Form2IO.vb" />
     <Compile Include="PinFormat.vb" />
