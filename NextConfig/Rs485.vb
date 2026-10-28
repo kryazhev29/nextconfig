@@ -4,7 +4,7 @@ Imports System.Windows.Forms
 
 ' Доработка: Кряжев А., 2026
 Public Class PeripheryNames
-    Public Const CameraType As Byte = 2 ' Тип 485 «Фотокамера» (C328) по списку сервера, 23.10.2026.
+    Public Const CameraType As Byte = 9 ' Тип 485 «фотокамера JPEG (OV)» по нумерации группами по 8 (Протокол2, 28.10.2026).
     Public ReadOnly Sections As New Dictionary(Of String, SortedDictionary(Of Byte, String))
     Public Notice As String = ""
     Public Sub New()
