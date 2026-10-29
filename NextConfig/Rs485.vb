@@ -5,6 +5,10 @@ Imports System.Windows.Forms
 ' Доработка: Кряжев А., 2026
 Public Class PeripheryNames
     Public Const CameraType As Byte = 9 ' Тип 485 «фотокамера JPEG (OV)» по нумерации группами по 8 (Протокол2, 28.10.2026).
+    Public Const PlateCameraType As Byte = 8 ' Тип 485 «камера номеров Interceptor»: номер и снимок, пока номер в кадре.
+    Public Shared Function IsCamera(type As Byte) As Boolean
+        Return type = CameraType OrElse type = PlateCameraType
+    End Function
     Public ReadOnly Sections As New Dictionary(Of String, SortedDictionary(Of Byte, String))
     Public Notice As String = ""
     Public Sub New()
@@ -148,7 +152,7 @@ Partial Public Class Form2
         Dim camera As Boolean = False, count As Integer = 0
         For i = 0 To 7
             Dim value = Value485(type485(i), 0)
-            If value = PeripheryNames.CameraType Then camera = True
+            If PeripheryNames.IsCamera(value) Then camera = True
             If value <> 0 Then count += 1
             address485(i).Enabled = wifiStateKnown AndAlso Value485(mode485, 0) = 1 AndAlso Not wifiPortBusy
             type485(i).Enabled = address485(i).Enabled

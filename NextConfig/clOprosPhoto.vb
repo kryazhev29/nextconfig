@@ -5,7 +5,7 @@ Partial Public Class clOpros
     Private demoPhotos As PhotoDemoWire
 
     Public Sub Photo(capture As Boolean, address As Byte, imei As String, folder As String,
-                     progress As Action(Of PhotoProgress), cancel As CancellationToken)
+                     progress As Action(Of PhotoProgress), cancel As CancellationToken, Optional plateCamera As Boolean = False)
         SyncLock Me
             _isPause = True
             Dim events As Boolean
@@ -21,7 +21,7 @@ Partial Public Class clOpros
                 End If
                 Dim session As New PhotoSession(wire, progress, Sub(frame) ParseRec(frame))
                 If capture Then
-                    session.Capture(address, cancel)
+                    session.Capture(address, cancel, plateCamera)
                     ' Снимок сразу забирается в папку и показывается в рамке: пока плата снимает,
                     ' команда 21 отвечает «занята» - повторяем до 60 с.
                     If folder IsNot Nothing Then

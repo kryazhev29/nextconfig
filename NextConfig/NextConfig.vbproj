@@ -107,6 +107,7 @@
     <Compile Include="PhotoSession.vb" />
     <Compile Include="PhotoDemoWire.vb" />
     <Compile Include="PhotoPanel.vb" />
+    <Compile Include="PlatePanel.vb" />
     <Compile Include="clOprosPhoto.vb" />
     <Compile Include="clOpros.vb" />
     <Compile Include="clOprosCommands.vb" />

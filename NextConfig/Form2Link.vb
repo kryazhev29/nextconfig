@@ -62,26 +62,32 @@ Partial Public Class Form2
     End Function
 
     ' Рядом, пока справа от фото остаётся не меньше 380 точек; иначе друг под другом.
+    ' Камера номеров (если она есть в таблице RS-485) — под памятью ID или последней строкой.
     Private Sub ArrangeMediaRow()
         If memoryCard Is Nothing Then Return
         Dim overview = tabState.Controls(0)
         Dim narrow = overview.ClientSize.Width < photoCard.PreferredSize.Width + Theme.ControlPx(overview, 380 + 2 * 24)
         Dim columns = If(narrow, 1, 2)
-        If mediaGrid.ColumnCount = columns AndAlso mediaGrid.Controls.Count = 2 Then Return
+        Dim plate = plateCard.HasCamera
+        If mediaGrid.ColumnCount = columns AndAlso mediaGrid.Controls.Count = If(plate, 3, 2) Then Return
         Dim gap = Theme.ControlPx(mediaGrid, 8)
         mediaGrid.SuspendLayout()
         mediaGrid.Controls.Clear() : mediaGrid.ColumnStyles.Clear() : mediaGrid.RowStyles.Clear()
-        mediaGrid.ColumnCount = columns : mediaGrid.RowCount = 3 - columns
+        mediaGrid.ColumnCount = columns
+        mediaGrid.RowCount = If(narrow, 2, 1) + If(plate, 1, 0)
         mediaGrid.ColumnStyles.Add(New ColumnStyle(If(narrow, SizeType.Percent, SizeType.AutoSize), 100))
         If Not narrow Then mediaGrid.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
         For i = 1 To mediaGrid.RowCount
             mediaGrid.RowStyles.Add(New RowStyle(SizeType.AutoSize))
         Next
-        photoCard.Dock = DockStyle.Fill : memoryCard.Dock = DockStyle.Fill
+        photoCard.Dock = DockStyle.Fill : memoryCard.Dock = DockStyle.Fill : plateCard.Dock = DockStyle.Fill
         photoCard.Margin = New Padding(0, 0, If(narrow, 0, gap), If(narrow, gap, 0))
-        memoryCard.Margin = New Padding(If(narrow, 0, gap), 0, 0, 0)
+        memoryCard.Margin = New Padding(If(narrow, 0, gap), 0, 0, If(plate, gap, 0))
+        plateCard.Margin = New Padding(If(narrow, 0, gap), 0, 0, 0)
         mediaGrid.Controls.Add(photoCard, 0, 0)
+        mediaGrid.SetRowSpan(photoCard, If(plate AndAlso Not narrow, 2, 1))
         mediaGrid.Controls.Add(memoryCard, If(narrow, 0, 1), If(narrow, 1, 0))
+        If plate Then mediaGrid.Controls.Add(plateCard, If(narrow, 0, 1), If(narrow, 2, 1))
         mediaGrid.ResumeLayout(True)
     End Sub
 

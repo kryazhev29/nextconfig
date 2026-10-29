@@ -15,6 +15,7 @@ Imports System.Threading
 '   NextConfig.exe --demo:two       две платы NEXT: на связи и без сети
 '   --demo-link=wifi | fallback | switch   вместе с --demo: сервер через Wi-Fi (сотовая в резерве),
 '                       сети Wi-Fi нет и сервер через 4G, смена канала каждые 40 с (событие в строке состояния)
+'   --demo-plate        вместе с --demo: в таблице RS-485 камера номеров (адрес 48), «Считать номер» даёт A001XH197
 Public Enum eDemoMode
     Off = 0
     Found = 1
@@ -538,6 +539,14 @@ Partial Public Class clOpros
     End Function
 
     ' Настройки, какие обычно стоят на стендовой плате.
+    ' Захват номера в демо: через 2 с номер приходит пакетом 8 тем же путём, что от платы по USB.
+    Private Function DemoCapture(address As Byte) As Integer
+        Dim body = New Byte() {1}.Concat(Text.Encoding.ASCII.GetBytes("A001XH197")).Concat(New Byte() {0}).ToArray()
+        Dim frame = SldnStream.Frame(eCmd.REC_READEDID, body, 77)
+        Tasks.Task.Delay(2000).ContinueWith(Sub(t) Comport.CheckReceivedBytes(frame))
+        Return 0
+    End Function
+
     Private Function DemoConfig() As s_config
         Dim c As New s_config
 
@@ -556,8 +565,9 @@ Partial Public Class clOpros
         c.VoLTE = 1
         c.rs485Mode = If(PhotoDemoWire.Scenario = "no-camera", CByte(0), CByte(1))
         c.rs485Baud = 0
-        c.periph1.rs485Adr = 1
-        c.periph1.rs485Type = PeripheryNames.CameraType
+        Dim plate = Environment.GetCommandLineArgs().Contains("--demo-plate")
+        c.periph1.rs485Adr = If(plate, CByte(48), CByte(1))
+        c.periph1.rs485Type = If(plate, PeripheryNames.PlateCameraType, PeripheryNames.CameraType)
         c.enableNTPsync = 1
         c.wiegandType = 0
         c.in1Func = 0

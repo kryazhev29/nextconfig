@@ -207,7 +207,9 @@ Partial Public Class clOpros
         CMD_RESET = 2
         CMD_SETDEF = 3
         REC_FWSTATUS = 4
+        CMD_GETID = 6 ' захват ID: время, источник (3 — RS-485), адрес; ответ 8 приходит в канал запроса
         CMD_SETOUT = 8
+        REC_READEDID = 8
         REC_ANSWER = 11
         CMD_SETCONFIG = 12
         REC_TIMESHTAMP = 12

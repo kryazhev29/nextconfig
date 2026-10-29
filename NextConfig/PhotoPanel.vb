@@ -22,6 +22,7 @@ Public Class PhotoPanel
     Private cancellation As CancellationTokenSource
     Private blocked As Boolean = True
     Private configured As Boolean
+    Private plateAddresses As Byte() = {}
     Private lastImage As String
     Private lastPhoto As Byte()
     Private lastPhotoTime As DateTime
@@ -105,9 +106,10 @@ Public Class PhotoPanel
                         Optional wifiPort As Boolean = False)
         If legacy Then Return
         blocked = updating OrElse Not fresh
-        Dim available = {config.periph1, config.periph2, config.periph3, config.periph4,
-            config.periph5, config.periph6, config.periph7, config.periph8}.
-            Where(Function(p) p.rs485Type = PeripheryNames.CameraType).Select(Function(p) p.rs485Adr).Distinct().ToArray()
+        Dim cameras = {config.periph1, config.periph2, config.periph3, config.periph4,
+            config.periph5, config.periph6, config.periph7, config.periph8}.Where(Function(p) PeripheryNames.IsCamera(p.rs485Type))
+        Dim available = cameras.Select(Function(p) p.rs485Adr).Distinct().ToArray()
+        plateAddresses = cameras.Where(Function(p) p.rs485Type = PeripheryNames.PlateCameraType).Select(Function(p) p.rs485Adr).ToArray()
         configured = config.rs485Mode = 1 AndAlso available.Length > 0 AndAlso Not wifiPort
         addressCaption.Visible = Not camera232 : addresses.Visible = Not camera232
         If camera232 Then
@@ -129,11 +131,16 @@ Public Class PhotoPanel
         End If
         hint.Text = If(updating, "Идёт обновление прошивки. Съёмка и выгрузка недоступны.",
             If(Not fresh, "Ожидание свежего состояния платы…", If(wifiPort,
-            "Камера недоступна: порт RS-485 занят Wi-Fi-мостом.", If(configured,
-            "Камера C328 · адрес RS-485. Нажмите на фото, чтобы открыть крупнее.",
-            "Для съёмки нужны активный RS-485 и периферия «Фотокамера» (тип 2). Проверьте настройки; они не изменены."))))
+            "Камера недоступна: порт RS-485 занят Wi-Fi-мостом.", If(Not configured,
+            "Для съёмки нужны активный RS-485 и камера в таблице RS-485: JPEG (тип 9) или камера номеров (тип 8). Проверьте настройки; они не изменены.",
+            If(PlateSelected(), "Камера номеров · адрес RS-485: снимок только пока номер в кадре. Нажмите на фото, чтобы открыть крупнее.",
+            "Камера C328 · адрес RS-485. Нажмите на фото, чтобы открыть крупнее.")))))
         UpdateButtons()
     End Sub
+
+    Private Function PlateSelected() As Boolean
+        Return addresses.SelectedItem IsNot Nothing AndAlso plateAddresses.Contains(CByte(addresses.SelectedItem))
+    End Function
 
     Private Sub UpdateButtons()
         shoot.Enabled = Not Busy AndAlso Not blocked AndAlso (configured OrElse legacy)
@@ -159,6 +166,7 @@ Public Class PhotoPanel
             End Using
         End If
         Dim address = If(addresses.SelectedItem Is Nothing, CByte(0), CByte(addresses.SelectedItem))
+        Dim plateCamera = PlateSelected()
         cancellation = New CancellationTokenSource()
         Dim token = cancellation.Token
         UpdateButtons() : RaiseEvent BusyChanged(True)
@@ -166,7 +174,7 @@ Public Class PhotoPanel
             Dim report As Action(Of PhotoProgress) = Sub(p)
                 If Not IsDisposed AndAlso IsHandleCreated Then BeginInvoke(New Action(Sub() Display(p)))
             End Sub
-            Await Task.Run(Sub() opros.Photo(capture, address, imei, folder, report, token))
+            Await Task.Run(Sub() opros.Photo(capture, address, imei, folder, report, token, plateCamera))
         Catch ex As OperationCanceledException
             progress.Text = "Операция отменена. Принятая часть сохранена; для продолжения выберите ту же папку."
         Catch ex As Exception

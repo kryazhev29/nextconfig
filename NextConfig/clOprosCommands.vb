@@ -7,6 +7,28 @@ Partial Public Class clOpros
     ' источник команды 8: 1 - мобильное приложение, 2 - API, 3 - тест из админки,
     ' 4 - голосовой помощник
     Private Const SRC_TEST As Byte = 3
+    ' источник захвата команды 6: 1 - Wiegand, 3 - RS-485 (камера номеров по адресу)
+    Private Const SRC_485 As Byte = 3
+
+    ' Захват номера камерой (команда 6): код ответа платы, -1 - ответа нет. После 0 номер
+    ' (или 255 - время вышло) приходит пакетом 8 событием ClComPort.ReceiveBytes.
+    Public Function CaptureId(seconds As Byte, address As Byte) As Integer
+        If Demo.IsOn Then Return DemoCapture(address)
+        SyncLock Me
+            _isPause = True
+            Try
+                While _isSending
+                    Thread.Sleep(1)
+                End While
+                Dim rec As Byte() = Nothing
+                If Comport.SendRecCmd(rec, SetCmd(eCmd.CMD_GETID, New Byte() {seconds, SRC_485, address}), 500) AndAlso
+                   SldnStream.IsAnswer(rec, eCmd.CMD_GETID) Then Return SldnStream.AnswerCode(rec)
+                Return -1
+            Finally
+                _isPause = False
+            End Try
+        End SyncLock
+    End Function
 
     ' Возвращает код ответа контроллера на команду 8: 0 - выполнено, 1 - ошибка параметра,
     ' 2 - выход не включился (не разрешён настройками реле или занят); -1 - ответа нет.

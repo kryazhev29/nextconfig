@@ -97,7 +97,7 @@ try {
 }finally{$form.Dispose()}
 # Карточка фото при выбранном Wi-Fi-модеме: камера в таблице есть, но порт занят мостом (22.10.2026).
 $config=New-Object 'NextConfig.clOpros+s_config'
-$config.rs485Mode=1; $p=$config.periph2; $p.rs485Adr=2; $p.rs485Type=2; $config.periph2=$p
+$config.rs485Mode=1; $p=$config.periph2; $p.rs485Adr=2; $p.rs485Type=9; $config.periph2=$p
 $photo=New-Object NextConfig.PhotoPanel($poller,'000000000000000')
 try {
     $photo.SetState($config,$false,$true,$false,$false)

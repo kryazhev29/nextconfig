@@ -4,6 +4,7 @@ Imports System.IO
 Public Class Form2
 
     Private photoCard As PhotoPanel
+    Private plateCard As PlatePanel
     Private photoClosePending As Boolean
     Private ReadOnly photoDisabled As New List(Of Control)
     Private WithEvents opros As clOpros
@@ -50,6 +51,7 @@ Public Class Form2
         lblPIN.Text = PinFormat.Digits(CUInt(_pin))
         pinCode = _pin
         photoCard = New PhotoPanel(opros, _imei)
+        plateCard = New PlatePanel(opros)
         Dim overview = DirectCast(tabState.Controls(0), TableLayoutPanel)
         Dim grid = DirectCast(overview.Controls(1), TableLayoutPanel)
         grid.RowCount = 4
@@ -100,6 +102,7 @@ Public Class Form2
         tmr1.Enabled = True
 
         AddHandler opros.GetComPort.ReceiveComand, AddressOf OnRecStr
+        AddHandler opros.GetComPort.ReceiveBytes, AddressOf plateCard.OnFrame
         opros.StopGetStatus(False)
 
         RestoreLogSelection()
@@ -119,6 +122,7 @@ Public Class Form2
         RemoveHandler opros.onLost, AddressOf OnErrorPort
 
         RemoveHandler opros.GetComPort.ReceiveComand, AddressOf OnRecStr
+        RemoveHandler opros.GetComPort.ReceiveBytes, AddressOf plateCard.OnFrame
         RemoveHandler opros.GetComPort.ErrorPort, AddressOf OnErrorPort
         RemoveHandler opros.GetComPort.PinRequired, AddressOf OnPinRequired
     End Sub
@@ -165,6 +169,8 @@ Public Class Form2
         UpdateIoButtons()
         UpdateFirmwareAvailability()
         photoCard.SetState(onBoard, status.readyToUpdate, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, Camera232, wifiPortBusy)
+        plateCard.SetState(onBoard, status, status.readyToUpdate OrElse busyWithBoard, DateTime.Now.Subtract(lastStatus).TotalSeconds <= StaleSeconds, wifiPortBusy)
+        ArrangeMediaRow()
         If lastStatus = DateTime.MinValue Then
             SetHeadState(Theme.eDot.Waiting, "Ожидание данных")
         ElseIf DateTime.Now.Subtract(lastStatus).TotalSeconds > StaleSeconds Then
@@ -320,6 +326,7 @@ Public Class Form2
         lastStatus = DateTime.Now
         TmrTick()
         photoCard.SetState(onBoard, status.readyToUpdate, True, Camera232, wifiPortBusy)
+        plateCard.SetState(onBoard, status, status.readyToUpdate OrElse busyWithBoard, True, wifiPortBusy)
         Status485()
 
         Theme.SetText(lblTime, DeviceTimeText(status.time))

@@ -41,6 +41,7 @@ Public Module Theme
     Public ReadOnly FontValueBig As Font = MakeFont(Family, 16.0F, FontStyle.Bold)        ' крупное значение состояния
     Public ReadOnly FontDot As Font = MakeFont("Segoe UI", 12.0F, FontStyle.Regular)      ' точка индикатора
     Public ReadOnly FontMono As Font = MakeFont(FamilyMono, 9.5F, FontStyle.Regular)      ' журнал
+    Public ReadOnly FontPlate As Font = MakeFont(FamilyMono, 22.0F, FontStyle.Bold)       ' номер автомобиля
 
     ' ---- масштаб Windows ----
     ' Размеры в оформлении и в формах записаны для обычного масштаба (100 %),

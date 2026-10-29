@@ -109,7 +109,8 @@ Public NotInheritable Class PhotoSession
         Throw New IOException("Нет свежего состояния платы. Операции с фото не начаты.")
     End Sub
 
-    Public Sub Capture(address As Byte, cancel As CancellationToken)
+    ' plateCamera - камера номеров (тип 8): плата снимает, только пока номер в кадре (иначе ответ 2).
+    Public Sub Capture(address As Byte, cancel As CancellationToken, Optional plateCamera As Boolean = False)
         CheckStatus(cancel)
         Dim id = Send(7, New Byte() {address})
         Tell("Запрос снимка: камера " & address & "…")
@@ -120,6 +121,9 @@ Public NotInheritable Class PhotoSession
             If ProcessStatus(frame) Then Continue Do
             If frame(7) <> id OrElse frame(8) <> 11 Then Continue Do
             If Not SldnStream.IsAnswer(frame, 7) Then Continue Do
+            If plateCamera AndAlso SldnStream.AnswerCode(frame) = 2 Then
+                Throw New IOException("Камера номеров снимает, только пока номер в кадре: поставьте машину перед камерой и повторите снимок.")
+            End If
             CheckAnswer(SldnStream.AnswerCode(frame), False)
             Tell("Камера снимает…")
             Return
@@ -186,7 +190,7 @@ Public NotInheritable Class PhotoSession
     Private Shared Sub CheckAnswer(code As Byte, downloading As Boolean)
         Select Case code
             Case 0 : Return
-            Case 1 : Throw New IOException("Камера не настроена: нужен активный RS-485 и периферия «Фотокамера» (тип 2) с выбранным адресом.")
+            Case 1 : Throw New IOException("Камера не настроена: нужен активный RS-485 и камера в таблице RS-485 (JPEG — тип 9, камера номеров — тип 8) с выбранным адресом.")
             Case 2
                 If downloading Then Throw New PhotoBusyException("Плата занята съёмкой, обновлением или подготовкой памяти. Повторите выгрузку позже.")
                 Throw New IOException("Плата занята или не может начать съёмку. Проверьте камеру и свободную память.")
